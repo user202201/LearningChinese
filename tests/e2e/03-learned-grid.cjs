@@ -1,0 +1,68 @@
+// "已学": every learned character in a 田字格 cell, tap the screen to show / hide pinyin, scroll up / down through all of them.
+const { start, checks, addKid, openKid, enterWeek, WEEK1 } = require('./harness.cjs');
+const { ok, done } = checks();
+const MANY = Array.from('一二三四五六七八九十上下大小山水火土木金日月田人口手足目耳心中天地风雨花草鸟鱼马牛羊虫书门工农学校早晚东西南北左右前后红黄蓝绿白黑'); // 60 distinct
+(async () => {
+  const { browser, page } = await start(new Map(), { local: true, today: '2026-11-08', viewport: { width: 820, height: 1000 } });
+  await addKid(page, 'Dory'); await openKid(page, 'Dory');
+  await page.click('button[data-tab=learned]');
+  await page.waitForSelector('#learned-scroll');
+  ok((await page.textContent('#learned-scroll')).includes('还没有学过的字'), 'empty library: tells where to add characters');
+  await page.click('button:has-text("本周")');
+  await enterWeek(page, '2026-10-25', WEEK1);
+  const DATES = ['2026-11-01', '2026-11-08', '2026-11-15', '2026-11-22', '2026-11-29'];
+  for (let i = 0; i < 5; i++) await enterWeek(page, DATES[i], MANY.slice(i * 12, i * 12 + 12).join(''));
+  await page.click('button[data-tab=learned]');
+  await page.waitForSelector('#grid .tzg');
+  ok(await page.locator('#grid .tzg').count() === 70, 'all 70 learned characters are in the grid (10 + 5 x 12)');
+  ok((await page.textContent('#count')) === '70', 'the total is shown as a big number');
+
+  const box = page.locator('#grid .tzg .box').first();
+  const css = await box.evaluate((e) => { const c = getComputedStyle(e); return { img: c.backgroundImage, border: c.borderTopWidth, ar: e.getBoundingClientRect().width / e.getBoundingClientRect().height }; });
+  ok(css.img.includes('gradient') && css.border === '2px', '田字格: a bordered square with a dashed cross');
+  ok(Math.abs(css.ar - 1) < 0.02, 'the cell is square');
+  const fs = await page.locator('#grid .ch').first().evaluate((e) => parseFloat(getComputedStyle(e).fontSize));
+  const bw = await box.evaluate((e) => e.getBoundingClientRect().width);
+  ok(fs > bw * 0.55 && fs < bw * 0.85, 'the character fills most of the cell (' + Math.round(fs) + 'px in ' + Math.round(bw) + 'px)');
+
+  // pinyin: hidden at first, a tap anywhere shows it, another tap hides it; no layout jump
+  const y0 = await page.locator('#grid .tzg .box').first().evaluate((e) => e.getBoundingClientRect().top);
+  ok(await page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) === 'hidden', 'pinyin is hidden at first');
+  await page.mouse.click(410, 600);
+  await page.waitForFunction(() => document.querySelector('#grid .tzg .py')?.textContent);
+  ok(await page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) === 'visible', 'a tap on the screen shows the pinyin');
+  ok((await page.textContent('#grid .tzg[data-ch=假] .py')) === 'jiǎ', 'pinyin of 假 is jiǎ (with tone)');
+  ok((await page.textContent('#grid .tzg[data-ch=酸] .py')) === 'suān', 'pinyin of 酸 is suān');
+  const y1 = await page.locator('#grid .tzg .box').first().evaluate((e) => e.getBoundingClientRect().top);
+  ok(y0 === y1, 'showing the pinyin does not move the characters');
+  await page.mouse.click(410, 600);
+  ok(await page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) === 'hidden', 'another tap hides it again');
+  await page.mouse.click(410, 600);                                   // on again, to check it is remembered
+  await page.reload(); await page.waitForSelector('#grid .tzg');
+  await page.waitForFunction(() => document.querySelector('#grid .tzg .py')?.textContent);
+  ok(await page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) === 'visible', 'the pinyin choice is remembered');
+
+  // scrolling up / down reaches every character; scrolling does not toggle the pinyin
+  const sc = page.locator('#learned-scroll');
+  const m = await sc.evaluate((e) => ({ sh: e.scrollHeight, ch: e.clientHeight }));
+  ok(m.sh > m.ch * 1.5, 'the list is taller than the screen and scrolls (' + m.sh + ' / ' + m.ch + ')');
+  await page.mouse.move(410, 500); await page.mouse.wheel(0, 100000);
+  await page.waitForTimeout(300);
+  const st = await sc.evaluate((e) => e.scrollTop);
+  ok(st > 0 && st + m.ch >= m.sh - 2, 'scrolling down reaches the end of the list');
+  ok(await page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) === 'visible', 'scrolling does not toggle the pinyin');
+  const last = await page.locator('#grid .tzg').last().evaluate((e) => { const r = e.getBoundingClientRect(); return r.bottom <= innerHeight + 1 && r.top >= 0; });
+  ok(last, 'the last character is fully on screen at the end');
+  await page.mouse.wheel(0, -100000); await page.waitForTimeout(300);
+  ok(await sc.evaluate((e) => e.scrollTop) === 0, 'and scrolling up returns to the top');
+  const wide = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+  ok(!wide, 'no sideways scrolling');
+  await page.screenshot({ path: (process.env.D || 'tests/out/work/') + 'learned-grid.png' });
+
+  // the week view follows the same pinyin setting
+  await page.click('button:has-text("本周")');
+  await page.waitForSelector('.cards .tzg .py');
+  await page.waitForFunction(() => document.querySelector('.cards .tzg .py')?.textContent);
+  ok(await page.locator('.cards .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) === 'visible', 'the week cards show pinyin when it is on');
+  await done(browser);
+})();
