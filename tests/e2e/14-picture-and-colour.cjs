@@ -21,6 +21,8 @@ const css = (h) => `rgb(${rgb(h).join(', ')})`;
   const pencil = await page.$eval('#hero-avatar', (e) => getComputedStyle(e, '::after').content);
   ok(pencil === 'none' || pencil === 'normal' || pencil === '""', 'there is no pencil badge on it any more (' + pencil + ')');
   ok((await page.getAttribute('#hero-avatar', 'title')) === '双击修改头像和颜色', 'its tip says to double-tap');
+  const ta = await page.evaluate(() => ['body', '#hero-avatar', '#hero-avatar svg', '.tabs button', '.weekbar button'].map((s) => [s, getComputedStyle(document.querySelector(s)).touchAction]));
+  ok(ta.every(([, v]) => v === 'manipulation'), 'double-tap zoom is switched off on the page, the picture, the tabs and the buttons (touch-action: manipulation): ' + ta.map((x) => x.join('=')).join(', '));
   const hash = await page.evaluate(() => location.hash);
   await page.click('#hero-avatar'); await page.waitForTimeout(600);
   ok(await page.locator('dialog').count() === 0, 'a single click does not open anything');
