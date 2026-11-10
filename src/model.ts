@@ -119,14 +119,6 @@ export const allChars = (kid: KidData): string[] => kid.weeks.flatMap((w) => w.c
 export const allIdioms = (all: IdiomsFile): string[] => all.weeks.flatMap((w) => w.items);
 export const weekOf = (kid: KidData, start: string): Week | undefined => kid.weeks.find((w) => w.start === start);
 
-/** the week to show first: this calendar week; when the user has not entered it yet, the newest entered week */
-export function defaultWeek(today: string, kid: KidData, idioms: IdiomsFile): string {
-  const now = sundayOf(today);
-  const starts = [...kid.weeks.map((w) => w.start), ...idioms.weeks.map((w) => w.start)];
-  if (!starts.length || starts.includes(now)) return now;
-  return starts.sort().at(-1)!;
-}
-
 /** the week that starts the numbering: the earliest entered week, unless the user had set an earlier one */
 export function pickStartWeek(current: string | undefined, start: string): string {
   return !current || start < current ? start : current;

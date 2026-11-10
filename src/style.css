@@ -133,7 +133,7 @@ svg[data-art] { display: block; width: 100%; height: 100%; }
 .idiom { border-radius: 999px; padding: 10px 20px; font: 800 23px var(--kai); color: #fff; box-shadow: 0 4px 0 rgba(0,0,0,.18); }
 .idiom:nth-child(6n+1) { background: #f2545b; } .idiom:nth-child(6n+2) { background: #339af0; } .idiom:nth-child(6n+3) { background: #37b24d; }
 .idiom:nth-child(6n+4) { background: #f08c00; } .idiom:nth-child(6n+5) { background: #7950f2; } .idiom:nth-child(6n+6) { background: #12b886; }
-.cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 10px; max-width: 600px; }   /* 10 characters = 5 x 2 */
+.cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 10px; }   /* 10 characters = 5 x 2, as wide as the week bar above (equal space left and right) */
 @media (max-width: 420px) { .cards { gap: 10px 6px; } .tzg .py { font-size: 12px; } .idiom { font-size: 20px; padding: 8px 16px; } }
 
 /* 田字格: paper cell with a dashed cross, in the child's colour */
@@ -197,3 +197,46 @@ select { width: 100%; margin-top: 6px; padding: 12px 14px; border: 2px solid var
 .updatebar { position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom) + 12px); z-index: 50; display: flex; align-items: center; gap: 12px; justify-content: space-between; max-width: 520px; margin: 0 auto; padding: 10px 12px 10px 20px; border-radius: 999px; background: #3a2e39; color: #fff; font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.3); animation: pop .3s both; }
 .updatebar button { min-height: 40px; padding: 6px 16px; }
 body.has-update .scroll { padding-bottom: calc(env(safe-area-inset-bottom) + 96px); }
+
+/* week page: small plus buttons, a big plus in the middle of an empty area */
+.sec-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sec-row .sec { margin-top: 22px; }
+.sec-row .plus { margin-top: 12px; width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 50%; border: 0; font-size: 26px; line-height: 1; color: #fff; background: var(--kid); box-shadow: 0 3px 0 color-mix(in srgb, var(--kid) 70%, #000); }
+.sec-row .plus:active { transform: translateY(3px); box-shadow: none; }
+.add-empty { display: flex; flex-direction: column; align-items: center; padding: 14px 0 6px; }
+.add-empty p { margin: 8px 0 0; color: var(--muted); font-weight: 700; font-size: 15px; }
+.add-big { width: 96px; height: 96px; min-height: 96px; padding: 0; border-radius: 50%; border: 3px dashed var(--kid); background: var(--kid-soft); color: var(--kid); font-size: 52px; line-height: 1; box-shadow: none; }
+.add-chip { width: 72px; min-height: 44px; padding: 0; border-radius: 999px; border: 2px dashed var(--kid); background: var(--kid-soft); color: var(--kid); font-size: 28px; line-height: 1; box-shadow: none; }
+.add-empty.small { padding: 4px 0 0; }
+button.icon:disabled { opacity: .3; }
+button.wlabel { flex: 1; border: 0; background: transparent; box-shadow: none; min-height: 0; padding: 2px 8px; color: var(--text); }
+button.wlabel:active { transform: none; }
+.tzg.tappable { cursor: pointer; }
+.tzg.tappable:active .box { transform: scale(.96); }
+.weeklist { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; max-height: 55dvh; overflow-y: auto; }
+.weekrow { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; text-align: left; justify-content: flex-start; }
+.weekrow.on { border-color: var(--accent); background: var(--accent-soft); }
+.weekrow strong { font-size: 18px; } .weekrow .counts { margin-left: auto; color: var(--muted); font-size: 13px; }
+
+/* full-screen character */
+.viewer { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background:
+    radial-gradient(circle at 50% 45%, #fff 0 30%, transparent 70%), color-mix(in srgb, var(--kid) 16%, #fff7e8); animation: pop .25s both; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.viewer .vtop { position: absolute; top: calc(env(safe-area-inset-top) + 10px); left: 12px; right: 12px; display: flex; align-items: center; justify-content: space-between; }
+.viewer .vcount { font-weight: 800; color: var(--kid); background: #fff; border-radius: 999px; padding: 6px 16px; box-shadow: var(--shadow); }
+.viewer .vclose { width: 48px; height: 48px; min-height: 48px; padding: 0; border-radius: 50%; font-size: 32px; line-height: 1; border: 0; background: #fff; box-shadow: var(--shadow); color: var(--text); }
+.viewer .vstage { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; cursor: pointer; }
+.viewer .tzg { position: relative; width: min(76vw, 62dvh, 640px); }
+.viewer .tzg .py { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); height: auto; font-size: clamp(22px, 5.5vmin, 44px); line-height: 1.2; }
+.viewer .tzg .box { border-width: 5px; border-radius: 26px; box-shadow: 0 8px 0 var(--kid-line), 0 14px 30px rgba(0,0,0,.12); }
+.viewer .tzg.from-right { animation: from-right .22s ease-out; } .viewer .tzg.from-left { animation: from-left .22s ease-out; }
+@keyframes from-right { from { opacity: .2; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+@keyframes from-left { from { opacity: .2; transform: translateX(-40px); } to { opacity: 1; transform: none; } }
+.viewer .vnav { position: absolute; top: 50%; margin-top: -28px; width: 56px; height: 56px; min-height: 56px; padding: 0; border-radius: 50%; border: 0; font-size: 38px; line-height: 1; color: #fff; background: var(--kid); box-shadow: 0 4px 0 color-mix(in srgb, var(--kid) 70%, #000); }
+.viewer .vnav.prev { left: max(10px, env(safe-area-inset-left)); } .viewer .vnav.next { right: max(10px, env(safe-area-inset-right)); }
+.viewer .vnav:disabled { opacity: .25; box-shadow: none; }
+.viewer .vhint { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 14px); margin: 0; text-align: center; color: var(--muted); font-size: 14px; font-weight: 700; padding: 0 70px; }
+/* narrow portrait screens (phones): the switch buttons go under the character so that they never lie on its frame */
+@media (max-width: 560px) and (max-aspect-ratio: 1/1) {
+  .viewer .vnav { top: auto; margin-top: 0; bottom: calc(env(safe-area-inset-bottom) + 58px); width: 52px; height: 52px; min-height: 52px; }
+  .viewer .vhint { padding: 0 16px; }
+}

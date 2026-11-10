@@ -1,5 +1,5 @@
 // Children (3), entering a week, "already learned?" detection, shared idioms, week navigation, rename / delete.
-const { start, checks, addKid, openKid, enterWeek, WEEK1, WEEK2, WEEK3 } = require('./harness.cjs');
+const { start, checks, addKid, openKid, enterWeek, gotoWeek, WEEK1, WEEK2, WEEK3 } = require('./harness.cjs');
 const { ok, done } = checks();
 (async () => {
   const { browser, page } = await start(new Map(), { local: true, today: '2026-11-10' });
@@ -59,8 +59,8 @@ const { ok, done } = checks();
   await page.click('dialog button:has-text("取消")');
 
   // week navigation
-  await page.click('button[title=上一周]');
-  ok((await page.textContent('.wlabel strong')) === '第2周' && await page.locator('.cards .tzg').count() === 10, 'previous week shows week 2');
+  await gotoWeek(page, '2026-11-01');
+  ok((await page.textContent('.wlabel strong')) === '第2周' && await page.locator('.cards .tzg').count() === 10, 'choosing week 2 in the week list shows it');
   await page.click('button[title=下一周]'); await page.click('button[title=下一周]');
   ok((await page.textContent('h2.sec >> nth=0')).includes('（0）'), 'a week with nothing entered is empty');
   await page.click('text=回到本周');
@@ -90,7 +90,7 @@ const { ok, done } = checks();
   await page.waitForSelector('#toasts .toast:has-text("已删除")');
   ok(await page.locator('.kid').count() === 2, 'child deleted');
   await openKid(page, 'Dory');
-  await page.click('button[title=上一周]'); await page.click('button[title=上一周]');
+  await gotoWeek(page, '2026-10-25');
   ok(await page.locator('.idiom').count() === 6, 'idioms (shared) are untouched');
   await done(browser);
 })();

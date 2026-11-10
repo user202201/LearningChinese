@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { zipSync, strToU8 } = require('fflate');
-const { start, checks } = require('./harness.cjs');
+const { start, checks, gotoWeek } = require('./harness.cjs');
 const { ok, done } = checks();
 const OUT = process.env.D || 'tests/out/work/';
 const SAMPLE = path.resolve(__dirname, '../fixtures/sample.xlsx');
@@ -52,7 +52,7 @@ const SAMPLE = path.resolve(__dirname, '../fixtures/sample.xlsx');
   // the imported data is there in the child's page
   await page.click('.kid:has-text("Dory")'); await page.waitForSelector('#enter');
   ok((await page.textContent('.wlabel strong')) === '第3周' && await page.locator('.cards .tzg').count() === 10, "Dory's page shows week 3 with its 10 characters");
-  await page.click('button[title=上一周]'); await page.click('button[title=上一周]');
+  await gotoWeek(page, '2026-10-25');
   ok(await page.locator('.idiom').count() === 6 && (await page.textContent('.wlabel strong')) === '第1周', 'week 1 has the 6 idioms of the 成语 tab');
   await page.click('button.back'); await page.waitForSelector('.kids');
 

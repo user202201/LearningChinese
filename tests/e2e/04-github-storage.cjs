@@ -1,6 +1,6 @@
 // Data in the private repository: which files are written, UTF-8 round trip, a second device sees it, two devices editing at the same time
 // are merged (not overwritten), a lost connection is reported and nothing is claimed as saved, delete removes the file.
-const { start, checks, addKid, openKid, enterWeek, WEEK1, WEEK2, REPO, URL } = require('./harness.cjs');
+const { start, checks, addKid, openKid, enterWeek, gotoWeek, WEEK1, WEEK2, REPO, URL } = require('./harness.cjs');
 const { ok, done } = checks();
 (async () => {
   const store = new Map();
@@ -21,7 +21,7 @@ const { ok, done } = checks();
 
   // a second device (fresh browser) signs in and sees the same data
   const b = await start(store, { today: '2026-11-10' });
-  await openKid(b.page, 'Dory');   // this week is empty, so the newest entered week is shown
+  await openKid(b.page, 'Dory'); await gotoWeek(b.page, '2026-10-25');   // (opens on the current week, which is empty)
   ok(await b.page.locator('.cards .tzg').count() === 10, 'a second device sees the 10 characters');
   await b.browser.close();
 

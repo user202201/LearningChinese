@@ -1,5 +1,13 @@
 /** Translations of the UI texts, keyed by the Chinese source text (see i18n.ts). `npm run check:i18n` fails when one is missing. */
 export const EN: Record<string, string> = {
+  "上一个": "Previous",
+  "下一个": "Next",
+  "关闭": "Close",
+  "汉字 {0} · 成语 {1}": "Characters {0} · Idioms {1}",
+  "点 ＋ 录入这一周的汉字": "Tap + to enter this week's characters",
+  "点击汉字显示 / 隐藏拼音，左右滑动切换": "Tap the character to show / hide pinyin, swipe left or right to switch",
+  "选择周": "Choose a week",
+  "＋": "+",
   "应用": "App",
   "检查更新": "Check for updates",
   "强制刷新（清除缓存）": "Force refresh (clear the cache)",
@@ -157,6 +165,14 @@ export const EN: Record<string, string> = {
   "重试": "Retry",
 };
 export const FR: Record<string, string> = {
+  "上一个": "Précédent",
+  "下一个": "Suivant",
+  "关闭": "Fermer",
+  "汉字 {0} · 成语 {1}": "Caractères {0} · Idiomes {1}",
+  "点 ＋ 录入这一周的汉字": "Touchez + pour saisir les caractères de la semaine",
+  "点击汉字显示 / 隐藏拼音，左右滑动切换": "Touchez le caractère pour afficher / masquer le pinyin, glissez à gauche ou à droite pour changer",
+  "选择周": "Choisir une semaine",
+  "＋": "+",
   "应用": "Application",
   "检查更新": "Rechercher une mise à jour",
   "强制刷新（清除缓存）": "Forcer l'actualisation (vider le cache)",

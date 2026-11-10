@@ -80,6 +80,8 @@ exports.addKid = async (page, name) => {
   await page.waitForSelector('.kname:has-text("' + name + '")');
 };
 exports.openKid = async (page, name) => { await page.click('.kid:has-text("' + name + '")'); await page.waitForSelector('#enter'); };
+/** earlier weeks are reached by tapping the week's name (the arrow only goes forward) */
+exports.gotoWeek = async (page, start) => { await page.click('#week-pick'); await page.click(`.weekrow[data-start="${start}"]`); await page.waitForSelector('dialog', { state: 'detached' }); };
 exports.enterWeek = async (page, date, chars, idioms = '') => {
   await page.click('#enter');
   await page.fill('dialog input[type=date]', date);

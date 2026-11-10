@@ -23,6 +23,8 @@ project PianistAssistant (same login, same storage idea, same test approach). Th
    closed when done, then a result message (or the error). Messages are always in the top band. Cancelling a confirmation must not produce a "done" message.
 9. **Automate.** Anything needed on every release (translations check, tests, deploy) belongs in a workflow or script (`.github/workflows/`), not in a to-do list for the user.
 10. **Camera.** The login screen scans a sign-in QR code with the camera (`src/scan.ts`); the iOS app will need the camera permission text (`NSCameraUsageDescription`) when it is packaged.
-11. **Planned, not built yet** (agreed with the user, see README): full-screen big character with left/right swipe, game mode (10 s countdown ring, wrong answers come back at the end,
+11. **Planned, not built yet** (agreed with the user, see README): game mode (10 s countdown ring, wrong answers come back at the end,
     adult taps right / wrong; speech recognition only as an optional experiment), weekly review by spaced repetition, Excel (.xlsx) EXPORT (import is built: `src/importer.ts`, `src/xlsx.ts`), iOS packaging (Capacitor).
 12. **One repository per app.** The login refuses a repository that holds another app's data (the piano app's `scores/` `inbox/` `pdfs/`). There are no accounts in this app: a token is just a GitHub key, and the data goes to the repository typed on the login screen.
+13. **Both sides equal.** Content must be centred: equal space left and right on every screen size (iPhone, iPad both ways, desktop). `11-centering-devices` measures it on 11 emulated screens; a new screen or element gets a check there. Screens are looked at as screenshots, not only measured.
+14. **Week page.** It opens on the week that contains today; the arrow goes forward only (earlier weeks: tap the week's name); an empty area shows a big + in the middle, a filled one a small +; no big button.

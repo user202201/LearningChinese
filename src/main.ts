@@ -225,7 +225,7 @@ async function renderKid(id: string, tab: "week" | "learned") {
   }
   if (curWeekKid !== id || !curWeek) {
     curWeekKid = id;
-    curWeek = M.defaultWeek(M.todayLocal(), kid, idioms);
+    curWeek = M.sundayOf(M.todayLocal()); // opening a child always starts on the week we are in
   }
   const body = h("div", { class: tab === "learned" ? "learned-wrap" : "scroll" });
   const nChars = M.allChars(kid).length;
@@ -249,35 +249,135 @@ async function renderKid(id: string, tab: "week" | "learned") {
 
 function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   body.replaceChildren();
-  const anchor = kidsFile.startWeek;
-  const no = M.weekNo(curWeek, anchor);
-  const isNow = curWeek === M.sundayOf(M.todayLocal());
+  const todayWeek = M.sundayOf(M.todayLocal());
+  const no = M.weekNo(curWeek, kidsFile.startWeek);
   const w = M.weekOf(kid, curWeek);
   const iw = idioms.weeks.find((x) => x.start === curWeek);
-  const shift = (d: number) => {
-    curWeek = M.addDays(curWeek, d * 7);
+  const go = (start: string) => {
+    curWeek = start;
     renderWeek(body, k, kid);
   };
+  // only forward: earlier weeks are in "Learned" (and can be reached by tapping the week's name)
   const bar = h("div", { class: "weekbar" },
-    h("button", { class: "icon", title: "上一周", "aria-label": "上一周", onclick: () => shift(-1) }, "‹"),
-    h("div", { class: "wlabel" }, h("strong", {}, `第${no}周`), h("span", { class: "muted" }, `${curWeek} ~ ${M.addDays(curWeek, 6)}`)),
-    h("button", { class: "icon", title: "下一周", "aria-label": "下一周", onclick: () => shift(1) }, "›"),
+    h("button", { class: "icon", title: "上一周", "aria-label": "上一周", disabled: curWeek <= todayWeek, onclick: () => go(M.addDays(curWeek, -7)) }, "‹"),
+    h("button", { class: "wlabel", id: "week-pick", title: "选择周", "aria-label": "选择周", onclick: () => void pickWeek(kid).then((start) => start && go(start)) },
+      h("strong", {}, `第${no}周`), h("span", { class: "muted" }, `${curWeek} ~ ${M.addDays(curWeek, 6)}`)),
+    h("button", { class: "icon", title: "下一周", "aria-label": "下一周", onclick: () => go(M.addDays(curWeek, 7)) }, "›"),
   );
   const chars = w?.chars ?? [];
-  const grid = h("div", { class: "cards" + (settings.pinyin ? " pinyin-on" : "") }, ...stagger(chars.map(cell)));
   const items = iw?.items ?? [];
+  const plus = (id: string, focus: "chars" | "idioms") => h("button", { class: "plus", id, title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k, focus) }, "＋");
+  const cards = chars.map((c, i) => {
+    const el = cell(c);
+    el.classList.add("tappable");
+    el.setAttribute("role", "button");
+    el.tabIndex = 0;
+    el.addEventListener("click", () => openViewer(chars, i, k.color));
+    el.addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), el.click()));
+    return el;
+  });
+  const grid = h("div", { class: "cards" + (settings.pinyin ? " pinyin-on" : "") }, ...stagger(cards));
   body.append(
     h("div", { class: "narrow" },
       bar,
-      isNow ? null : h("button", { class: "link", onclick: () => { curWeek = M.sundayOf(M.todayLocal()); renderWeek(body, k, kid); } }, "回到本周"),
-      h("h2", { class: "sec" }, `汉字（${chars.length}）`),
-      chars.length ? grid : h("p", { class: "empty" }, "这一周还没有录入汉字。"),
-      h("h2", { class: "sec idi" }, `成语（${items.length}）`),
-      items.length ? h("div", { class: "idioms" }, ...stagger(items.map((t) => h("span", { class: "idiom user" }, t)))) : h("p", { class: "empty" }, "这一周还没有录入成语。"),
-      h("button", { class: "primary wide", id: "enter", onclick: () => enterDialog(k) }, "＋ 录入这一周的内容"),
+      curWeek === todayWeek ? null : h("button", { class: "link", onclick: () => go(todayWeek) }, "回到本周"),
+      h("div", { class: "sec-row" }, h("h2", { class: "sec" }, `汉字（${chars.length}）`), chars.length ? plus("enter", "chars") : null),
+      chars.length
+        ? grid
+        : h("div", { class: "add-empty" }, h("button", { class: "add-big", id: "enter", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k, "chars") }, "＋"), h("p", {}, "点 ＋ 录入这一周的汉字")),
+      h("div", { class: "sec-row" }, h("h2", { class: "sec idi" }, `成语（${items.length}）`), items.length ? plus("enter-idioms", "idioms") : null),
+      items.length
+        ? h("div", { class: "idioms" }, ...stagger(items.map((t) => h("span", { class: "idiom user" }, t))))
+        : h("div", { class: "add-empty small" }, h("button", { class: "add-chip", id: "enter-idioms", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k, "idioms") }, "＋")),
     ),
   );
   if (settings.pinyin) void fillPinyin(grid);
+}
+
+/** every week that has something (and this week): choose one to look at */
+function pickWeek(kid: M.KidData): Promise<string | null> {
+  const todayWeek = M.sundayOf(M.todayLocal());
+  const starts = [...new Set([...kid.weeks.map((x) => x.start), ...idioms.weeks.map((x) => x.start), todayWeek])].sort().reverse();
+  return modal<string>((close) =>
+    h("div", { class: "dlg" }, h("h2", {}, "选择周"),
+      h("div", { class: "weeklist" }, ...starts.map((st) => {
+        const nc = M.weekOf(kid, st)?.chars.length ?? 0;
+        const ni = idioms.weeks.find((x) => x.start === st)?.items.length ?? 0;
+        return h("button", { class: "weekrow" + (st === curWeek ? " on" : ""), "data-start": st, onclick: () => close(st) },
+          h("strong", {}, `第${M.weekNo(st, kidsFile.startWeek)}周`),
+          h("span", { class: "muted" }, st),
+          st === todayWeek ? h("span", { class: "badge" }, "本周") : null,
+          h("span", { class: "counts" }, `汉字 ${nc} · 成语 ${ni}`));
+      })),
+      h("button", { class: "wide", onclick: () => close(null) }, "取消")));
+}
+
+// ---------- full-screen character (tap a character of the week) ----------
+/** the character, as large as the screen allows; left / right (buttons, swipe, arrow keys) go to the neighbours; a tap on it shows / hides the pinyin */
+function openViewer(chars: string[], start: number, color: string) {
+  let i = start;
+  const box = cell(chars[i]);
+  const count = h("span", { class: "vcount" });
+  const prev = h("button", { class: "vnav prev", id: "viewer-prev", title: "上一个", "aria-label": "上一个" }, "‹");
+  const next = h("button", { class: "vnav next", id: "viewer-next", title: "下一个", "aria-label": "下一个" }, "›");
+  const close = h("button", { class: "vclose", id: "viewer-close", title: "关闭", "aria-label": "关闭" }, "×");
+  const stage = h("div", { class: "vstage" }, box);
+  const root = h("div", { class: "viewer" + (settings.pinyin ? " pinyin-on" : ""), id: "viewer", role: "dialog", "aria-modal": "true", style: `--kid:${color}` },
+    h("div", { class: "vtop" }, count, close), stage, prev, next,
+    h("p", { class: "vhint" }, "点击汉字显示 / 隐藏拼音，左右滑动切换"));
+  const show = (dir = 0) => {
+    const ch = chars[i];
+    box.dataset.ch = ch;
+    (box.querySelector(".ch") as HTMLElement).textContent = ch;
+    (box.querySelector(".py") as HTMLElement).textContent = pinyinFn ? pinyinFn(ch) : "";
+    count.textContent = `${i + 1} / ${chars.length}`;
+    prev.disabled = i === 0;
+    next.disabled = i === chars.length - 1;
+    if (dir) { box.classList.remove("from-left", "from-right"); void box.offsetWidth; box.classList.add(dir > 0 ? "from-right" : "from-left"); }
+  };
+  const move = (d: number) => {
+    const n = Math.min(chars.length - 1, Math.max(0, i + d));
+    if (n === i) return;
+    i = n;
+    show(d);
+  };
+  const toggle = () => {
+    settings.pinyin = !settings.pinyin;
+    saveSettings();
+    root.classList.toggle("pinyin-on", settings.pinyin);
+    if (settings.pinyin) void loadPinyin().then(() => show());
+  };
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === "ArrowRight") move(1);
+    else if (e.key === "ArrowLeft") move(-1);
+    else if (e.key === "Escape") quit();
+  };
+  const quit = () => {
+    document.removeEventListener("keydown", onKey);
+    root.remove();
+    // the pinyin choice may have been changed in here: the cards behind follow it
+    document.querySelectorAll<HTMLElement>(".cards").forEach((g) => {
+      g.classList.toggle("pinyin-on", settings.pinyin);
+      if (settings.pinyin) void fillPinyin(g);
+    });
+  };
+  prev.addEventListener("click", () => move(-1));
+  next.addEventListener("click", () => move(1));
+  close.addEventListener("click", quit);
+  let down: { x: number; y: number } | null = null;
+  stage.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY }; });
+  stage.addEventListener("pointerup", (e) => {
+    if (!down) return;
+    const dx = e.clientX - down.x, dy = e.clientY - down.y;
+    down = null;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) move(dx < 0 ? 1 : -1);
+    else if (Math.abs(dx) < 12 && Math.abs(dy) < 12) toggle();
+  });
+  stage.addEventListener("pointercancel", () => (down = null));
+  document.addEventListener("keydown", onKey);
+  document.body.append(root);
+  show();
+  void loadPinyin().then(() => show());
 }
 
 function renderLearned(body: HTMLElement, kid: M.KidData) {
@@ -341,7 +441,7 @@ async function kidMenu(k: M.Kid) {
 }
 
 // ---------- entering a week ----------
-async function enterDialog(k: M.Kid) {
+async function enterDialog(k: M.Kid, focus: "chars" | "idioms" = "chars") {
   const kid = kidCache.get(k.id) ?? M.EMPTY_KID;
   const date = h("input", { type: "date", value: curWeek, "aria-label": "这一周的第一天（周日）" });
   const label = h("div", { class: "muted small" });
@@ -374,6 +474,7 @@ async function enterDialog(k: M.Kid) {
   refresh();
   const ok = await modal<boolean>((close) => {
     save.addEventListener("click", () => close(true));
+    queueMicrotask(() => (focus === "idioms" ? idi : chars).focus());
     return h("div", { class: "dlg wide-dlg" }, h("h2", {}, "录入这一周的内容"),
       h("label", {}, "这一周的第一天（周日）", date), label,
       h("label", {}, "汉字", chars), note1,
@@ -657,6 +758,7 @@ async function route() {
     return home();
   }
   if (!api.isSignedIn()) return renderLogin();
+  if (!/^#\/kid\//.test(hash)) { curWeek = ""; curWeekKid = ""; }
   const kid = /^#\/kid\/([\w-]+)(?:\/(learned))?$/.exec(hash);
   if (kid) return renderKid(kid[1], kid[2] ? "learned" : "week");
   if (hash === "#/settings") return renderSettings();
