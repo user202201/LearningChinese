@@ -857,7 +857,7 @@ async function renderSettings() {
         h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已学”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),
         account,
         h("div", { class: "card" }, h("h3", {}, "同步到 Google 表格"),
-          h("p", { class: "muted small" }, "在 Google 表格里加一小段脚本，它会每 10 分钟自动把这里的汉字抄到你的表格里（只读，不会改动这里的数据）。请在电脑上设置，大约 10 分钟，只做一次。"),
+          h("p", { class: "muted small" }, "在 Google 表格里加一小段脚本，它会每 10 分钟自动把你在这里新加的汉字填进表格里对应孩子、对应那一周的空格（只往空格里填，不改动表格里已有的内容，也不改动这里的数据）。请在电脑上设置，大约 10 分钟，只做一次。"),
           h("button", { class: "wide", id: "copy-sync", onclick: () => void copySyncScript() }, "复制同步脚本"),
           h("a", { class: "linkbtn", id: "sync-steps", href: SYNC_STEPS_URL, target: "_blank", rel: "noopener" }, "查看详细步骤")),
         h("div", { class: "card" }, h("h3", {}, "应用"),

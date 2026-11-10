@@ -1,19 +1,24 @@
 /**
- * 识字小助手 → Google 表格 自动同步脚本（Google Apps Script）
+ * 识字小助手 → Google 表格：把新加的汉字填进表格（Google Apps Script）
  *
  * 做什么：定时从你的私有 GitHub 数据仓库（LearningData）读取孩子们学过的汉字，
- *         按你表格原来的格式写进这个 Google 表格：
- *           每个孩子一个标签页（标签页名 = 孩子的名字），一行一周：
- *           A 列  第3周-2026-11-08      B ～ K 列  这一周的 10 个汉字      L 列  累计字数
- *         另有一个“同步状态”标签页，记录最后一次同步的时间和结果。
+ *         把“表格里还没有的字”填进对应孩子标签页、对应那一周那一行的 B ～ K 列的【空格】里。
+ *
+ * 它【只往空格里填】：
+ *   - 不删除、不覆盖任何已有内容（包括你手动录入的字）；
+ *   - 不碰 A 列、L 列，也不碰公式、格式、条件格式——你表格自己的“自动生成周标签、累计字数、
+ *     重复检测变色”照常工作；
+ *   - 这一周这一行里已经有的字不会重复填；重复运行不会重复填。
+ * 找行的办法：看这个孩子标签页 A 列里已经有的“第N周-日期”（例如 第3周-2026-11-08），
+ *   按日期对上 App 里的周；A 列还是空的下一周，就按“每周一行”顺着往下推。
  * 只读：脚本只读取 GitHub，不会改动 App 里的任何数据。
- * 注意：孩子的标签页由脚本整页重写——请不要在这些标签页里手改（下次同步会被覆盖）。
  *
  * 使用步骤见同目录的 README.md。整段复制到 扩展程序 → Apps Script，保存，刷新表格即可。
  */
 
 var STATUS_TAB = '同步状态';
-var MIN_CHARS = 10;            // 每周 10 个字：B ～ K，累计放在 L（某周超过 10 个字时，累计列整体往右挪）
+var FIRST_CHAR_COL = 2;        // B 列
+var CHAR_COLS = 10;            // B ～ K：每周 10 个字
 var EVERY_MINUTES = 10;        // 自动同步的间隔（分钟；只能是 1、5、10、15、30）
 
 // ---------- 菜单 ----------
@@ -78,50 +83,107 @@ function ghGet_(cfg, path) {
   return JSON.parse(res.getContentText());
 }
 
-// ---------- 整理成表格的样子（不碰表格，方便测试）----------
+// ---------- 判断往哪一行填（不碰表格，方便测试）----------
+var WEEK_MS = 7 * 86400000;
 function utcDay_(s) {
   var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s));
   return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN;
 }
-/** 第几周：从起始周算起（和 App 里的“第N周”一样） */
-function weekNo_(start, anchor) {
-  if (!anchor) return 1;
-  return Math.round((utcDay_(start) - utcDay_(anchor)) / (7 * 86400000)) + 1;
+/** A 列里的文字（例如 “第3周-2026-11-08”）里的日期，没有就返回 '' */
+function dateInLabel_(text) {
+  var m = /(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/.exec(String(text || ''));
+  if (!m) return '';
+  var mm = ('0' + m[2]).slice(-2), dd = ('0' + m[3]).slice(-2);
+  var s = m[1] + '-' + mm + '-' + dd;
+  var d = new Date(utcDay_(s));
+  return isNaN(+d) || d.getUTCDate() !== +dd || d.getUTCMonth() + 1 !== +mm ? '' : s;
 }
 /**
- * 一个孩子的所有周 → 表格的行。
- * 返回 { rows: [[标签, 字, 字, …, 累计], …], width: 列数, total: 总字数 }
- * 每行：A 列 “第N周-日期”，然后这周的字（不足的留空），最后一列是累计字数。
+ * 表格的周和行是怎么对应的：labels 是 A 列从第 1 行开始的文字。
+ * 找到第一个带日期的标签作为基准（第几行 = 哪一周）；A 列一个日期都没有时，用 fallback（FIRST_WEEK 或 App 里最早的一周）当第 1 行。
  */
-function buildKidRows_(kidData, anchor) {
-  var weeks = ((kidData && kidData.weeks) || []).filter(function (w) { return w.chars && w.chars.length; })
-    .sort(function (a, b) { return a.start < b.start ? -1 : a.start > b.start ? 1 : 0; });
-  var first = anchor || (weeks.length ? weeks[0].start : '');
-  var most = MIN_CHARS;
-  weeks.forEach(function (w) { if (w.chars.length > most) most = w.chars.length; });
-  var running = 0;
-  var rows = weeks.map(function (w) {
-    running += w.chars.length;
-    var row = ['第' + weekNo_(w.start, first) + '周-' + w.start];
-    for (var i = 0; i < most; i++) row.push(i < w.chars.length ? w.chars[i] : '');
-    row.push(running);
-    return row;
-  });
-  return { rows: rows, width: most + 2, total: running };
+function rowMap_(labels, fallback) {
+  for (var i = 0; i < labels.length; i++) {
+    var d = dateInLabel_(labels[i]);
+    if (d) return { row0: i + 1, date0: d, from: 'sheet' };
+  }
+  return fallback ? { row0: 1, date0: fallback, from: 'fallback' } : null;
 }
-/** 标签页的名字不能含 [ ] * ? : / \，也不能太长 */
-function safeTabName_(name) {
-  var n = String(name).replace(/[\[\]*?:\/\\]/g, '_').trim().slice(0, 90);
-  return n || '孩子';
+/**
+ * App 里的某一周 → 表格的第几行。
+ * 返回 { row: 行号 } ；或 { skip: '原因' }（这一周在表格第一行之前、日期对不上等，不填，只在状态里说明）
+ */
+function rowForWeek_(map, labels, start) {
+  var diff = utcDay_(start) - utcDay_(map.date0);
+  if (isNaN(diff)) return { skip: '周日期无法识别：' + start };
+  if (diff % WEEK_MS !== 0) return { skip: start + ' 和表格里的周对不上（表格按每周日一行）' };
+  var row = map.row0 + diff / WEEK_MS;
+  if (row < 1) return { skip: start + ' 在表格第一行（' + map.date0 + '）之前，表格里没有这一行' };
+  var shown = dateInLabel_(labels[row - 1]);
+  if (shown && shown !== start) return { skip: '第 ' + row + ' 行的周标签是 ' + shown + '，和 App 里的 ' + start + ' 对不上，没有填' };
+  return { row: row };
+}
+/**
+ * 把汉字填进这一行 B ～ K 的空格：已经有的字不重复，已有内容一律不动。
+ * current：这一行 B ～ K 现在的 10 个格子。返回 { fills: [[第几格(0～9), 字]], present: 已有的个数, noRoom: [放不下的字] }
+ */
+function placeChars_(current, chars) {
+  var have = {}, empty = [];
+  for (var i = 0; i < CHAR_COLS; i++) {
+    var v = String(current[i] === undefined || current[i] === null ? '' : current[i]).trim();
+    if (v) have[v] = true; else empty.push(i);
+  }
+  var fills = [], present = 0, noRoom = [], seen = {};
+  chars.forEach(function (c) {
+    if (seen[c]) return;       // 同一个字在 App 里这周只算一次
+    seen[c] = true;
+    if (have[c]) { present++; return; }
+    if (empty.length) fills.push([empty.shift(), c]); else noRoom.push(c);
+  });
+  return { fills: fills, present: present, noRoom: noRoom };
 }
 
 // ---------- 写进表格 ----------
-function writeKidTab_(ss, name, built) {
-  var sheet = ss.getSheetByName(name) || ss.insertSheet(name);
-  var lastRow = sheet.getLastRow(), lastCol = sheet.getLastColumn();
-  if (lastRow > 0 && lastCol > 0) sheet.getRange(1, 1, lastRow, lastCol).clearContent();   // 这个标签页整页由脚本管理
-  if (built.rows.length) sheet.getRange(1, 1, built.rows.length, built.width).setValues(built.rows);
+/** 找孩子的标签页：名字完全一样；找不到再忽略大小写和空格找一次；不会自己新建 */
+function findTab_(ss, name) {
+  var exact = ss.getSheetByName(name);
+  if (exact) return exact;
+  var want = String(name).trim().toLowerCase();
+  var all = ss.getSheets();
+  for (var i = 0; i < all.length; i++) if (String(all[i].getName()).trim().toLowerCase() === want) return all[i];
+  return null;
 }
+function readLabels_(sheet) {
+  var last = sheet.getLastRow();
+  return last < 1 ? [] : sheet.getRange(1, 1, last, 1).getDisplayValues().map(function (r) { return r[0]; });
+}
+
+/** 一个孩子：把 App 里的字填进表格。返回这个孩子的统计和说明 */
+function syncKid_(sheet, kidData, fallbackFirst) {
+  var out = { added: 0, present: 0, noRoom: [], notes: [], weeks: 0 };
+  var weeks = ((kidData && kidData.weeks) || []).filter(function (w) { return w.chars && w.chars.length; })
+    .sort(function (a, b) { return a.start < b.start ? -1 : a.start > b.start ? 1 : 0; });
+  if (!weeks.length) return out;
+  var labels = readLabels_(sheet);
+  var map = rowMap_(labels, fallbackFirst || weeks[0].start);
+  weeks.forEach(function (w) {
+    var at = rowForWeek_(map, labels, w.start);
+    if (at.skip) { out.notes.push(at.skip); return; }
+    out.weeks++;
+    if (at.row > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), at.row - sheet.getMaxRows());
+    var current = sheet.getRange(at.row, FIRST_CHAR_COL, 1, CHAR_COLS).getValues()[0];
+    var r = placeChars_(current, w.chars);
+    r.fills.forEach(function (f) { sheet.getRange(at.row, FIRST_CHAR_COL + f[0]).setValue(f[1]); });   // 只写空格，一格一格写
+    out.added += r.fills.length;
+    out.present += r.present;
+    if (r.noRoom.length) {
+      out.noRoom = out.noRoom.concat(r.noRoom);
+      out.notes.push('第 ' + at.row + ' 行（' + w.start + '）B～K 已经满了，放不下：' + r.noRoom.join(''));
+    }
+  });
+  return out;
+}
+
 function writeStatus_(ss, ok, message, lines) {
   var sheet = ss.getSheetByName(STATUS_TAB) || ss.insertSheet(STATUS_TAB);
   var lastRow = sheet.getLastRow(), lastCol = sheet.getLastColumn();
@@ -139,16 +201,17 @@ function doSync_() {
   var kidsFile = ghGet_(cfg, 'kids.json');
   if (!kidsFile) throw new Error('仓库里还没有 kids.json：请先在 App 里添加孩子和汉字。');
   var kids = kidsFile.kids || [];
-  var anchor = cfg.first || kidsFile.startWeek || '';
-  var lines = [];
+  var fallback = cfg.first || kidsFile.startWeek || '';
+  var lines = [], addedAll = 0;
   kids.forEach(function (k) {
+    var sheet = findTab_(ss, k.name);
+    if (!sheet) { lines.push(k.name + '：表格里没有叫“' + k.name + '”的标签页，已跳过（请把标签页改成孩子的名字）'); return; }
     var data = ghGet_(cfg, 'kids/' + k.id + '.json') || { weeks: [] };
-    var built = buildKidRows_(data, anchor);
-    var tab = safeTabName_(k.name);
-    writeKidTab_(ss, tab, built);
-    lines.push(k.name + '：' + built.rows.length + ' 周，共 ' + built.total + ' 个字（标签页“' + tab + '”）');
+    var r = syncKid_(sheet, data, fallback);
+    addedAll += r.added;
+    lines.push(k.name + '：新填入 ' + r.added + ' 个字，已有 ' + r.present + ' 个' + (r.notes.length ? '；注意：' + r.notes.join('；') : ''));
   });
-  var message = '已同步 ' + kids.length + ' 个孩子';
+  var message = '新填入 ' + addedAll + ' 个字（' + kids.length + ' 个孩子）';
   writeStatus_(ss, true, message, lines);
   return message + '\n' + lines.join('\n');
 }
