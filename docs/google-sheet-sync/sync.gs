@@ -185,7 +185,8 @@ function syncKid_(sheet, kidData, fallbackFirst) {
 }
 
 function writeStatus_(ss, ok, message, lines) {
-  var sheet = ss.getSheetByName(STATUS_TAB) || ss.insertSheet(STATUS_TAB);
+  // 新建时放在所有标签页的最右边（不指定位置的话，Google 会把它插在当前标签页旁边）；已经有的标签页不会被挪动
+  var sheet = ss.getSheetByName(STATUS_TAB) || ss.insertSheet(STATUS_TAB, ss.getSheets().length);
   var lastRow = sheet.getLastRow(), lastCol = sheet.getLastColumn();
   if (lastRow > 0 && lastCol > 0) sheet.getRange(1, 1, lastRow, lastCol).clearContent();
   var when = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');

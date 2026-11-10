@@ -36,7 +36,9 @@ function makeEnv({ files = {}, props = {}, status = {}, noUi = false, answers = 
     }
   }
   for (const [n, rows] of Object.entries(tabs)) sheets.set(n, new Sheet(n, rows));
-  const ss = { getSheetByName: (n) => sheets.get(n) || null, getSheets: () => [...sheets.values()], insertSheet: (n) => { const s = new Sheet(n); sheets.set(n, s); log.writes.push({ created: n }); return s; } };
+  // insertSheet(name, index): like Google, without an index the new tab goes next to the ACTIVE tab (here: the first one), with an index exactly there
+  const ss = { getSheetByName: (n) => sheets.get(n) || null, getSheets: () => [...sheets.values()],
+    insertSheet: (n, index) => { const s = new Sheet(n); const all = [...sheets.entries()]; all.splice(index === undefined ? Math.min(1, all.length) : index, 0, [n, s]); sheets.clear(); all.forEach(([k, v]) => sheets.set(k, v)); log.writes.push({ created: n, index }); return s; } };
   const propStore = new Map(Object.entries(props));
   const queue = [...answers];
   const ui = {
@@ -118,9 +120,16 @@ const auditOk = (log) => log.writes.filter((w) => w.tab && w.tab !== '同步状�
   ok(e.sheets.get('Antoine').cell(2, 2) === '天' && e.sheets.get('Antoine').cell(1, 1) === '', "Antoine's tab has no labels: the app's first week (2026-10-25) is row 1, so 2026-11-01 is row 2");
   ok(auditOk(e.log), 'AUDIT: every write is one cell of B..K that was empty before (nothing overwritten, nothing in A or L, no clearing): ' + e.log.writes.filter((w) => w.tab && w.tab !== '同步状态').length + ' writes');
   ok(!e.log.writes.some((w) => w.created && w.created !== '同步状态'), 'no tab is created except the status tab');
+  ok([...e.sheets.keys()].join() === 'Dory,Leo,Antoine,同步状态', 'the status tab is created at the far RIGHT, after all the children\'s tabs (not next to the active one): ' + [...e.sheets.keys()].join(' | '));
   const st = e.sheets.get('同步状态');
   ok(st.cell(2, 2) === '成功' && st.cell(3, 2).includes('新填入') && /Dory：新填入 6 个字，已有 30 个/.test(st.cell(4, 2)), 'the status tab: time, "success", and per child how many were added / already there (Dory: 6 / 30)');
   ok(e.log.fetches.length === 4 && e.log.fetches.every((f) => f.method === 'get'), 'GitHub is asked 4 times, only to READ');
+
+  e.run('syncAuto');
+  ok([...e.sheets.keys()].join() === 'Dory,Leo,Antoine,同步状态', 'a later sync does not move any tab');
+  const withOthers = makeEnv({ files: FILES, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [], 成语: [['一心一意']] } });
+  withOthers.run('syncAuto');
+  ok([...withOthers.sheets.keys()].at(-1) === '同步状态' && [...withOthers.sheets.keys()].slice(0, 4).join() === 'Dory,Leo,Antoine,成语', 'with other tabs in the sheet (such as 成语) the status tab is still the last one, and the others keep their order');
 
   // ---------- again: nothing more to do
   e.log.writes.length = 0; e.run('syncAuto');
