@@ -34,6 +34,8 @@ const fits = (page) => page.evaluate(() => {
     .filter((b) => b.getBoundingClientRect().width);
   for (let i = 0; i < btns.length; i++) for (let j = i + 1; j < btns.length; j++) {
     const a = btns[i].getBoundingClientRect(), b = btns[j].getBoundingClientRect();
+    const sticky = (el) => !!el.closest('.row.sticky');   // (the Done / Cancel bar stays at the bottom of a long window: the content scrolls under it on purpose)
+    if (sticky(btns[i]) !== sticky(btns[j])) continue;
     if (a.left < b.right - 2 && b.left < a.right - 2 && a.top < b.bottom - 2 && b.top < a.bottom - 2 && !btns[i].contains(btns[j]) && !btns[j].contains(btns[i])) bad.push('overlap: ' + btns[i].textContent.trim() + ' / ' + btns[j].textContent.trim());
   }
   return bad;
