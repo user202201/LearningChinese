@@ -273,10 +273,10 @@ async function renderKid(id: string, tab: "week" | "learned" | "game") {
   }
   const body = h("div", { class: tab === "learned" ? "learned-wrap" : "scroll" });
   const nChars = M.allChars(kid).length;
-  const tabs = h("div", { class: "seg tabs" },
+  const tabs = h("div", { class: "seg tabs" },   // Game | This week | Recorded: a child always opens in the middle one
+    h("button", { class: tab === "game" ? "on" : "", "data-tab": "game", id: "tab-game", onclick: () => (location.hash = `#/kid/${id}/game`) }, "游戏"),
     h("button", { class: tab === "week" ? "on" : "", onclick: () => (location.hash = `#/kid/${id}`) }, "本周"),
     h("button", { class: tab === "learned" ? "on" : "", "data-tab": "learned", onclick: () => (location.hash = `#/kid/${id}/learned`) }, `已入库 ${nChars}`),
-    h("button", { class: tab === "game" ? "on" : "", "data-tab": "game", id: "tab-game", onclick: () => (location.hash = `#/kid/${id}/game`) }, "游戏"),
   );
   show(
     h("div", { class: "page", style: `--kid:${k.color}` },
