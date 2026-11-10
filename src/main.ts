@@ -278,7 +278,7 @@ async function renderKid(id: string, tab: "week" | "learned" | "game") {
     h("button", { class: tab === "week" ? "on" : "", onclick: () => (location.hash = `#/kid/${id}`) }, "本周"),
     h("button", { class: tab === "learned" ? "on" : "", "data-tab": "learned", onclick: () => (location.hash = `#/kid/${id}/learned`) }, `已入库 ${nChars}`),
   );
-  show(
+  const page = (
     h("div", { class: "page", style: `--kid:${k.color}` },
       h("header", { class: "top hero kid-hero" },
         backBtn("#/", "孩子"),
@@ -287,8 +287,21 @@ async function renderKid(id: string, tab: "week" | "learned" | "game") {
         h("span", { class: "slot" })),
       h("div", { class: "tabs-row" }, tabs),
       body,
-    ),
+    )
   );
+  // a swipe to the left / right goes to the next / previous tab (Game | This week | Recorded)
+  const order: Tab3[] = ["game", "week", "learned"];
+  let from: { x: number; y: number } | null = null;
+  page.addEventListener("touchstart", (e) => { from = e.touches.length === 1 && !(e.target as HTMLElement).closest("dialog, input, textarea") ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; }, { passive: true });
+  page.addEventListener("touchend", (e) => {
+    if (!from || document.querySelector("dialog[open]")) return;
+    const dx = e.changedTouches[0].clientX - from.x, dy = e.changedTouches[0].clientY - from.y;
+    from = null;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const to = order[order.indexOf(tab) + (dx < 0 ? 1 : -1)];
+    if (to) location.hash = to === "week" ? `#/kid/${id}` : `#/kid/${id}/${to}`;
+  }, { passive: true });
+  show(page);
   if (tab === "week") renderWeek(body, k, kid);
   else if (tab === "learned") renderLearned(body, k, kid);
   else void renderGameLobby(body, k, kid);
@@ -296,6 +309,8 @@ async function renderKid(id: string, tab: "week" | "learned" | "game") {
 
 /** characters a week is meant to have: with this many the + is not offered any more */
 const WEEKLY = 10;
+
+type Tab3 = "week" | "learned" | "game";
 
 function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   body.replaceChildren();
