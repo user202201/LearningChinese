@@ -427,7 +427,7 @@ export const FR: Record<string, string> = {
   "自动": "Auto",
   "记录孩子每周学的汉字和成语。数据保存在你自己的私有 GitHub 仓库里，只有你能看到。": "Suivez les caractères et idiomes appris chaque semaine par vos enfants. Les données sont stockées dans votre propre dépôt GitHub privé : vous seul pouvez les voir.",
   "设置": "Réglages",
-  "识字小助手": "Motcart",
+  "识字小助手": "Mots Cases",
   "该仓库是公开的，学习记录会被所有人看到。请使用私有仓库。": "Ce dépôt est public : tout le monde pourrait voir les données. Utilisez un dépôt privé.",
   "语言": "Langue",
   "请先登录": "Connectez-vous d'abord",

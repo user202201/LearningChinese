@@ -1,4 +1,4 @@
-# 识字小助手 · Learning Chinese  (EN: Hanzippy · FR: Motcart)
+# 识字小助手 · Learning Chinese  (EN: Hanzippy · FR: Mots Cases)
 
 Track the Chinese characters and idioms your children learn each week. Web first (also usable from a phone), iOS app later.
 The app code is public; **the children's data is not in this repository** — it is stored in a separate **private** GitHub repository
