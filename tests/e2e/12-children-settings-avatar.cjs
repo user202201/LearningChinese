@@ -53,6 +53,8 @@ const art = (page, where) => page.$eval(where + ' .avatar svg', (s) => s.dataset
   ok(await page.locator('dialog #avatar-file').count() === 1 && await page.locator('dialog #take-photo').count() === 1, 'and "from the photo library" and "take a photo"');
   await page.screenshot({ path: (process.env.D || 'tests/out/work/') + 'avatar-dialog.png' });
   await page.click('dialog [data-animal=owl]');
+  ok((await art(page, 'dialog .avatar-now')) === 'owl', 'the choice shows in the preview at once (nothing is saved yet)');
+  await page.click('#avatar-done');
   await page.waitForSelector('#toasts .toast:has-text("已更换头像")');
   ok((await art(page, row('Dory'))) === 'owl', 'the chosen animal (owl) shows in Settings');
   ok(JSON.parse(store.get('kids.json')).kids[0].avatar === 'animal:owl', 'and is saved with the child (kids.json)');
@@ -68,6 +70,8 @@ const art = (page, where) => page.$eval(where + ' .avatar svg', (s) => s.dataset
   await page.click(`${row('Dory')} .change-avatar`); await page.waitForSelector('dialog .animals');
   ok(await page.locator('dialog [data-animal=owl].on').count() === 1, 'the dialog marks the animal that is in use');
   await page.setInputFiles('#avatar-file', { name: 'me.png', mimeType: 'image/png', buffer: PHOTO });
+  await page.waitForSelector('dialog .avatar-now img');
+  await page.click('#avatar-done');
   await page.waitForSelector(`${row('Dory')} .avatar img`);
   const left = await pixel(page, `${row('Dory')} .avatar img`, 20, 96), right = await pixel(page, `${row('Dory')} .avatar img`, 172, 96);
   await sizesOk(page, 'Settings, with a photo');
@@ -98,8 +102,10 @@ const art = (page, where) => page.$eval(where + ' .avatar svg', (s) => s.dataset
   ok((await page.$$eval('dialog .animals', (e) => e.length)) === 1 && store.get('kids.json') === beforeCam, 'and returns to the picture window; nothing was saved');
   await page.click('#take-photo'); await page.waitForSelector('dialog .scan-video'); await page.waitForTimeout(500);
   await page.click('#shutter');
-  await page.waitForFunction(() => !document.querySelector('dialog'));
-  await page.waitForFunction(() => !document.querySelector('#toasts .toast.working'));
+  await page.waitForFunction(() => document.querySelectorAll('dialog').length === 1);      // (the camera window closed, the picture window stays)
+  await page.waitForSelector('dialog .avatar-now img');
+  await page.click('#avatar-done');
+  await page.waitForFunction(() => !document.querySelector('dialog') && !document.querySelector('#toasts .toast.working'));
   ok(await cameraOff(page), 'after the photo the camera is switched off');
   const shot = await pixel(page, `${row('Dory')} .avatar img`, 20, 20);
   ok(shot.w === 192 && shot.rgb[1] > 120 && shot.rgb[0] < 80, 'the camera photo is the new picture (green: ' + shot.rgb + ')');
@@ -112,7 +118,7 @@ const art = (page, where) => page.$eval(where + ' .avatar svg', (s) => s.dataset
   await denied.page.click('#take-photo');
   await denied.page.waitForFunction(() => document.querySelector('#avatar-err')?.textContent.includes('相机权限'));
   ok(await denied.page.locator('dialog').count() === 1, 'camera refused: says why, the picture window stays open (animals and photo library still possible)');
-  await denied.page.click('dialog [data-animal=pig]'); await denied.page.waitForSelector('#toasts .toast:has-text("已更换头像")');
+  await denied.page.click('dialog [data-animal=pig]'); await denied.page.click('#avatar-done'); await denied.page.waitForSelector('#toasts .toast:has-text("已更换头像")');
   ok((await art(denied.page, '.kidrow')) === 'pig', 'and an animal can be chosen after that');
   await denied.browser.close();
 
@@ -120,7 +126,7 @@ const art = (page, where) => page.$eval(where + ' .avatar svg', (s) => s.dataset
   await page.waitForTimeout(3600);
   const saved = store.get('kids.json');
   await page.click(`${row('Leo')} .change-avatar`); await page.waitForSelector('dialog .animals');
-  await page.click('dialog .dlg > button:last-child'); await page.waitForSelector('dialog', { state: 'detached' });
+  await page.click('#avatar-cancel'); await page.waitForSelector('dialog', { state: 'detached' });
   ok(store.get('kids.json') === saved && await page.locator('#toasts .toast').count() === 0, 'cancelling the picture window changes nothing and shows no message');
 
   // --- a second device sees the picture (it lives in kids.json)

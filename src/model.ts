@@ -17,7 +17,9 @@ export const EMPTY_KIDS: KidsFile = { kids: [] };
 export const EMPTY_KID: KidData = { weeks: [] };
 export const EMPTY_IDIOMS: IdiomsFile = { weeks: [] };
 
-/** a bright colour for each child (all dark enough for white text) */
+/** the colours a child can choose from (all dark enough for white text: at least 3:1, checked by the tests) */
+export const PALETTE = ["#f2545b", "#d6336c", "#e8590c", "#2f9e44", "#099268", "#0c8599", "#1c7ed6", "#4263eb", "#7950f2", "#ae3ec9"];
+/** the colours given out to new children, one after the other */
 export const KID_COLORS = ["#f2545b", "#1c7ed6", "#2f9e44", "#e8590c", "#7950f2", "#099268"];
 
 // ---------- dates (always plain YYYY-MM-DD, computed in UTC so summer time cannot shift a week) ----------

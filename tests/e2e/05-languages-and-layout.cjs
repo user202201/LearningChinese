@@ -75,7 +75,7 @@ const fits = (page) => page.evaluate(() => {
       await check('settings'); await shot('6-settings');
       await page.click('.change-avatar >> nth=0'); await page.waitForSelector('dialog .animals');
       await check('picture dialog'); await shot('7-avatar');
-      await page.click('dialog .dlg > button:last-child'); await page.waitForSelector('dialog', { state: 'detached' });
+      await page.click('#avatar-cancel'); await page.waitForSelector('dialog', { state: 'detached' });
       await page.click('.rename >> nth=0'); await page.waitForSelector('dialog input');
       await check('rename dialog'); await page.click('dialog button:not(.primary)'); await page.waitForSelector('dialog', { state: 'detached' });
       await page.click('button:has-text("改用"), button:has-text("instead"), button:has-text("plutôt")');

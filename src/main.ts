@@ -264,7 +264,8 @@ async function renderKid(id: string, tab: "week" | "learned") {
     h("div", { class: "page", style: `--kid:${k.color}` },
       h("header", { class: "top hero kid-hero" },
         backBtn("#/", "孩子"),
-        h("h1", { class: "user-title" }, avatarEl(k), k.name),
+        h("h1", { class: "user-title" },
+          h("button", { class: "hero-avatar", id: "hero-avatar", title: "修改头像和颜色", "aria-label": "修改头像和颜色", onclick: () => void changeAvatar(k, () => void route()) }, avatarEl(k)), k.name),
         h("span", { class: "slot" })),
       h("div", { class: "tabs-row" }, tabs),
       body,
@@ -486,48 +487,73 @@ async function deleteKid(k: M.Kid) {
   }
 }
 
-/** choose a picture for a child: a drawn animal, a photo from the library, or a new photo with the camera */
-async function changeAvatar(k: M.Kid) {
-  const picked = await modal<string>((close) => {
+/**
+ * The window for a child's picture AND colour (from Settings, or by tapping the picture at the top of the child's own page):
+ * every choice is shown at once in the preview, and saved only with "Done" ("Cancel" changes nothing). `after` shows the screen again.
+ */
+async function changeAvatar(k: M.Kid, after: () => void) {
+  let avatar = k.avatar, color = k.color;
+  const picked = await modal<boolean>((close) => {
     const err = h("p", { class: "err", id: "avatar-err" });
+    const preview = h("div", { class: "avatar-now" });
+    const animals = h("div", { class: "animals" });
+    const swatches = h("div", { class: "swatches" });
+    const draw = () => {
+      preview.style.setProperty("--kid", color);
+      animals.style.setProperty("--kid", color);
+      preview.replaceChildren(avatarEl({ ...k, avatar, color }), h("span", { class: "user" }, k.name));
+      animals.querySelectorAll<HTMLElement>("button.animal").forEach((b) => b.classList.toggle("on", avatar === `animal:${b.dataset.animal}`));
+      swatches.querySelectorAll<HTMLElement>("button.swatch").forEach((b) => b.classList.toggle("on", color === b.dataset.color));
+    };
+    for (const c of M.PALETTE) {
+      swatches.append(h("button", { class: "swatch", "data-color": c, style: `background:${c}`, title: c, "aria-label": c, onclick: () => { color = c; draw(); } }));
+    }
+    for (const name of ANIMAL_NAMES) {
+      animals.append(h("button", { class: "animal", "data-animal": name, title: name, "aria-label": name, onclick: () => { avatar = `animal:${name}`; draw(); } }, animalNamed(name)));
+    }
     const file = h("input", { type: "file", accept: "image/*", id: "avatar-file", hidden: true });
     file.addEventListener("change", async () => {
       const f = file.files?.[0];
       if (!f) return;
       err.textContent = "";
       try {
-        close(await fileToAvatar(f));
+        avatar = await fileToAvatar(f);
+        draw();
       } catch (e) {
         err.textContent = errText(e);
-        file.value = "";
       }
+      file.value = "";
     });
-    const current = k.avatar ?? "";
-    const animals = h("div", { class: "animals", style: `--kid:${k.color}` }, ...ANIMAL_NAMES.map((name) =>
-      h("button", { class: "animal" + (current === `animal:${name}` ? " on" : ""), "data-animal": name, title: name, "aria-label": name, onclick: () => close(`animal:${name}`) }, animalNamed(name))));
-    return h("div", { class: "dlg wide-dlg" }, h("h2", {}, "选择头像"),
-      h("div", { class: "avatar-now" }, avatarEl(k), h("span", { class: "user" }, k.name)),
-      animals,
+    draw();
+    return h("div", { class: "dlg wide-dlg" }, h("h2", {}, "头像和颜色"),
+      preview,
+      h("h3", { class: "mini-h" }, "颜色"), swatches,
+      h("h3", { class: "mini-h" }, "头像"), animals,
       h("label", { class: "filebtn" }, "从相册选择", file),
       h("button", { class: "wide", id: "take-photo", onclick: async () => {
         err.textContent = "";
         try {
           const photo = await takePhoto();
-          if (photo) close(photo);
+          if (photo) {
+            avatar = photo;
+            draw();
+          }
         } catch (e) {
           err.textContent = errText(e);
         }
       } }, "拍照"),
       err,
-      h("button", { class: "wide", onclick: () => close(null) }, "取消"));
+      h("div", { class: "row end sticky" }, h("button", { id: "avatar-cancel", onclick: () => close(null) }, "取消"), h("button", { class: "primary", id: "avatar-done", onclick: () => close(true) }, "完成")));
   });
-  if (!picked) return; // cancelled: no message
+  if (!picked) return; // cancelled: nothing changes, nothing is said
+  const newAvatar = avatar !== k.avatar, newColor = color !== k.color;
+  if (!newAvatar && !newColor) return; // "Done" without a change
   const done = toast("正在保存…", 0, true);
   try {
-    kidsFile = await api.update<M.KidsFile>("kids.json", M.EMPTY_KIDS, (cur) => ({ ...cur, kids: cur.kids.map((x) => (x.id === k.id ? { ...x, avatar: picked } : x)) }), `avatar ${k.id}`);
+    kidsFile = await api.update<M.KidsFile>("kids.json", M.EMPTY_KIDS, (cur) => ({ ...cur, kids: cur.kids.map((x) => (x.id === k.id ? { ...x, avatar, color } : x)) }), `look ${k.id}`);
     done();
-    toast("已更换头像");
-    void renderSettings();
+    toast(newAvatar && newColor ? "已更换头像和颜色" : newAvatar ? "已更换头像" : "已更换颜色");
+    after();
   } catch (e) {
     done();
     toast(errText(e), 6000);
@@ -789,11 +815,11 @@ async function renderSettings() {
   // the children: not something done every day, so it lives here and not on the home screen
   const rows = kidsFile.kids.map((k) =>
     h("div", { class: "kidrow", "data-kid": k.id, style: `--kid:${k.color}` },
-      h("button", { class: "avatar-btn", title: "修改头像", "aria-label": "修改头像", onclick: () => void changeAvatar(k) }, avatarEl(k)),
+      h("button", { class: "avatar-btn", title: "修改头像和颜色", "aria-label": "修改头像和颜色", onclick: () => void changeAvatar(k, () => void renderSettings()) }, avatarEl(k)),
       h("span", { class: "kname user" }, k.name),
       h("div", { class: "kidact" },
         h("button", { class: "mini rename", onclick: () => void renameKid(k) }, "修改名字"),
-        h("button", { class: "mini change-avatar", onclick: () => void changeAvatar(k) }, "修改头像"),
+        h("button", { class: "mini change-avatar", onclick: () => void changeAvatar(k, () => void renderSettings()) }, "头像和颜色"),
         h("button", { class: "mini danger delete", onclick: () => void deleteKid(k) }, "删除"))));
   const kids = h("div", { class: "card" }, h("h3", {}, "孩子"), ...rows,
     h("button", { class: "wide", id: "add-kid", onclick: () => void addKid(() => void renderSettings()) }, "＋ 添加孩子"),

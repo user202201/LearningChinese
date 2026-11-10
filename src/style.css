@@ -281,3 +281,18 @@ button.shutter { width: 72px; height: 72px; min-height: 72px; padding: 0; border
 /* the whole screen is the control: left half = previous, right half = next, the 田字格 = pinyin */
 .viewer { cursor: pointer; }
 .viewer .vstage { cursor: inherit; }
+
+/* the picture at the top of a child's page is a button: it opens "picture and colour" (a small pencil says so) */
+button.hero-avatar { position: relative; display: block; flex: none; width: 44px; height: 44px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: none; box-shadow: none; }
+button.hero-avatar:active { transform: scale(.92); box-shadow: none; }
+button.hero-avatar::after { content: "✎"; position: absolute; right: -6px; bottom: -6px; width: 20px; height: 20px; border-radius: 50%; background: #fff; color: var(--kid); font-size: 12px; line-height: 20px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.top.hero h1 button.hero-avatar .avatar { width: 44px; height: 44px; }
+
+/* colours and pictures window */
+.mini-h { margin: 14px 0 6px; font-size: 14px; color: var(--muted); }
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+button.swatch { width: 40px; height: 40px; min-height: 0; padding: 0; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,.3); }
+button.swatch.on { outline: 4px solid var(--text); outline-offset: 1px; }
+
+/* the buttons of a long window stay at its bottom while the rest scrolls (a child must not have to look for "Done") */
+.dlg .row.sticky { position: sticky; bottom: -22px; margin: 12px -22px -22px; padding: 12px 22px 22px; background: linear-gradient(to bottom, transparent, #fffdf8 28%); z-index: 3; }

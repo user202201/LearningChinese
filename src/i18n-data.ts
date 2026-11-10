@@ -1,5 +1,11 @@
 /** Translations of the UI texts, keyed by the Chinese source text (see i18n.ts). `npm run check:i18n` fails when one is missing. */
 export const EN: Record<string, string> = {
+  "头像和颜色": "Picture and colour",
+  "修改头像和颜色": "Change picture and colour",
+  "颜色": "Colour",
+  "头像": "Picture",
+  "已更换头像和颜色": "Picture and colour changed",
+  "已更换颜色": "Colour changed",
   "点汉字显示 / 隐藏拼音；点屏幕左边 / 右边，或左右滑动，切换汉字": "Tap the character to show / hide pinyin; tap the left / right of the screen, or swipe, to switch",
   "删除这个汉字": "Delete this character",
   "删除这个汉字？": "Delete this character?",
@@ -185,6 +191,12 @@ export const EN: Record<string, string> = {
   "重试": "Retry",
 };
 export const FR: Record<string, string> = {
+  "头像和颜色": "Image et couleur",
+  "修改头像和颜色": "Changer l'image et la couleur",
+  "颜色": "Couleur",
+  "头像": "Image",
+  "已更换头像和颜色": "Image et couleur modifiées",
+  "已更换颜色": "Couleur modifiée",
   "点汉字显示 / 隐藏拼音；点屏幕左边 / 右边，或左右滑动，切换汉字": "Touchez le caractère pour afficher / masquer le pinyin ; touchez la gauche / droite de l'écran, ou glissez, pour changer",
   "删除这个汉字": "Supprimer ce caractère",
   "删除这个汉字？": "Supprimer ce caractère ?",
