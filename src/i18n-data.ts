@@ -1,6 +1,6 @@
 /** Translations of the UI texts, keyed by the Chinese source text (see i18n.ts). `npm run check:i18n` fails when one is missing. */
 export const EN: Record<string, string> = {
-  "在 Google 表格里加一小段脚本，它会每 10 分钟自动把你在这里新加的汉字填进表格里对应孩子、对应那一周的空格，你在这里删掉的字也会从表格里清掉（你在表格里手动录的内容不会被改动，这里的数据也不会被改动）。请在电脑上设置，大约 10 分钟，只做一次。": "Add a small script to your Google Sheet: every 10 minutes it fills the characters you newly add here into the empty cells of the right child and week in your sheet, and clears the characters you delete here (what you typed in the sheet yourself is never changed, and the data here is never changed). Set it up on a computer; about 10 minutes, once.",
+  "在 Google 表格里加一小段脚本，它会每周六、周日晚上各一次，自动把你在这里新加的汉字填进表格里对应孩子、对应那一周的空格，你在这里删掉的字也会从表格里清掉（你在表格里手动录的内容不会被改动，这里的数据也不会被改动）。请在电脑上设置，大约 10 分钟，只做一次。": "Add a small script to your Google Sheet: on Saturday and Sunday evening (once each) it fills the characters you newly add here into the empty cells of the right child and week in your sheet, and clears the characters you delete here (what you typed in the sheet yourself is never changed, and the data here is never changed). Set it up on a computer; about 10 minutes, once.",
   "同步到 Google 表格": "Sync to Google Sheets",
   "复制同步脚本": "Copy the sync script",
   "查看详细步骤": "See the step-by-step guide",
@@ -199,7 +199,7 @@ export const EN: Record<string, string> = {
   "重试": "Retry",
 };
 export const FR: Record<string, string> = {
-  "在 Google 表格里加一小段脚本，它会每 10 分钟自动把你在这里新加的汉字填进表格里对应孩子、对应那一周的空格，你在这里删掉的字也会从表格里清掉（你在表格里手动录的内容不会被改动，这里的数据也不会被改动）。请在电脑上设置，大约 10 分钟，只做一次。": "Ajoutez un petit script à votre Google Sheet : toutes les 10 minutes il place les caractères que vous venez d'ajouter ici dans les cases vides du bon enfant et de la bonne semaine de votre feuille, et efface ceux que vous supprimez ici (ce que vous avez saisi vous-même dans la feuille n'est jamais modifié, ni les données d'ici). À configurer sur un ordinateur ; environ 10 minutes, une seule fois.",
+  "在 Google 表格里加一小段脚本，它会每周六、周日晚上各一次，自动把你在这里新加的汉字填进表格里对应孩子、对应那一周的空格，你在这里删掉的字也会从表格里清掉（你在表格里手动录的内容不会被改动，这里的数据也不会被改动）。请在电脑上设置，大约 10 分钟，只做一次。": "Ajoutez un petit script à votre Google Sheet : le samedi et le dimanche soir (une fois chacun) il place les caractères que vous venez d'ajouter ici dans les cases vides du bon enfant et de la bonne semaine de votre feuille, et efface ceux que vous supprimez ici (ce que vous avez saisi vous-même dans la feuille n'est jamais modifié, ni les données d'ici). À configurer sur un ordinateur ; environ 10 minutes, une seule fois.",
   "同步到 Google 表格": "Synchroniser avec Google Sheets",
   "复制同步脚本": "Copier le script de synchronisation",
   "查看详细步骤": "Voir le guide pas à pas",

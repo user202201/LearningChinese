@@ -18,13 +18,15 @@
  *   按日期对上 App 里的周；A 列还是空的下一周，就按“每周一行”顺着往下推。
  * 只读：脚本只读取 GitHub，不会改动 App 里的任何数据。
  *
+ * 自动同步：默认每周六、周日晚上 8 点左右各一次（一周最多两次）；随时可以点菜单“立即同步”。
  * 使用步骤见同目录的 README.md。整段复制到 扩展程序 → Apps Script，保存，刷新表格即可。
  */
 
 var STATUS_TAB = '同步状态';
 var FIRST_CHAR_COL = 2;        // B 列
 var CHAR_COLS = 10;            // B ～ K：每周 10 个字
-var EVERY_MINUTES = 10;        // 自动同步的间隔（分钟；只能是 1、5、10、15、30）
+var SYNC_DAYS = ['SATURDAY', 'SUNDAY'];   // 自动同步在每周的哪几天（MONDAY 星期一 … SUNDAY 星期日）；只想每周一次就留一个，例如 ['SUNDAY']
+var SYNC_HOUR = 20;            // 几点同步（0～23，按这份表格的时区：文件 → 设置 → 时区）；Google 会在这个小时内的某个时间运行
 var MAX_DELETES = 30;          // 一次同步里，一个孩子最多从表格里清掉这么多个字（再多就不清，提醒你；可在脚本属性里加 MAX_DELETES 改）
 var RECORD_PREFIX = 'S|';      // 脚本属性里“App 上次有哪些字”的记录：S|孩子编号|周日期 = 这一周的字
 
@@ -33,7 +35,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('识字助手')
     .addItem('1. 设置 GitHub 连接', 'setupConnection')
     .addItem('2. 立即同步', 'syncNow')
-    .addItem('3. 开启自动同步（每 10 分钟）', 'enableAutoSync')
+    .addItem('3. 开启自动同步（周六、周日各一次）', 'enableAutoSync')
     .addItem('关闭自动同步', 'disableAutoSync')
     .addToUi();
 }
@@ -316,9 +318,15 @@ function removeTriggers_() {
 }
 function enableAutoSync() {
   var ui = SpreadsheetApp.getUi();
-  removeTriggers_();
-  ScriptApp.newTrigger('syncAuto').timeBased().everyMinutes(EVERY_MINUTES).create();
-  ui.alert('自动同步已开启', '以后每 ' + EVERY_MINUTES + ' 分钟自动同步一次。结果可以在“同步状态”标签页里看到。', ui.ButtonSet.OK);
+  removeTriggers_();      // 先删掉所有旧的自动同步（包括旧版本的“每 10 分钟”），再按现在的设置重新建
+  var zone = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+  SYNC_DAYS.forEach(function (d) {
+    ScriptApp.newTrigger('syncAuto').timeBased().onWeekDay(ScriptApp.WeekDay[d]).atHour(SYNC_HOUR).inTimezone(zone).create();
+  });
+  ui.alert('自动同步已开启', '以后每' + SYNC_DAYS.map(function (d) { return '周' + dayName_(d); }).join('、') + '的晚上 ' + SYNC_HOUR + ' 点左右自动同步一次（按这份表格的时区：' + zone + '）。\n想马上更新，点菜单 识字助手 → 2. 立即同步。结果可以在“同步状态”标签页里看到。', ui.ButtonSet.OK);
+}
+function dayName_(d) {
+  return { MONDAY: '一', TUESDAY: '二', WEDNESDAY: '三', THURSDAY: '四', FRIDAY: '五', SATURDAY: '六', SUNDAY: '日' }[d] || d;
 }
 function disableAutoSync() {
   removeTriggers_();

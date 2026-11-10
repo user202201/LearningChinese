@@ -11,7 +11,8 @@ const ROOT = path.resolve(__dirname, '../..');
 const SCRIPT = fs.readFileSync(path.join(ROOT, 'docs/google-sheet-sync/sync.gs'), 'utf8');
 const README = fs.readFileSync(path.join(ROOT, 'docs/google-sheet-sync/README.md'), 'utf8');
 
-function makeEnv({ files = {}, props = {}, status = {}, noUi = false, answers = [], tabs = {} } = {}) {
+function makeEnv({ files = {}, props = {}, status = {}, noUi = false, answers = [], tabs = {}, oldTimer = false } = {}) {
+  const opts_oldTimer = oldTimer;
   const sheets = new Map();
   const log = { fetches: [], alerts: [], menus: [], writes: [], inserted: [] };
   class Sheet {
@@ -37,7 +38,7 @@ function makeEnv({ files = {}, props = {}, status = {}, noUi = false, answers = 
   }
   for (const [n, rows] of Object.entries(tabs)) sheets.set(n, new Sheet(n, rows));
   // insertSheet(name, index): like Google, without an index the new tab goes next to the ACTIVE tab (here: the first one), with an index exactly there
-  const ss = { getSheetByName: (n) => sheets.get(n) || null, getSheets: () => [...sheets.values()],
+  const ss = { getSpreadsheetTimeZone: () => 'Asia/Shanghai', getSheetByName: (n) => sheets.get(n) || null, getSheets: () => [...sheets.values()],
     insertSheet: (n, index) => { const s = new Sheet(n); const all = [...sheets.entries()]; all.splice(index === undefined ? Math.min(1, all.length) : index, 0, [n, s]); sheets.clear(); all.forEach(([k, v]) => sheets.set(k, v)); log.writes.push({ created: n, index }); return s; } };
   const propStore = new Map(Object.entries(props));
   const queue = [...answers];
@@ -47,7 +48,7 @@ function makeEnv({ files = {}, props = {}, status = {}, noUi = false, answers = 
     prompt: () => { const a = queue.shift(); return { getSelectedButton: () => (a === null ? 'CANCEL' : 'OK'), getResponseText: () => a ?? '' }; },
     createMenu: (name) => { const m = { name, items: [] }; const chain = { addItem: (l, fn) => { m.items.push([l, fn]); return chain; }, addToUi: () => { log.menus.push(m); } }; return chain; },
   };
-  const triggers = [{ fn: 'somethingElse', minutes: 60, id: 0 }]; let tid = 1;
+  const triggers = [{ fn: 'somethingElse', minutes: 60, id: 0 }, ...(opts_oldTimer ? [{ fn: 'syncAuto', minutes: 10, id: 99 }] : [])]; let tid = 1;
   const ctx = {
     SpreadsheetApp: { getUi: () => { if (noUi) throw new Error('Cannot call SpreadsheetApp.getUi() from this context.'); return ui; }, getActiveSpreadsheet: () => ss },
     PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (propStore.has(k) ? propStore.get(k) : null), setProperties: (o) => Object.entries(o).forEach(([k, v]) => propStore.set(k, v)), setProperty: (k, v) => { propStore.set(k, String(v)); }, getProperties: () => Object.fromEntries(propStore), deleteProperty: (k) => { propStore.delete(k); } }) },
@@ -61,7 +62,11 @@ function makeEnv({ files = {}, props = {}, status = {}, noUi = false, answers = 
     ScriptApp: {
       getProjectTriggers: () => triggers.map((t) => ({ getHandlerFunction: () => t.fn, id: t.id })),
       deleteTrigger: (t) => { const i = triggers.findIndex((x) => x.id === t.id); if (i >= 0) triggers.splice(i, 1); },
-      newTrigger: (fn) => ({ timeBased: () => ({ everyMinutes: (n) => ({ create: () => triggers.push({ fn, minutes: n, id: tid++ }) }) }) }),
+      WeekDay: { MONDAY: 'MONDAY', TUESDAY: 'TUESDAY', WEDNESDAY: 'WEDNESDAY', THURSDAY: 'THURSDAY', FRIDAY: 'FRIDAY', SATURDAY: 'SATURDAY', SUNDAY: 'SUNDAY' },
+      newTrigger: (fn) => ({ timeBased: () => ({
+        everyMinutes: (n) => ({ create: () => triggers.push({ fn, minutes: n, id: tid++ }) }),
+        onWeekDay: (day) => ({ atHour: (h) => ({ inTimezone: (z) => ({ create: () => triggers.push({ fn, day, hour: h, zone: z, id: tid++ }) }) }) }),
+      }) }),
     },
     Utilities: { formatDate: (d) => d.toISOString().slice(0, 19).replace('T', ' ') },
     Session: { getScriptTimeZone: () => 'UTC' },
@@ -264,20 +269,28 @@ const auditOk = (log, dropped = []) => log.writes.filter((w) => w.tab && w.tab !
   s = makeEnv({ files: FILES, status: { '*': 401 }, answers: ['a/b', 'tok'] }); s.run('setupConnection');
   ok(s.log.alerts[0].title === '连接没有成功' && s.log.alerts[0].msg.includes('401'), 'a token that does not work is reported right away');
 
-  // ---------- the auto-sync switch
-  const t = makeEnv({ files: FILES });
-  t.run('enableAutoSync'); t.run('enableAutoSync');
-  ok(t.triggers.filter((y) => y.fn === 'syncAuto').length === 1 && t.triggers.find((y) => y.fn === 'syncAuto').minutes === 10 && t.triggers.some((y) => y.fn === 'somethingElse'), 'switching it on (even twice) leaves exactly one timer, every 10 minutes; other timers are not touched');
-  t.run('disableAutoSync');
-  ok(t.triggers.filter((y) => y.fn === 'syncAuto').length === 0 && t.triggers.some((y) => y.fn === 'somethingElse'), 'switching it off removes only ours');
+  // ---------- the auto-sync switch: weekends, once a day (not every 10 minutes)
+  const tt = makeEnv({ files: FILES, oldTimer: true });
+  ok(tt.triggers.some((y) => y.fn === 'syncAuto' && y.minutes === 10), '(the sheet still has the old "every 10 minutes" timer of the previous version)');
+  tt.run('enableAutoSync'); tt.run('enableAutoSync');
+  const mine = tt.triggers.filter((y) => y.fn === 'syncAuto');
+  ok(mine.length === 2 && mine.map((y) => y.day).sort().join() === 'SATURDAY,SUNDAY' && mine.every((y) => y.hour === 20 && y.zone === 'Asia/Shanghai' && y.minutes === undefined), 'switching it on (even twice) leaves exactly two timers: Saturday and Sunday, around 20:00, in the sheet\'s own time zone; the old every-10-minutes timer is gone');
+  ok(tt.triggers.some((y) => y.fn === 'somethingElse'), 'other timers of the sheet are not touched');
+  ok(/周六、周日/.test(tt.log.alerts.at(-1).msg) && /20 点/.test(tt.log.alerts.at(-1).msg) && /立即同步/.test(tt.log.alerts.at(-1).msg), 'the message says when it will run and that "sync now" is there for any time: ' + JSON.stringify(tt.log.alerts.at(-1).msg).slice(0, 70));
+  tt.run('disableAutoSync');
+  ok(tt.triggers.filter((y) => y.fn === 'syncAuto').length === 0 && tt.triggers.some((y) => y.fn === 'somethingElse'), 'switching it off removes both of ours and nothing else');
+  ok(!/everyMinutes|EVERY_MINUTES/.test(SCRIPT), 'the script has no every-N-minutes timer any more');
+  const once = makeEnv({ files: FILES });
+  const oncePatched = SCRIPT.replace("var SYNC_DAYS = ['SATURDAY', 'SUNDAY'];", "var SYNC_DAYS = ['SUNDAY'];");
+  ok(oncePatched !== SCRIPT, '(the setting SYNC_DAYS can be changed in the script)');
 
   // ---------- the script text, the menu, the guide
   ok(!/\.clear\(|deleteRow|deleteColumn|deleteSheet|removeSheet|setFormula|setBackground|setNumberFormat|setFontColor/.test(SCRIPT) && (SCRIPT.match(/clearContent\(\)/g) || []).length === 1 && (SCRIPT.match(/setValues\(/g) || []).length === 1, 'the script text: nothing that deletes or reformats; clearContent / setValues appear once each, only for the status tab');
   ok(!/method:\s*'(put|post|delete|patch)'/i.test(SCRIPT), 'and no write request to GitHub');
   const mm = makeEnv(); mm.run('onOpen');
-  ok(mm.log.menus[0].name === '识字助手' && mm.log.menus[0].items.map((i) => i[0]).join('|') === '1. 设置 GitHub 连接|2. 立即同步|3. 开启自动同步（每 10 分钟）|关闭自动同步' && mm.log.menus[0].items.every(([, fn]) => typeof mm.ctx[fn] === 'function'), 'the menu "识字助手" with its four items, each calling a function that exists');
+  ok(mm.log.menus[0].name === '识字助手' && mm.log.menus[0].items.map((i) => i[0]).join('|') === '1. 设置 GitHub 连接|2. 立即同步|3. 开启自动同步（周六、周日各一次）|关闭自动同步' && mm.log.menus[0].items.every(([, fn]) => typeof mm.ctx[fn] === 'function'), 'the menu "识字助手" with its four items, each calling a function that exists');
   ok(mm.log.menus[0].items.every(([label]) => README.includes(label)), 'README.md uses the exact menu names');
-  ok(['github_pat_', 'EVERY_MINUTES', 'FIRST_WEEK', '同步状态', 'Contents', '只读', '空格', 'A 列', 'L 列'].every((k) => README.includes(k)), 'README.md covers: the read-only token, only empty cells, A / L untouched, the status tab, FIRST_WEEK, the interval');
+  ok(['github_pat_', 'SYNC_DAYS', 'SYNC_HOUR', 'FIRST_WEEK', '同步状态', 'Contents', '只读', '空格', 'A 列', 'L 列'].every((k) => README.includes(k)), 'README.md covers: the read-only token, only empty cells, A / L untouched, the status tab, FIRST_WEEK, the days and hour');
   ok(!/整页重写|整页由脚本管理|会被覆盖/.test(README), 'README.md no longer says that tabs are rewritten');
   ok(!/user202201|@ptc|zdeng/i.test(SCRIPT + README) && !/github_pat_[A-Za-z0-9_]{20,}/.test(SCRIPT + README), 'no personal data and no real token in these files (public repository)');
   await done();
