@@ -1,0 +1,16 @@
+{
+  "name": "识字小助手",
+  "short_name": "识字",
+  "description": "记录孩子每周学的汉字",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fff6e5",
+  "theme_color": "#f76707",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

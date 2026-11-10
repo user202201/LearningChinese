@@ -12,3 +12,4 @@
 12-children-settings-avatar
 13-manage-mode
 14-picture-and-colour
+15-app-icon

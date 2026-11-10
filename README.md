@@ -22,6 +22,8 @@ that only a token of yours can read and write.
 - **Sign in without typing**: on the login screen tap *Sign in by scanning a QR code* and scan the code shown by a device that is already signed in (Settings → Sign in on another device).
 - A child-friendly look: a colour and an animal for every child, a mascot, chunky buttons.
 - **Updating**: the site is rebuilt and published by GitHub after every push. On an iPad / phone: Settings → *Check for updates* (a bar *Update now* also appears by itself when a newer version exists) or *Force refresh (clear the cache)*; you stay signed in. No `git pull` is ever needed on a device.
+- **Picture and colour**: double-tap the child's picture at the top of the child's page (or Settings → Children) to choose a colour and a picture (12 animals, photo library, camera).
+- **Icon**: `assets/icon/icon.svg` is the master; `npm run icons` makes the PNG sizes (App Store, home screen, browser).
 - Languages: 中文 / English / Français.
 
 ## Data (in the private repository)

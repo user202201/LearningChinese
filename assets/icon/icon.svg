@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- 识字小助手 app icon. Full bleed square (iOS rounds the corners itself; no transparency). Everything important stays inside the middle 80%. -->
+  <defs>
+    <linearGradient id="bg" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#ffc247"/>
+      <stop offset="0.55" stop-color="#ff922b"/>
+      <stop offset="1" stop-color="#f76707"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.3" cy="0.2" r="0.7">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8ce99a"/>
+      <stop offset="1" stop-color="#40c057"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="14"/></filter>
+    <path id="star" d="M0-1 0.29-0.4 0.95-0.31 0.47 0.15 0.59 0.81 0-0.5 -0.59 0.81 -0.47 0.15 -0.95-0.31 -0.29-0.4Z" transform="scale(1)"/>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <!-- soft bubbles, like the coloured band in the app -->
+  <circle cx="110" cy="930" r="190" fill="#fff" opacity="0.13"/>
+  <circle cx="930" cy="90" r="230" fill="#fff" opacity="0.13"/>
+  <circle cx="900" cy="900" r="110" fill="#fff" opacity="0.10"/>
+  <circle cx="70" cy="150" r="80" fill="#fff" opacity="0.10"/>
+
+  <!-- little stars (in the free corners) -->
+  <g fill="#fff3bf" stroke="#ffd43b" stroke-width="10" stroke-linejoin="round">
+    <path d="M856 176l17 40 43 4-33 28 10 42-37-23-37 23 10-42-33-28 43-4z"/>
+    <path d="M132 196l12 28 30 3-23 19 7 30-26-16-26 16 7-30-23-19 30-3z"/>
+    <path d="M118 800l11 26 28 3-21 18 6 28-24-15-24 15 6-28-21-18 28-3z"/>
+  </g>
+
+  <!-- the mascot: a smiling 田字格 with a sprout, a little tilted -->
+  <g transform="rotate(-5 512 560)">
+    <rect x="186" y="286" width="652" height="652" rx="150" fill="#8f3a00" opacity="0.42" filter="url(#soft)"/>
+    <rect x="190" y="262" width="644" height="644" rx="150" fill="#fff" stroke="#f2545b" stroke-width="30"/>
+    <!-- the dashed cross of a 田字格 -->
+    <path d="M512 300V868M232 584H792" stroke="#f0a79f" stroke-width="9" stroke-linecap="round" stroke-dasharray="30 26" fill="none"/>
+    <!-- face -->
+    <ellipse cx="384" cy="520" rx="36" ry="48" fill="#2d2230"/>
+    <ellipse cx="640" cy="520" rx="36" ry="48" fill="#2d2230"/>
+    <circle cx="396" cy="500" r="14" fill="#fff"/>
+    <circle cx="652" cy="500" r="14" fill="#fff"/>
+    <circle cx="298" cy="632" r="46" fill="#ff8fa3" opacity="0.62"/>
+    <circle cx="726" cy="632" r="46" fill="#ff8fa3" opacity="0.62"/>
+    <path d="M428 640Q512 744 596 640" fill="none" stroke="#2d2230" stroke-width="26" stroke-linecap="round"/>
+    <!-- the sprout -->
+    <path d="M512 270C468 186 372 160 322 188 340 262 430 296 512 270Z" fill="url(#leaf)" stroke="#2f9e44" stroke-width="10" stroke-linejoin="round"/>
+    <path d="M512 270C560 168 652 134 706 158 690 238 596 294 512 270Z" fill="url(#leaf)" stroke="#2f9e44" stroke-width="10" stroke-linejoin="round"/>
+    <path d="M512 268C470 230 420 210 372 204M512 268C560 220 612 196 660 186" fill="none" stroke="#2f9e44" stroke-width="8" stroke-linecap="round" opacity="0.55"/>
+  </g>
+
+  <!-- a pencil: writing -->
+  <g transform="translate(652 652) rotate(45)">
+    <polygon points="6,6 98,-34 98,34" fill="#000" opacity="0.18" transform="translate(16 20)" filter="url(#soft)"/>
+    <rect x="98" y="-34" width="172" height="68" rx="6" fill="#ffd43b" transform="translate(14 22)" opacity="0"/>
+    <polygon points="0,0 98,-34 98,34" fill="#ffd8a8" stroke="#e8a35a" stroke-width="5" stroke-linejoin="round"/>
+    <polygon points="0,0 38,-13 38,13" fill="#343a40"/>
+    <rect x="98" y="-34" width="176" height="68" fill="#ffd43b"/>
+    <rect x="98" y="-34" width="176" height="16" fill="#fcc419"/>
+    <rect x="98" y="18" width="176" height="16" fill="#f59f00"/>
+    <rect x="98" y="-34" width="176" height="68" fill="none" stroke="#e8a000" stroke-width="5"/>
+    <rect x="274" y="-34" width="32" height="68" fill="#ced4da" stroke="#868e96" stroke-width="5"/>
+    <path d="M286 -34V34M294 -34V34" stroke="#868e96" stroke-width="3"/>
+    <rect x="306" y="-34" width="52" height="68" rx="16" fill="#ff8fa3" stroke="#e8637d" stroke-width="5"/>
+  </g>
+</svg>

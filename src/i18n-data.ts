@@ -1,5 +1,6 @@
 /** Translations of the UI texts, keyed by the Chinese source text (see i18n.ts). `npm run check:i18n` fails when one is missing. */
 export const EN: Record<string, string> = {
+  "双击修改头像和颜色": "Double-tap to change picture and colour",
   "头像和颜色": "Picture and colour",
   "修改头像和颜色": "Change picture and colour",
   "颜色": "Colour",
@@ -191,6 +192,7 @@ export const EN: Record<string, string> = {
   "重试": "Retry",
 };
 export const FR: Record<string, string> = {
+  "双击修改头像和颜色": "Double-touchez pour changer l'image et la couleur",
   "头像和颜色": "Image et couleur",
   "修改头像和颜色": "Changer l'image et la couleur",
   "颜色": "Couleur",

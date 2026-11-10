@@ -55,6 +55,27 @@ const restart = () => {
   else location.hash = "#/";
 };
 
+/**
+ * Opens `open` on a DOUBLE tap / click (two taps close in time and place), not on a single one. Done by hand because a double tap is not a reliable
+ * event on an iPad (Safari wants to zoom); works with a finger, a mouse and a pen. The keyboard (no double click there): Enter or Space.
+ */
+function doubleTap<T extends HTMLElement>(el: T, open: () => void): T {
+  let t = 0, x = 0, y = 0;
+  el.style.touchAction = "manipulation"; // no zoom on a double tap here
+  el.addEventListener("pointerup", (e) => {
+    if (e.timeStamp - t < 450 && Math.hypot(e.clientX - x, e.clientY - y) < 40) {
+      t = 0;
+      open();
+    } else {
+      t = e.timeStamp;
+      x = e.clientX;
+      y = e.clientY;
+    }
+  });
+  el.addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), open()));
+  return el;
+}
+
 /** manage mode: a red "−" at the corner of a character (like deleting an app on the iPhone); `onDelete` is called with the character */
 const withDelete = (el: HTMLElement, ch: string, onDelete: (ch: string) => void) => {
   el.classList.add("managing");
@@ -265,7 +286,7 @@ async function renderKid(id: string, tab: "week" | "learned") {
       h("header", { class: "top hero kid-hero" },
         backBtn("#/", "孩子"),
         h("h1", { class: "user-title" },
-          h("button", { class: "hero-avatar", id: "hero-avatar", title: "修改头像和颜色", "aria-label": "修改头像和颜色", onclick: () => void changeAvatar(k, () => void route()) }, avatarEl(k)), k.name),
+          doubleTap(h("button", { class: "hero-avatar", id: "hero-avatar", title: "双击修改头像和颜色", "aria-label": "双击修改头像和颜色" }, avatarEl(k)), () => void changeAvatar(k, () => void route())), k.name),
         h("span", { class: "slot" })),
       h("div", { class: "tabs-row" }, tabs),
       body,
