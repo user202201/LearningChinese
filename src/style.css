@@ -306,8 +306,15 @@ a.linkbtn:active { transform: translateY(3px); box-shadow: none; }
 
 /* the game tab */
 .lobby { text-align: center; display: flex; flex-direction: column; min-height: 62dvh; }
-.lobby-hero { margin-top: 6dvh; }
-.lobby-go { margin-top: auto; padding: 24px 0 12px; }
+.lobby-hero { margin: auto 0; padding: 16px 0; }   /* in the middle of the free space above the button */
+.lobby-go { padding: 12px 0 12px; }
+.lobby-hero .mascot.big { width: 150px; height: 150px; transform-origin: 50% 100%; animation: duang 1.8s cubic-bezier(.3,.7,.4,1) infinite; }
+.lobby-hero h2 { font-size: 28px; animation: pop .6s .15s both cubic-bezier(.3,1.6,.5,1); }
+#game-start { animation: nudge 2.4s 1s ease-in-out infinite; }
+@keyframes duang { 0%, 100% { transform: translateY(0) scale(1, 1); } 12% { transform: translateY(0) scale(1.14, .84); } 40% { transform: translateY(-34px) scale(.92, 1.1); } 62% { transform: translateY(0) scale(1.1, .88); } 74% { transform: translateY(-9px) scale(.98, 1.03); } 86% { transform: translateY(0) scale(1.03, .97); } }
+@keyframes pop { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
+@keyframes nudge { 0%, 88%, 100% { transform: scale(1); } 92% { transform: scale(1.04); } 96% { transform: scale(.985); } }
+@media (prefers-reduced-motion: reduce) { .lobby-hero .mascot.big, .lobby-hero h2, #game-start { animation: none; } }
 .lobby-hero h2 { margin: 6px 0 10px; color: var(--kid); }
 .mascot.big { display: inline-block; width: 110px; height: 110px; }
 .lobby-counts { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 8px 0 12px; }

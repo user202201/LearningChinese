@@ -63,9 +63,11 @@ const ihdr = (f) => { const b = fs.readFileSync(path.join(ROOT, f)); return { w:
   // --- what the browser sees: the links in the page, the manifest and the files it names
   const b2 = await chromium.launch(); const p2 = await b2.newPage();
   await p2.goto(URL, { waitUntil: 'networkidle' }); await p2.waitForTimeout(500);
+  const man0 = await (await fetch(new globalThis.URL('manifest.webmanifest', URL))).json();
   const links = await p2.$$eval('link[rel]', (e) => e.map((l) => [l.rel, l.getAttribute('href'), l.getAttribute('sizes')]));
-  ok(links.some((l) => l[0] === 'apple-touch-icon' && /apple-touch-icon\.png$/.test(l[1])), 'the page offers the iPhone / iPad home-screen icon (apple-touch-icon)');
-  ok(links.some((l) => l[0] === 'manifest') && links.some((l) => l[0] === 'icon' && /\.svg$/.test(l[1])) && links.some((l) => l[0] === 'icon' && /favicon-32\.png$/.test(l[1])), 'and the web app manifest, the tab icon (svg) and a 32 px png');
+  ok(links.some((l) => l[0] === 'apple-touch-icon' && /apple-touch-icon\.png\?v=\d+$/.test(l[1])), 'the page offers the iPhone / iPad home-screen icon (apple-touch-icon)');
+  ok(links.some((l) => l[0] === 'manifest') && links.some((l) => l[0] === 'icon' && /\.svg\?v=\d+$/.test(l[1])) && links.some((l) => l[0] === 'icon' && /favicon-32\.png\?v=\d+$/.test(l[1])), 'and the web app manifest, the tab icon (svg) and a 32 px png');
+  ok(links.filter((l) => ['icon', 'apple-touch-icon', 'manifest'].includes(l[0])).every((l) => /\?v=\d+$/.test(l[1])) && man0.icons.every((i) => /\?v=\d+$/.test(i.src)), 'every icon link carries a version number (?v=N): raise it when the drawing changes, so browsers do not keep showing the old icon');
   ok((await p2.$eval('meta[name=theme-color]', (e) => e.content)) === '#f76707', 'the browser bar colour is the app orange');
   const man = await (await fetch(new globalThis.URL('manifest.webmanifest', URL))).json();
   ok(man.name === '识字小助手' && man.display === 'standalone' && man.start_url === './' && /^#[0-9a-f]{6}$/i.test(man.theme_color), 'the manifest: name, standalone, start page, colours');
