@@ -235,7 +235,19 @@ const TODAY = '2026-11-10';
   ok(await t.page.locator('#game-py.show').count() === 1 && (await t.page.textContent('#game-py')) !== '', 'a tap on the character shows the pinyin for the grown-up (' + await t.page.textContent('#game-py') + ')');
   await t.page.click('#game-dial');
   ok(await t.page.locator('#game-py.show').count() === 0, 'and another tap hides it');
-  await t.page.click('#game-right'); await t.page.clock.runFor(700);
+  // the whole screen is the target (not only the board), again and again, and on every question
+  const tapAt = async (x, y) => { await t.page.mouse.click(x, y); };
+  const vp = t.page.viewportSize();
+  const pyOn = () => t.page.locator('#game-py.show').count();
+  await tapAt(20, vp.height / 2); const p1 = await pyOn();
+  await tapAt(vp.width - 20, vp.height / 2 + 40); const p2 = await pyOn();
+  await tapAt(20, vp.height / 2); const p3 = await pyOn();
+  await tapAt(vp.width - 20, vp.height / 2); const p4 = await pyOn();
+  ok(p1 === 1 && p2 === 0 && p3 === 1 && p4 === 0, 'a tap on empty screen beside the board shows the pinyin, the next hides it, and so on, again and again (' + [p1, p2, p3, p4].join(',') + ')');
+  await tapAt(20, vp.height / 2);
+  await t.page.click('#game-right');
+  ok(await pyOn() === 1, 'pressing a button does not toggle the pinyin (it stays as it was)');
+  await t.page.clock.runFor(700);
   // the time-out one comes back
   ok((await st(t.page)).banner && (await t.page.textContent('#game-banner')).includes('再练一遍：1 个字'), 'after the round: "once more: 1 character" (the one that ran out of time)');
   await t.page.clock.runFor(1700);
@@ -272,6 +284,8 @@ const TODAY = '2026-11-10';
   await toGame(t.page); await t.page.click('#game-start'); await t.page.waitForSelector('#game');
   await t.page.click('#game-quit');
   ok((await t.page.textContent('dialog')).includes('还没有答题'), 'leaving: asks first (and says nothing has been answered yet)');
+  const dg = await t.page.evaluate(() => { const d = document.querySelector('dialog .dlg').getBoundingClientRect(), bs = [...document.querySelectorAll('dialog .dlg .row button')].map((b) => b.getBoundingClientRect()), h2 = document.querySelector('dialog .dlg h2'), r = document.querySelector('dialog .dlg .row').getBoundingClientRect(); return { n: bs.length, w: bs.map((b) => Math.round(b.width)), hgt: Math.min(...bs.map((b) => b.height)), fill: (bs.at(-1).right - bs[0].left) / d.width, align: getComputedStyle(h2).textAlign, rowL: r.left - d.left, rowR: d.right - r.right }; });
+  ok(dg.n === 2 && Math.abs(dg.w[0] - dg.w[1]) <= 1 && dg.hgt >= 50 && dg.fill > 0.85 && dg.align === 'center' && Math.abs(dg.rowL - dg.rowR) <= 1, 'on a phone the Cancel / Quit question has two big equal buttons filling the width, centred title (buttons ' + dg.w.join(' + ') + ' px, ' + Math.round(dg.hgt) + ' px high)');
   await t.page.clock.runFor(8000);                                                       // the clock must stand still while the question is open
   await t.page.click('dialog button:has-text("取消")'); await t.page.waitForSelector('dialog', { state: 'detached' });
   ok(await t.page.locator('#game').count() === 1 && (await left()) > 4000 && (await st(t.page)).progress === '1 / 4', 'cancelling goes on with the same question and the time that was left (the clock stood still: ' + Math.round(await left()) + ' ms)');

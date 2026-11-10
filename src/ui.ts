@@ -76,5 +76,5 @@ export const askText = (title: string, label: string, initial = "", okText = "�
 /** A yes / no question. Resolves true only when confirmed. */
 export const confirmDlg = async (title: string, message: string, okText: string, danger = false): Promise<boolean> =>
   !!(await modal<boolean>((close) =>
-    h("div", { class: "dlg" }, h("h2", {}, title), h("p", {}, message),
+    h("div", { class: "dlg confirm" }, h("h2", {}, title), h("p", {}, message),
       h("div", { class: "row end" }, h("button", { onclick: () => close(null) }, "取消"), h("button", { class: danger ? "danger" : "primary", onclick: () => close(true) }, okText)))));

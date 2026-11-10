@@ -59,7 +59,7 @@ export function openGame(o: GameOpts): void {
   const no = h("button", { class: "gbtn no", id: "game-wrong", title: "答错了", "aria-label": "答错了" }, crossSvg());
   const yes = h("button", { class: "gbtn yes", id: "game-right", title: "答对了", "aria-label": "答对了" }, tickSvg());
   const banner = h("div", { class: "gbanner", id: "game-banner" });
-  const hint = h("p", { class: "ghint" }, "点一下字可以看拼音");
+  const hint = h("p", { class: "ghint" }, "点一下屏幕可以看拼音");
   const stage = h("div", { class: "gstage" }, dial, banner);
   const bar = h("div", { class: "gbar" }, no, yes);
   const root = h("div", { class: "game", id: "game", role: "dialog", "aria-modal": "true", style: `--kid:${o.color}` },
@@ -208,7 +208,8 @@ export function openGame(o: GameOpts): void {
   no.addEventListener("click", () => answer(false));
   yes.addEventListener("click", () => answer(true));
   quit.addEventListener("click", () => void leave());
-  dial.addEventListener("click", () => { if (phase === "ask") reveal(!py.classList.contains("show")); });
+  // a tap anywhere on the screen (not on a button) shows / hides the pinyin: the whole screen is the target, not only the small board
+  root.addEventListener("click", (e) => { if (phase === "ask" && !(e.target as HTMLElement).closest("button")) reveal(!py.classList.contains("show")); });
   document.addEventListener("keydown", onKey);
   document.body.append(root);
   void loadPinyin().then(() => { if (phase === "ask") py.textContent = pinyinOf(queue[idx].ch); });

@@ -171,6 +171,13 @@ dialog.center { border: 0; border-radius: 30px; padding: 0; width: min(92vw, 430
 dialog.center::backdrop { background: rgba(80, 40, 10, .45); }
 .dlg { padding: 24px 22px 22px; max-height: 92dvh; overflow-y: auto; }
 .dlg.wide-dlg { width: 100%; }
+/* a question with two answers (Cancel / OK): centred, and on a phone / tablet two big equal buttons that fill the width (not two small ones stuck to the right) */
+.dlg.confirm { text-align: center; }
+.dlg.confirm .row.end { justify-content: center; }
+@media (max-width: 700px), (pointer: coarse) {
+  .dlg.confirm .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+  .dlg.confirm .row button { min-height: 54px; width: 100%; font-size: 18px; border-radius: 18px; }
+}
 dialog:has(.wide-dlg) { width: min(94vw, 560px); }
 .dlg h2 { font-size: 21px; margin-bottom: 8px; color: var(--accent-dark); }
 .note { font-size: 14px; margin-top: 6px; overflow-wrap: anywhere; font-weight: 600; }
