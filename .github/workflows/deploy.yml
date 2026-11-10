@@ -1,9 +1,10 @@
 name: deploy
-# Builds the web app and publishes it to GitHub Pages (https://<user>.github.io/LearningChinese/) on every push to main.
+# Builds the web app and publishes it to GitHub Pages (https://<user>.github.io/LearningChinese/) on every push to the app's branch.
+# (Like PianistAssistant: the branch listed here is the one that gets published. Add `main` when there is one.)
 # The page contains only the app's code; the children's data is in a separate PRIVATE repository and needs a token.
 on:
   push:
-    branches: [main]
+    branches: [main, claude/awesome-mayer-42rz97]
   workflow_dispatch:
 permissions:
   contents: read

@@ -30,5 +30,11 @@ run_one() {
 export -f run_one; export OUT ROOT
 printf '%s\n' "${SUITES[@]}" | xargs -P 2 -I{} bash -c 'run_one {}' | tee "$OUT/summary.txt"
 FAILED=$(grep -c '^FAIL' "$OUT/summary.txt")
+# what went wrong, right in the job log (the artifact download is not always reachable)
+for s in $(grep '^FAIL' "$OUT/summary.txt" | awk '{print $2}'); do
+  for f in "$OUT/$s.first-try.log" "$OUT/$s.log"; do
+    [ -f "$f" ] && { echo "::group::$(basename "$f") (last 40 lines)"; tail -n 40 "$f"; echo "::endgroup::"; }
+  done
+done
 echo; echo "$(grep -c '^PASS' "$OUT/summary.txt") passed, $FAILED failed"
 [ "$FAILED" = 0 ]
