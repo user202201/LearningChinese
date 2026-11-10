@@ -295,3 +295,8 @@ button.swatch.on { outline: 4px solid var(--text); outline-offset: 1px; }
 
 /* the buttons of a long window stay at its bottom while the rest scrolls (a child must not have to look for "Done") */
 .dlg .row.sticky { position: sticky; bottom: -22px; margin: 12px -22px -22px; padding: 12px 22px 22px; background: linear-gradient(to bottom, transparent, #fffdf8 28%); z-index: 3; }
+
+/* a link that looks like a button */
+a.linkbtn { display: block; box-sizing: border-box; width: 100%; margin-top: 12px; min-height: 48px; padding: 12px 18px; text-align: center; text-decoration: none; color: var(--text); font-weight: 700; border: 2px solid var(--line); border-radius: 18px; background: #fff; box-shadow: 0 3px 0 var(--line); }
+a.linkbtn:active { transform: translateY(3px); box-shadow: none; }
+#sync-script { font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; }

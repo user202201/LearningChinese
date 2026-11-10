@@ -13,3 +13,5 @@
 13-manage-mode
 14-picture-and-colour
 15-app-icon
+16-google-sheet-sync
+17-sync-card

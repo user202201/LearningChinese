@@ -11,6 +11,8 @@ Browser tests (Playwright + Chromium, touch-sized windows) against the app runni
 | 03-learned-grid | every learned character in a 田字格, tap = show / hide pinyin, scrolling through 70 characters |
 | 04-github-storage | which files are written, UTF-8, second device, two devices at once are merged, lost connection is reported, delete |
 | 10-week-page-and-viewer | the week page (today first, forward only, plus buttons) and the full-screen character (tap, buttons, swipe, arrow keys, pinyin) |
+| 16-google-sheet-sync | the Google Sheets sync script run against a PRETEND sheet + GitHub: layout A / B..K / L, re-sync, errors, auto-sync switch, read-only, no personal data (a real Google account is NOT covered) |
+| 17-sync-card | Settings card: copy the script (exactly the file), box when the clipboard is refused, link to the guide, translations |
 | 15-app-icon | the app icon: sizes, no transparency (iOS), fills the square, safe area, in sync with assets/icon/icon.svg, links + manifest |
 | 14-picture-and-colour | tap the picture at the top of a child page: picture + colour window, live preview, Done / Cancel, the colour changes the whole look, contrast, fits a small phone |
 | 13-manage-mode | manage mode (Settings): a red - on every character to delete a wrongly entered one; cancel is silent; also in "Learned"; the + comes back below 10; an emptied week disappears; sizes on 5 screens |
