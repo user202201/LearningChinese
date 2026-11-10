@@ -27,12 +27,12 @@ const cameraOff = (page) => page.evaluate(() => !window.__stream || window.__str
   await t.page.waitForSelector('#scan-btn');
   ok(await t.page.locator('.login input[type=password]').inputValue() === '', 'the token field is empty: nothing was typed');
   await t.page.click('#scan-btn');
-  await t.page.waitForSelector('.empty', { timeout: 15000 });
+  await t.page.waitForSelector('.empty-home', { timeout: 15000 });
   ok(true, 'scanning a good sign-in code signs in and shows the home screen');
   ok(await t.page.locator('dialog').count() === 0, 'the scan window closed by itself');
   ok(await cameraOff(t.page), 'the camera is switched off again');
   ok(!(t.page.url().includes('good')), 'the token is not left in the address bar');
-  await t.page.reload(); await t.page.waitForSelector('.empty');
+  await t.page.reload(); await t.page.waitForSelector('.empty-home');
   ok(true, 'stays signed in after a reload');
   await t.browser.close();
 

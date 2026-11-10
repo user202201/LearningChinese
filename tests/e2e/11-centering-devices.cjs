@@ -1,7 +1,7 @@
 // "Both sides must be equal": on every screen size (iPhone small / normal / large / landscape, iPad mini / Air / Pro, both ways, a narrow and a wide
 // desktop window) the content is centred: equal space left and right, the character cards are exactly as wide as the week bar, the empty-area plus and
 // the full-screen character are in the middle, and nothing in the full-screen view lies on anything else. (Emulated screens in Chromium: real devices are not available here.)
-const { start, checks, addKid, openKid, enterWeek, WEEK3 } = require('./harness.cjs');
+const { start, checks, addKid, openKid, enterWeek, openSettings, goHome, WEEK3 } = require('./harness.cjs');
 const { ok, done } = checks();
 const OUT = process.env.D || 'tests/out/work/';
 const DEVICES = {
@@ -18,7 +18,6 @@ const gaps = (page, sel) => page.$eval(sel, (e) => {
   return { left: r.left - a.left, right: right - r.right };
 });
 const centred = async (page, sel, what, tag) => { const g = await gaps(page, sel); ok(Math.abs(g.left - g.right) <= TOL, `${tag} ${what}: equal space left / right (${Math.round(g.left)} / ${Math.round(g.right)})`); };
-const MORE = '一心一意 画蛇添足 守株待兔 亡羊补牢 掩耳盗铃 对牛弹琴';
 
 (async () => {
   for (const [lang, locale] of [['zh', 'zh-CN'], ['en', 'en-US'], ['fr', 'fr-FR']]) {
@@ -27,22 +26,28 @@ const MORE = '一心一意 画蛇添足 守株待兔 亡羊补牢 掩耳盗铃 �
       const tag = `${lang}/${name}`;
       const t = await start(new Map(), { local: true, locale, viewport: { width: w, height: h }, today: '2026-11-10', touch: /iphone|ipad/.test(name) });
       const { page } = t;
+      // the first time: the one thing to do is in the exact middle of the screen
+      const mid = await page.evaluate(() => { const g = document.querySelector('.home-empty'); const sc = g.closest('.scroll'); const a = sc.getBoundingClientRect(); const items = [...g.children].map((c) => c.getBoundingClientRect()); const top = Math.min(...items.map((r) => r.top)), bottom = Math.max(...items.map((r) => r.bottom)); const b = document.querySelector('#add-kid-big').getBoundingClientRect(); return { dx: (b.left + b.width / 2) - (a.left + sc.clientWidth / 2), dy: (top + bottom) / 2 - (a.top + a.height / 2) }; });
+      ok(Math.abs(mid.dx) <= TOL && Math.abs(mid.dy) <= 20, `${tag} first time: the add-a-child + is in the middle of the screen (off by ${mid.dx.toFixed(1)} / ${mid.dy.toFixed(1)}px)`);
       await addKid(page, 'Dory'); await addKid(page, 'Leo');
       await page.waitForTimeout(100);
       await centred(page, '.kids', 'home: the children list', tag);
-      await centred(page, 'main button.primary.wide', 'home: the add button', tag);
+      await openSettings(page);
+      await centred(page, '.narrow .card', 'settings: the cards', tag);
+      await centred(page, '#add-kid', 'settings: the add button', tag);
+      await page.screenshot({ path: `${OUT}centering-${tag.replace('/', '-')}-settings.png` });
+      await goHome(page);
       await openKid(page, 'Dory');
       // empty week: the big plus is in the middle
       const plus = await page.$eval('#enter', (e) => { const r = e.getBoundingClientRect(); const sc = e.closest('.scroll'); const a = sc.getBoundingClientRect(); return (r.left + r.width / 2) - (a.left + sc.clientWidth / 2); });
       ok(Math.abs(plus) <= TOL, `${tag} empty week: the big + is in the middle (off by ${plus.toFixed(1)}px)`);
-      await page.click('#enter'); await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea >> nth=0', WEEK3); await page.fill('dialog textarea >> nth=1', MORE);
+      await page.click('#enter'); await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea', WEEK3);
       await page.click('dialog button.primary'); await page.waitForSelector('dialog', { state: 'detached' });
       await page.waitForFunction(() => document.querySelectorAll('.cards .tzg').length === 10 && !document.querySelector('#toasts .toast.working'));
       await centred(page, '.weekbar', 'week: the week bar', tag);
       await centred(page, '.cards', 'week: the characters', tag);
       const align = await page.evaluate(() => { const b = document.querySelector('.weekbar').getBoundingClientRect(); const c = [...document.querySelectorAll('.cards .tzg')]; return [c[0].getBoundingClientRect().left - b.left, b.right - c[4].getBoundingClientRect().right]; });
       ok(Math.abs(align[0]) <= 1 && Math.abs(align[1]) <= 1, `${tag} week: the characters are exactly as wide as the week bar (${align.map((x) => x.toFixed(1)).join(' / ')})`);
-      await centred(page, '.idioms', 'week: the idioms area', tag);
       await page.screenshot({ path: `${OUT}centering-${tag.replace('/', '-')}-week.png` });
 
       // the learned page
@@ -54,6 +59,7 @@ const MORE = '一心一意 画蛇添足 守株待兔 亡羊补牢 掩耳盗铃 �
 
       // the full-screen character: in the middle, nothing lies on anything else
       await page.waitForSelector('.cards .tzg'); await page.click('.cards .tzg >> nth=4'); await page.waitForSelector('#viewer');
+      await page.addStyleTag({ content: '.viewer * { letter-spacing: .05em !important; }' });   // (stress: wider letters, like a wider font on a real device)
       await page.click('#viewer .vstage'); await page.waitForFunction(() => document.querySelector('#viewer .tzg .py')?.textContent);
       await page.waitForTimeout(350);
       const v = await page.evaluate(() => {

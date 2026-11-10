@@ -61,7 +61,7 @@ svg[data-art] { display: block; width: 100%; height: 100%; }
 .mascot .eyes { animation: blink 4s infinite; transform-origin: 50% 29px; }
 @keyframes bounce { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-7px) rotate(-3deg); } 60% { transform: translateY(0); } }
 @keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
-.avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--kid); border: 3px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,.18); overflow: hidden; flex: none; }
+.avatar { display: block; width: 56px; height: 56px; border-radius: 50%; background: var(--kid); border: 3px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,.18); overflow: hidden; flex: none; }
 
 /* layout */
 .page { height: 100%; display: flex; flex-direction: column; }
@@ -117,7 +117,7 @@ svg[data-art] { display: block; width: 100%; height: 100%; }
 /* tabs */
 .tabs-row { padding: 14px 16px 4px; display: flex; justify-content: center; }
 .seg { display: flex; background: color-mix(in srgb, var(--kid) 14%, #fff); border-radius: 999px; padding: 5px; gap: 4px; flex-wrap: wrap; box-shadow: inset 0 2px 4px rgba(0,0,0,.06); }
-.seg button { flex: 1; min-height: 42px; border: 0; background: transparent; border-radius: 999px; padding: 6px 18px; box-shadow: none; color: var(--muted); }
+.seg button { flex: 1; min-height: 42px; border: 0; background: transparent; border-radius: 999px; padding: 6px 10px; box-shadow: none; color: var(--muted); white-space: nowrap; overflow-wrap: normal; }   /* a word is never broken in the middle */
 .seg button.on { background: var(--kid); color: #fff; box-shadow: 0 3px 0 color-mix(in srgb, var(--kid) 70%, #000); text-shadow: 0 1px 0 rgba(0,0,0,.15); }
 .seg button:active { transform: none; }
 .tabs { width: 100%; max-width: 380px; }
@@ -235,8 +235,35 @@ button.wlabel:active { transform: none; }
 .viewer .vnav.prev { left: max(10px, env(safe-area-inset-left)); } .viewer .vnav.next { right: max(10px, env(safe-area-inset-right)); }
 .viewer .vnav:disabled { opacity: .25; box-shadow: none; }
 .viewer .vhint { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 14px); margin: 0; text-align: center; color: var(--muted); font-size: 14px; font-weight: 700; padding: 0 70px; }
-/* narrow portrait screens (phones): the switch buttons go under the character so that they never lie on its frame */
+/* the switch buttons and the hint: at the sides on wide screens; on narrow portrait screens one bar under the character (the hint, however long, lies between the buttons) */
+.viewer .vbar { display: contents; }
 @media (max-width: 560px) and (max-aspect-ratio: 1/1) {
-  .viewer .vnav { top: auto; margin-top: 0; bottom: calc(env(safe-area-inset-bottom) + 58px); width: 52px; height: 52px; min-height: 52px; }
-  .viewer .vhint { padding: 0 16px; }
+  .viewer .vbar { position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 14px); display: flex; align-items: center; gap: 10px; padding: 0 10px; }
+  .viewer .vbar .vnav { position: static; margin: 0; flex: none; width: 52px; height: 52px; min-height: 52px; }
+  .viewer .vbar .vhint { position: static; flex: 1; min-width: 0; padding: 0; font-size: 13px; }
 }
+
+/* the home screen with no child yet: one thing, in the middle */
+main.scroll:has(.home-empty) { display: flex; flex-direction: column; }
+.home-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+.home-empty p { margin: 12px 0 0; color: var(--muted); font-weight: 700; text-align: center; }
+
+/* avatars */
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kidrow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 12px 0; border-top: 2px solid var(--line); }
+.kidrow:first-of-type { border-top: 0; }
+.kidrow .kname { flex: 1; min-width: 0; font-size: 20px; }
+.kidrow .avatar { width: 52px; height: 52px; }
+button.avatar-btn { display: block; flex: none; width: 52px; height: 52px; min-height: 0; padding: 0; border: 0; background: none; box-shadow: none; border-radius: 50%; }
+.kidact { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+button.mini { min-height: 40px; padding: 4px 14px; border-radius: 14px; font-size: 14px; flex: 1 1 auto; }
+.animals { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px; margin: 12px 0 4px; }
+button.animal { min-height: 0; aspect-ratio: 1; padding: 0; border-radius: 50%; border: 3px solid transparent; background: var(--kid); box-shadow: 0 3px 0 color-mix(in srgb, var(--kid) 70%, #000); overflow: hidden; }
+button.animal.on { border-color: #fff; outline: 4px solid var(--accent); }
+.avatar-now { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 18px; margin: 4px 0; }
+.avatar-now .avatar { width: 64px; height: 64px; background: var(--kid, var(--accent)); }
+.scan-frame.round { border-radius: 50%; width: min(260px, 100%); margin-left: auto; margin-right: auto; }
+.scan-frame.round::after { display: none; }
+.scan-video.mirror { transform: scaleX(-1); }
+.row.center-row { justify-content: center; margin: 4px 0 8px; }
+button.shutter { width: 72px; height: 72px; min-height: 72px; padding: 0; border-radius: 50%; border: 6px solid #fff; background: var(--accent); box-shadow: 0 0 0 4px var(--accent), 0 6px 14px rgba(0,0,0,.25); }

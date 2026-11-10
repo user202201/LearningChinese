@@ -14,21 +14,16 @@ const OUT = process.env.D || 'tests/out/work/';
   const big = await page.locator('#enter').boundingBox();
   const area = await page.locator('.narrow').boundingBox();
   ok(await page.locator('#enter.add-big').count() === 1 && Math.abs((big.x + big.width / 2) - (area.x + area.width / 2)) <= 2, 'an empty week: a big + in the middle of the area (' + Math.round(big.x + big.width / 2) + ' vs ' + Math.round(area.x + area.width / 2) + ')');
-  ok(await page.locator('#enter-idioms.add-chip').count() === 1, 'empty idioms: a small + of its own');
+  ok(await page.locator('.idiom, .idioms, #enter-idioms').count() === 0 && !(await page.textContent('.narrow')).includes('成语'), 'no idioms on the child page');
   await page.screenshot({ path: OUT + 'week-empty.png' });
 
   await page.click('#enter');                                           // the big + opens the entry with the characters box ready
   ok(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')) === '汉字', 'the big + opens the entry with the cursor in the characters box');
-  await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea >> nth=0', WEEK3);
+  await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea', WEEK3);
   await page.click('dialog button.primary'); await page.waitForSelector('dialog', { state: 'detached' });
   await page.waitForFunction(() => !document.querySelector('#toasts .toast.working') && document.querySelectorAll('.cards .tzg').length === 10);
   const small = await page.locator('#enter').boundingBox();
   ok(await page.locator('#enter.plus').count() === 1 && small.width <= 48, 'with characters in the week the + is a small round button in the heading (' + Math.round(small.width) + 'px)');
-  await page.click('#enter-idioms');
-  ok(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')) === '成语', 'the idioms + opens the entry with the cursor in the idioms box');
-  await page.fill('dialog textarea >> nth=1', '一心一意 画蛇添足'); await page.click('dialog button.primary'); await page.waitForSelector('dialog', { state: 'detached' });
-  await page.waitForFunction(() => document.querySelectorAll('.idiom').length === 2);
-  ok(await page.locator('#enter-idioms.plus').count() === 1, 'idioms entered: the idioms + is a small button too');
   await page.screenshot({ path: OUT + 'week-filled.png' });
 
   // forward only
@@ -49,7 +44,7 @@ const OUT = process.env.D || 'tests/out/work/';
   await page.click('#week-pick');
   const rows = await page.$$eval('.weekrow', (e) => e.map((r) => ({ start: r.dataset.start, text: r.textContent, on: r.classList.contains('on') })));
   ok(rows.map((r) => r.start).join() === '2026-11-08,2026-10-25', 'the week list shows the weeks that have something, newest first');
-  ok(rows[0].text.includes('本周') && rows[0].text.includes('汉字 10 · 成语 2') && rows[1].text.includes('第1周'), 'each row: the week, "this week" badge, how much is in it');
+  ok(rows[0].text.includes('本周') && rows[0].text.includes('10 个汉字') && rows[1].text.includes('第1周'), 'each row: the week, "this week" badge, how much is in it');
   await page.screenshot({ path: OUT + 'week-list.png' });
   await page.click('dialog button:not(.weekrow)'); await page.waitForSelector('dialog', { state: 'detached' });
   ok(await page.locator('#toasts .toast:has-text("已选")').count() === 0, 'closing the week list changes nothing and shows no message');
@@ -122,7 +117,7 @@ const OUT = process.env.D || 'tests/out/work/';
     await addKid(t.page, 'Dory'); await openKid(t.page, 'Dory');
     const cn = () => t.page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());) if (/[一-鿿]/.test(n.nodeValue) && !n.parentElement.closest('.user, .user-title, #toasts')) bad.push(n.nodeValue.trim()); for (const el of document.querySelectorAll('[title],[aria-label]')) for (const a of ['title', 'aria-label']) { const v = el.getAttribute(a); if (v && /[一-鿿]/.test(v) && !el.closest('.user,.user-title')) bad.push(a + ':' + v); } return bad; });
     ok((await cn()).length === 0, locale + ': the empty week page has no Chinese UI text ' + JSON.stringify(await cn()));
-    await t.page.click('#enter'); await t.page.fill('dialog input[type=date]', '2026-11-08'); await t.page.fill('dialog textarea >> nth=0', WEEK3);
+    await t.page.click('#enter'); await t.page.fill('dialog input[type=date]', '2026-11-08'); await t.page.fill('dialog textarea', WEEK3);
     await t.page.click('dialog button.primary'); await t.page.waitForFunction(() => document.querySelectorAll('.cards .tzg').length === 10);
     await t.page.click('.cards .tzg >> nth=1'); await t.page.waitForSelector('#viewer');
     ok((await cn()).length === 0, locale + ': the full-screen character has no Chinese UI text ' + JSON.stringify(await cn()));

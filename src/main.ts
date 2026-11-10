@@ -4,7 +4,8 @@ import * as api from "./api";
 import * as M from "./model";
 import { h, toast, modal, askText, confirmDlg } from "./ui";
 import { LANGS, setLang, type LangPref } from "./i18n";
-import { animal, mascot } from "./art";
+import { ANIMAL_NAMES, animal, animalNamed, mascot } from "./art";
+import { fileToAvatar, takePhoto } from "./photo";
 import { scanQr } from "./scan";
 import { readTable, readWorkbook, type SheetData } from "./xlsx";
 import * as I from "./importer";
@@ -61,7 +62,13 @@ const cell = (ch: string) =>
 function topBar(title: string, left?: HTMLElement, right?: HTMLElement) {
   return h("header", { class: "top plain" }, left ?? h("span", { class: "slot" }), h("h1", {}, title), right ?? h("span", { class: "slot" }));
 }
-const avatarEl = (id: string) => h("span", { class: "avatar" }, animal(id));
+/** the child's picture: a photo, a chosen animal, or (when nothing was chosen) an animal picked from the child's id */
+const avatarEl = (k: M.Kid) => {
+  const el = h("span", { class: "avatar" });
+  if (k.avatar?.startsWith("data:image/")) el.append(h("img", { src: k.avatar, alt: "" }));
+  else el.append(k.avatar?.startsWith("animal:") ? animalNamed(k.avatar.slice(7)) : animal(k.id));
+  return el;
+};
 /** sets the stagger of the pop-in animation on a list of elements */
 const stagger = <T extends HTMLElement>(els: T[]): T[] => {
   els.forEach((e, i) => e.style.setProperty("--i", String(Math.min(i, 14))));
@@ -165,30 +172,33 @@ async function renderHome() {
   } catch (e) {
     return showError(e, renderHome);
   }
+  const hero = h("header", { class: "top hero home-hero" },
+    h("span", { class: "mascot" }, mascot()),
+    h("div", { class: "hero-text" }, h("h1", {}, "识字小助手"), h("p", {}, "今天学点什么？")),
+    gearBtn());
+  if (!kidsFile.kids.length) {
+    // the very first time: nothing but one thing to do, in the middle of the screen
+    return show(h("div", { class: "page" }, hero,
+      h("main", { class: "scroll" }, h("div", { class: "narrow home-empty empty-home" },
+        h("button", { class: "add-big", id: "add-kid-big", title: "添加孩子", "aria-label": "添加孩子", onclick: () => void addKid(renderHome) }, "＋"),
+        h("p", {}, "还没有孩子，先添加一个吧。")))));
+  }
   const list = h("div", { class: "kids" });
   for (const k of kidsFile.kids) {
     const n = M.allChars(kidCache.get(k.id) ?? M.EMPTY_KID).length;
     list.append(
       h("button", { class: "kid", style: `--kid:${k.color}`, onclick: () => (location.hash = `#/kid/${k.id}`) },
-        avatarEl(k.id),
+        avatarEl(k),
         h("span", { class: "kinfo" }, h("span", { class: "kname user" }, k.name), h("span", { class: "ksub" }, `已学 ${n} 字`)),
         h("span", { class: "chev" }, "›")),
     );
   }
-  if (!kidsFile.kids.length) list.append(h("p", { class: "empty" }, "还没有孩子，先添加一个吧。"));
   stagger([...list.querySelectorAll<HTMLElement>(".kid")]);
-  show(
-    h("div", { class: "page" },
-      h("header", { class: "top hero home-hero" },
-        h("span", { class: "mascot" }, mascot()),
-        h("div", { class: "hero-text" }, h("h1", {}, "识字小助手"), h("p", {}, "今天学点什么？")),
-        gearBtn()),
-      h("main", { class: "scroll" }, h("div", { class: "narrow" }, list, h("button", { class: "primary wide", onclick: addKid }, "＋ 添加孩子"), h("button", { class: "wide", id: "import-btn", onclick: importFlow }, "从 Excel 导入"))),
-    ),
-  );
+  show(h("div", { class: "page" }, hero, h("main", { class: "scroll" }, h("div", { class: "narrow" }, list))));
 }
 
-async function addKid() {
+/** asks for a name and adds the child; `after` shows the screen again */
+async function addKid(after: () => void) {
   const name = await askText("添加孩子", "孩子的名字", "", "添加");
   if (!name) return; // cancelled: no message
   if (kidsFile.kids.some((k) => k.name.toLowerCase() === name.toLowerCase())) return toast("已经有同名的孩子了");
@@ -201,7 +211,7 @@ async function addKid() {
     }, `add ${id}`);
     done();
     toast(`已添加 ${name}`);
-    renderHome();
+    after();
   } catch (e) {
     done();
     toast(errText(e), 6000);
@@ -237,8 +247,8 @@ async function renderKid(id: string, tab: "week" | "learned") {
     h("div", { class: "page", style: `--kid:${k.color}` },
       h("header", { class: "top hero kid-hero" },
         backBtn("#/", "孩子"),
-        h("h1", { class: "user-title" }, avatarEl(k.id), k.name),
-        h("button", { class: "icon", title: "更多", "aria-label": "更多", onclick: () => kidMenu(k) }, "⋯")),
+        h("h1", { class: "user-title" }, avatarEl(k), k.name),
+        h("span", { class: "slot" })),
       h("div", { class: "tabs-row" }, tabs),
       body,
     ),
@@ -252,7 +262,6 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   const todayWeek = M.sundayOf(M.todayLocal());
   const no = M.weekNo(curWeek, kidsFile.startWeek);
   const w = M.weekOf(kid, curWeek);
-  const iw = idioms.weeks.find((x) => x.start === curWeek);
   const go = (start: string) => {
     curWeek = start;
     renderWeek(body, k, kid);
@@ -265,8 +274,6 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
     h("button", { class: "icon", title: "下一周", "aria-label": "下一周", onclick: () => go(M.addDays(curWeek, 7)) }, "›"),
   );
   const chars = w?.chars ?? [];
-  const items = iw?.items ?? [];
-  const plus = (id: string, focus: "chars" | "idioms") => h("button", { class: "plus", id, title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k, focus) }, "＋");
   const cards = chars.map((c, i) => {
     const el = cell(c);
     el.classList.add("tappable");
@@ -281,34 +288,28 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
     h("div", { class: "narrow" },
       bar,
       curWeek === todayWeek ? null : h("button", { class: "link", onclick: () => go(todayWeek) }, "回到本周"),
-      h("div", { class: "sec-row" }, h("h2", { class: "sec" }, `汉字（${chars.length}）`), chars.length ? plus("enter", "chars") : null),
+      h("div", { class: "sec-row" }, h("h2", { class: "sec" }, `汉字（${chars.length}）`),
+        chars.length ? h("button", { class: "plus", id: "enter", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k) }, "＋") : null),
       chars.length
         ? grid
-        : h("div", { class: "add-empty" }, h("button", { class: "add-big", id: "enter", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k, "chars") }, "＋"), h("p", {}, "点 ＋ 录入这一周的汉字")),
-      h("div", { class: "sec-row" }, h("h2", { class: "sec idi" }, `成语（${items.length}）`), items.length ? plus("enter-idioms", "idioms") : null),
-      items.length
-        ? h("div", { class: "idioms" }, ...stagger(items.map((t) => h("span", { class: "idiom user" }, t))))
-        : h("div", { class: "add-empty small" }, h("button", { class: "add-chip", id: "enter-idioms", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k, "idioms") }, "＋")),
+        : h("div", { class: "add-empty" }, h("button", { class: "add-big", id: "enter", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k) }, "＋"), h("p", {}, "点 ＋ 录入这一周的汉字")),
     ),
   );
   if (settings.pinyin) void fillPinyin(grid);
 }
 
-/** every week that has something (and this week): choose one to look at */
+/** every week that has characters (and this week): choose one to look at */
 function pickWeek(kid: M.KidData): Promise<string | null> {
   const todayWeek = M.sundayOf(M.todayLocal());
-  const starts = [...new Set([...kid.weeks.map((x) => x.start), ...idioms.weeks.map((x) => x.start), todayWeek])].sort().reverse();
+  const starts = [...new Set([...kid.weeks.map((x) => x.start), todayWeek])].sort().reverse();
   return modal<string>((close) =>
     h("div", { class: "dlg" }, h("h2", {}, "选择周"),
-      h("div", { class: "weeklist" }, ...starts.map((st) => {
-        const nc = M.weekOf(kid, st)?.chars.length ?? 0;
-        const ni = idioms.weeks.find((x) => x.start === st)?.items.length ?? 0;
-        return h("button", { class: "weekrow" + (st === curWeek ? " on" : ""), "data-start": st, onclick: () => close(st) },
+      h("div", { class: "weeklist" }, ...starts.map((st) =>
+        h("button", { class: "weekrow" + (st === curWeek ? " on" : ""), "data-start": st, onclick: () => close(st) },
           h("strong", {}, `第${M.weekNo(st, kidsFile.startWeek)}周`),
           h("span", { class: "muted" }, st),
           st === todayWeek ? h("span", { class: "badge" }, "本周") : null,
-          h("span", { class: "counts" }, `汉字 ${nc} · 成语 ${ni}`));
-      })),
+          h("span", { class: "counts" }, `${M.weekOf(kid, st)?.chars.length ?? 0} 个汉字`)))),
       h("button", { class: "wide", onclick: () => close(null) }, "取消")));
 }
 
@@ -323,8 +324,8 @@ function openViewer(chars: string[], start: number, color: string) {
   const close = h("button", { class: "vclose", id: "viewer-close", title: "关闭", "aria-label": "关闭" }, "×");
   const stage = h("div", { class: "vstage" }, box);
   const root = h("div", { class: "viewer" + (settings.pinyin ? " pinyin-on" : ""), id: "viewer", role: "dialog", "aria-modal": "true", style: `--kid:${color}` },
-    h("div", { class: "vtop" }, count, close), stage, prev, next,
-    h("p", { class: "vhint" }, "点击汉字显示 / 隐藏拼音，左右滑动切换"));
+    h("div", { class: "vtop" }, count, close), stage,
+    h("div", { class: "vbar" }, prev, h("p", { class: "vhint" }, "点击汉字显示 / 隐藏拼音，左右滑动切换"), next));
   const show = (dir = 0) => {
     const ch = chars[i];
     box.dataset.ch = ch;
@@ -382,10 +383,8 @@ function openViewer(chars: string[], start: number, color: string) {
 
 function renderLearned(body: HTMLElement, kid: M.KidData) {
   const chars = M.allChars(kid);
-  const nIdioms = M.allIdioms(idioms).length;
   const head = h("div", { class: "learned-head" },
     h("div", { class: "big" }, h("strong", { id: "count" }, String(chars.length)), " 字"),
-    h("div", { class: "muted" }, `成语 ${nIdioms} 个`),
     h("div", { class: "muted small" }, "点击屏幕显示 / 隐藏拼音"),
   );
   const grid = h("div", { class: "grid" + (settings.pinyin ? " pinyin-on" : ""), id: "grid" }, ...stagger(chars.map(cell)));
@@ -401,54 +400,95 @@ function renderLearned(body: HTMLElement, kid: M.KidData) {
   if (settings.pinyin) void fillPinyin(grid);
 }
 
-async function kidMenu(k: M.Kid) {
-  const what = await modal<"rename" | "delete">((close) =>
-    h("div", { class: "dlg" }, h("h2", { class: "user-title" }, k.name),
-      h("button", { class: "wide", onclick: () => close("rename") }, "修改名字"),
-      h("button", { class: "wide danger", onclick: () => close("delete") }, "删除这个孩子"),
-      h("button", { class: "wide", onclick: () => close(null) }, "取消")));
-  if (what === "rename") {
-    const name = await askText("修改名字", "孩子的名字", k.name, "保存");
-    if (!name || name === k.name) return;
-    if (kidsFile.kids.some((x) => x.id !== k.id && x.name.toLowerCase() === name.toLowerCase())) return toast("已经有同名的孩子了");
-    const done = toast("正在保存…", 0, true);
-    try {
-      kidsFile = await api.update<M.KidsFile>("kids.json", M.EMPTY_KIDS, (cur) => ({ ...cur, kids: cur.kids.map((x) => (x.id === k.id ? { ...x, name } : x)) }), `rename ${k.id}`);
-      done();
-      toast("已修改名字");
-      route();
-    } catch (e) {
-      done();
-      toast(errText(e), 6000);
-    }
-  } else if (what === "delete") {
-    const nChars = M.allChars(kidCache.get(k.id) ?? M.EMPTY_KID).length;
-    const yes = await confirmDlg("删除这个孩子？", `${k.name} 的 ${nChars} 个汉字和学习记录会被删除，不能恢复。（成语是大家共用的，不受影响。）`, "删除", true);
-    if (!yes) return; // cancelled: no "done" message
-    const done = toast("正在删除…", 0, true);
-    try {
-      await api.update<M.KidsFile>("kids.json", M.EMPTY_KIDS, (cur) => ({ ...cur, kids: cur.kids.filter((x) => x.id !== k.id) }), `remove ${k.id}`);
-      await api.remove(`kids/${k.id}.json`, `remove ${k.id}`);
-      kidCache.delete(k.id);
-      done();
-      toast(`已删除 ${k.name}`);
-      home();
-    } catch (e) {
-      done();
-      toast(errText(e), 6000);
-    }
+async function renameKid(k: M.Kid) {
+  const name = await askText("修改名字", "孩子的名字", k.name, "保存");
+  if (!name || name === k.name) return; // cancelled: no message
+  if (kidsFile.kids.some((x) => x.id !== k.id && x.name.toLowerCase() === name.toLowerCase())) return toast("已经有同名的孩子了");
+  const done = toast("正在保存…", 0, true);
+  try {
+    kidsFile = await api.update<M.KidsFile>("kids.json", M.EMPTY_KIDS, (cur) => ({ ...cur, kids: cur.kids.map((x) => (x.id === k.id ? { ...x, name } : x)) }), `rename ${k.id}`);
+    done();
+    toast("已修改名字");
+    void renderSettings();
+  } catch (e) {
+    done();
+    toast(errText(e), 6000);
+  }
+}
+
+async function deleteKid(k: M.Kid) {
+  const nChars = M.allChars(kidCache.get(k.id) ?? (await loadKid(k.id).catch(() => M.EMPTY_KID))).length;
+  const yes = await confirmDlg("删除这个孩子？", `${k.name} 的 ${nChars} 个汉字和学习记录会被删除，不能恢复。`, "删除", true);
+  if (!yes) return; // cancelled: no "done" message
+  const done = toast("正在删除…", 0, true);
+  try {
+    kidsFile = await api.update<M.KidsFile>("kids.json", M.EMPTY_KIDS, (cur) => ({ ...cur, kids: cur.kids.filter((x) => x.id !== k.id) }), `remove ${k.id}`);
+    await api.remove(`kids/${k.id}.json`, `remove ${k.id}`);
+    kidCache.delete(k.id);
+    done();
+    toast(`已删除 ${k.name}`);
+    void renderSettings();
+  } catch (e) {
+    done();
+    toast(errText(e), 6000);
+  }
+}
+
+/** choose a picture for a child: a drawn animal, a photo from the library, or a new photo with the camera */
+async function changeAvatar(k: M.Kid) {
+  const picked = await modal<string>((close) => {
+    const err = h("p", { class: "err", id: "avatar-err" });
+    const file = h("input", { type: "file", accept: "image/*", id: "avatar-file", hidden: true });
+    file.addEventListener("change", async () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      err.textContent = "";
+      try {
+        close(await fileToAvatar(f));
+      } catch (e) {
+        err.textContent = errText(e);
+        file.value = "";
+      }
+    });
+    const current = k.avatar ?? "";
+    const animals = h("div", { class: "animals", style: `--kid:${k.color}` }, ...ANIMAL_NAMES.map((name) =>
+      h("button", { class: "animal" + (current === `animal:${name}` ? " on" : ""), "data-animal": name, title: name, "aria-label": name, onclick: () => close(`animal:${name}`) }, animalNamed(name))));
+    return h("div", { class: "dlg wide-dlg" }, h("h2", {}, "选择头像"),
+      h("div", { class: "avatar-now" }, avatarEl(k), h("span", { class: "user" }, k.name)),
+      animals,
+      h("label", { class: "filebtn" }, "从相册选择", file),
+      h("button", { class: "wide", id: "take-photo", onclick: async () => {
+        err.textContent = "";
+        try {
+          const photo = await takePhoto();
+          if (photo) close(photo);
+        } catch (e) {
+          err.textContent = errText(e);
+        }
+      } }, "拍照"),
+      err,
+      h("button", { class: "wide", onclick: () => close(null) }, "取消"));
+  });
+  if (!picked) return; // cancelled: no message
+  const done = toast("正在保存…", 0, true);
+  try {
+    kidsFile = await api.update<M.KidsFile>("kids.json", M.EMPTY_KIDS, (cur) => ({ ...cur, kids: cur.kids.map((x) => (x.id === k.id ? { ...x, avatar: picked } : x)) }), `avatar ${k.id}`);
+    done();
+    toast("已更换头像");
+    void renderSettings();
+  } catch (e) {
+    done();
+    toast(errText(e), 6000);
   }
 }
 
 // ---------- entering a week ----------
-async function enterDialog(k: M.Kid, focus: "chars" | "idioms" = "chars") {
+async function enterDialog(k: M.Kid) {
   const kid = kidCache.get(k.id) ?? M.EMPTY_KID;
   const date = h("input", { type: "date", value: curWeek, "aria-label": "这一周的第一天（周日）" });
   const label = h("div", { class: "muted small" });
   const chars = h("textarea", { rows: 3, placeholder: "把这一周的汉字粘贴或输入在这里，空格、标点会自动去掉", "aria-label": "汉字" });
-  const idi = h("textarea", { rows: 3, placeholder: "成语，每行一个（或用空格、逗号分开）", "aria-label": "成语" });
   const note1 = h("div", { class: "note", id: "note-chars" });
-  const note2 = h("div", { class: "note", id: "note-idioms" });
   const save = h("button", { class: "primary" }, "保存");
   const weekStart = () => M.sundayOf(date.value || M.todayLocal());
   const learnedText = (list: { item: string; start: string }[]) =>
@@ -457,59 +497,43 @@ async function enterDialog(k: M.Kid, focus: "chars" | "idioms" = "chars") {
     const start = weekStart();
     label.textContent = `这一周：第${M.weekNo(start, M.pickStartWeek(kidsFile.startWeek, start))}周，${start} 起`;
     const c = M.checkChars(kid, start, M.parseChars(chars.value));
-    const i = M.checkIdioms(idioms, start, M.parseIdioms(idi.value));
     const typedC = c.fresh.length + c.learned.length + c.inWeek.length;
-    const typedI = i.fresh.length + i.learned.length + i.inWeek.length;
     note1.replaceChildren();
-    note2.replaceChildren();
     if (typedC) note1.append(h("div", {}, `共 ${typedC} 个汉字，新的 ${c.fresh.length} 个`));
     if (c.learned.length) note1.append(h("div", { class: "warn" }, `已学过，保存时会跳过：${learnedText(c.learned)}`));
     if (c.inWeek.length) note1.append(h("div", { class: "muted" }, `这一周已经有了：${c.inWeek.join("")}`));
-    if (typedI) note2.append(h("div", {}, `共 ${typedI} 个成语，新的 ${i.fresh.length} 个`));
-    if (i.learned.length) note2.append(h("div", { class: "warn" }, `已学过，保存时会跳过：${learnedText(i.learned)}`));
-    if (i.inWeek.length) note2.append(h("div", { class: "muted" }, `这一周已经有了：${i.inWeek.join("、")}`));
-    save.disabled = c.fresh.length + i.fresh.length === 0;
+    save.disabled = c.fresh.length === 0;
   };
-  for (const el of [date, chars, idi]) el.addEventListener("input", refresh);
+  for (const el of [date, chars]) el.addEventListener("input", refresh);
   refresh();
   const ok = await modal<boolean>((close) => {
     save.addEventListener("click", () => close(true));
-    queueMicrotask(() => (focus === "idioms" ? idi : chars).focus());
+    queueMicrotask(() => chars.focus());
     return h("div", { class: "dlg wide-dlg" }, h("h2", {}, "录入这一周的内容"),
       h("label", {}, "这一周的第一天（周日）", date), label,
       h("label", {}, "汉字", chars), note1,
-      h("label", {}, "成语（所有孩子共用）", idi), note2,
       h("div", { class: "row end" }, h("button", { onclick: () => close(null) }, "取消"), save));
   });
   if (!ok) return; // cancelled: no message
   const start = weekStart();
   const typedChars = M.parseChars(chars.value);
-  const typedIdioms = M.parseIdioms(idi.value);
   const done = toast("正在保存…", 0, true);
   try {
-    let addedC = 0, addedI = 0, skipped = 0;
+    let added = 0, skipped = 0;
     const newKid = await api.update<M.KidData>(`kids/${k.id}.json`, M.EMPTY_KID, (cur) => {
       const r = M.addChars(cur, start, typedChars);
-      addedC = r.added;
+      added = r.added;
       skipped = typedChars.length - r.added - M.checkChars(cur, start, typedChars).inWeek.length;
       return r.data;
     }, `${k.id} ${start}`);
     kidCache.set(k.id, newKid);
-    if (typedIdioms.length) {
-      idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => {
-        const r = M.addIdioms(cur, start, typedIdioms);
-        addedI = r.added;
-        skipped += typedIdioms.length - r.added - M.checkIdioms(cur, start, typedIdioms).inWeek.length;
-        return r.data;
-      }, `idioms ${start}`);
-    }
     kidsFile = await api.update<M.KidsFile>("kids.json", M.EMPTY_KIDS, (cur) => {
       const sw = M.pickStartWeek(cur.startWeek, start);
       return sw === cur.startWeek ? cur : { ...cur, startWeek: sw };
     }, "start week");
     curWeek = start;
     done();
-    toast(skipped ? `已保存：新增 ${addedC} 个汉字、${addedI} 个成语；另有 ${skipped} 个已学过，已跳过` : `已保存：新增 ${addedC} 个汉字、${addedI} 个成语`, 5000);
+    toast(skipped ? `已保存：新增 ${added} 个汉字；另有 ${skipped} 个已学过，已跳过` : `已保存：新增 ${added} 个汉字`, 5000);
     route();
   } catch (e) {
     done();
@@ -543,7 +567,7 @@ function pickSheets(): Promise<SheetData[] | null> {
       close([{ name: target.value, rows }]);
     } }, "预览");
     return h("div", { class: "dlg wide-dlg" }, h("h2", {}, "从 Excel 导入"),
-      h("p", { class: "muted" }, "每个孩子一个标签页（标签页的名字就是孩子的名字），每行一周：第一列是“第1周-2026-10-25”，后面是这一周的汉字。标签页“成语”放成语，格式一样。"),
+      h("p", { class: "muted" }, "每个孩子一个标签页（标签页的名字就是孩子的名字），每行一周：第一列是“第1周-2026-10-25”，后面是这一周的汉字。标签页“成语”会被保存起来，暂时不在孩子的页面里显示。"),
       h("p", { class: "muted small" }, "在 Google 表格里：文件 → 下载 → Microsoft Excel (.xlsx)，然后选择下载的文件。"),
       h("label", { class: "filebtn" }, "选择 Excel 文件", file),
       h("div", { class: "or" }, "或者粘贴一个标签页的内容"),
@@ -628,7 +652,7 @@ async function importFlow() {
     }
     done();
     toast(skipped ? `已导入：${chars} 个汉字、${idiomsAdded} 个成语；另有 ${skipped} 个已学过，已跳过` : `已导入：${chars} 个汉字、${idiomsAdded} 个成语`, 6000);
-    void renderHome();
+    restart(); // (the import is started from Settings: show the children)
   } catch (e) {
     done();
     toast(errText(e), 8000);
@@ -688,10 +712,16 @@ if (!__MOBILE__ && import.meta.env.PROD) {
 }
 
 // ---------- settings ----------
-function renderSettings() {
+async function renderSettings() {
+  showLoading();
+  try {
+    await loadShared();
+  } catch (e) {
+    return showError(e, () => void renderSettings());
+  }
   const lang = h("div", { class: "seg" },
     ...([["auto", "自动"], ...LANGS] as [LangPref, string][]).map(([v, name]) =>
-      h("button", { class: settings.lang === v ? "on" : "", onclick: () => { settings.lang = v; saveSettings(); setLang(v); renderSettings(); } }, name)),
+      h("button", { class: settings.lang === v ? "on" : "", onclick: () => { settings.lang = v; saveSettings(); setLang(v); void renderSettings(); } }, name)),
   );
   const pinyin = h("input", { type: "checkbox", checked: settings.pinyin, onchange: (e: Event) => { settings.pinyin = (e.target as HTMLInputElement).checked; saveSettings(); } });
   const a = api.getAuth();
@@ -701,10 +731,23 @@ function renderSettings() {
     : h("div", { class: "card" }, h("h3", {}, "数据保存位置"), h("p", {}, "GitHub：", h("span", { class: "user" }, a?.repo ?? "")),
         h("button", { class: "wide", id: "qr-btn", onclick: showQr }, "登录到其他设备（二维码）"),
         h("button", { class: "wide danger", onclick: signOut }, "退出登录"));
+  // the children: not something done every day, so it lives here and not on the home screen
+  const rows = kidsFile.kids.map((k) =>
+    h("div", { class: "kidrow", "data-kid": k.id, style: `--kid:${k.color}` },
+      h("button", { class: "avatar-btn", title: "修改头像", "aria-label": "修改头像", onclick: () => void changeAvatar(k) }, avatarEl(k)),
+      h("span", { class: "kname user" }, k.name),
+      h("div", { class: "kidact" },
+        h("button", { class: "mini rename", onclick: () => void renameKid(k) }, "修改名字"),
+        h("button", { class: "mini change-avatar", onclick: () => void changeAvatar(k) }, "修改头像"),
+        h("button", { class: "mini danger delete", onclick: () => void deleteKid(k) }, "删除"))));
+  const kids = h("div", { class: "card" }, h("h3", {}, "孩子"), ...rows,
+    h("button", { class: "wide", id: "add-kid", onclick: () => void addKid(() => void renderSettings()) }, "＋ 添加孩子"),
+    h("button", { class: "wide", id: "import-btn", onclick: importFlow }, "从 Excel 导入"));
   show(
     h("div", { class: "page" },
       topBar("设置", backBtn("#/", "完成")),
       h("main", { class: "scroll" }, h("div", { class: "narrow" },
+        kids,
         h("div", { class: "card" }, h("h3", {}, "语言"), lang),
         h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已学”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),
         account,
@@ -761,7 +804,7 @@ async function route() {
   if (!/^#\/kid\//.test(hash)) { curWeek = ""; curWeekKid = ""; }
   const kid = /^#\/kid\/([\w-]+)(?:\/(learned))?$/.exec(hash);
   if (kid) return renderKid(kid[1], kid[2] ? "learned" : "week");
-  if (hash === "#/settings") return renderSettings();
+  if (hash === "#/settings") return void renderSettings();
   return renderHome();
 }
 

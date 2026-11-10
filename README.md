@@ -14,7 +14,7 @@ that only a token of yours can read and write.
 
 ## What it does now
 
-- Home: the children (add / rename / delete). Tap a child to see the week.
+- Home: the children. Tap a child to see the week. (Only the very first time, with nobody yet, a big + asks for the first child.) Adding / renaming / changing the picture (12 animals, a photo from the library, or the camera) / deleting a child, and the Excel import, are in **Settings** (the gear).
 - **This week** (opens on the week we are in; the arrow goes forward only, earlier weeks by tapping the week's name; tap a character for the full-screen view with left / right switching, swipe, and tap = pinyin):  the characters and idioms of the week (previous / next week), enter new ones — pasting is fine, spaces and punctuation are dropped,
   and characters / idioms **already learned are detected** (with the week) and skipped.
 - **Learned**: every learned character in a 田字格 cell; tap the screen to show / hide pinyin; scroll up and down through all of them.

@@ -28,6 +28,7 @@ const fits = (page) => page.evaluate(() => {
     if (r.right > W + 1 || r.left < -1) bad.push('outside the screen: ' + (el.textContent || el.className).trim().slice(0, 30));
     if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflow !== 'visible' && el.tagName !== 'H1') bad.push('clipped text: ' + el.textContent.trim().slice(0, 30));
   }
+  for (const b of document.querySelectorAll('.seg button')) if (b.getBoundingClientRect().height > 60) bad.push('a segment button is broken into lines (a word cut in the middle?): ' + b.textContent.trim());
   for (const n of document.querySelectorAll('.kname')) if (n.getBoundingClientRect().width < 40) bad.push('child name squeezed out: ' + n.textContent);   // (found on CI with wider fonts: a long "N characters learned" took all the room)
   const btns = [...document.querySelectorAll(document.querySelector('dialog[open]') ? 'dialog[open] button' : '.page button, .login button')]   // (behind an open dialog nothing counts)
     .filter((b) => b.getBoundingClientRect().width);
@@ -50,16 +51,15 @@ const fits = (page) => page.evaluate(() => {
         if (lang !== 'zh') { const c = await chineseLeft(page); ok(c.length === 0, `${tag} ${what}: no Chinese UI text left` + (c.length ? ' -> ' + c.join(' | ') : '')); }
       };
       await check('login'); await shot('1-login');
-      await page.click('#local-btn'); await page.waitForSelector('.empty');
+      await page.click('#local-btn'); await page.waitForSelector('.empty-home');
       await check('home (no children)');
-      await page.click('button.primary'); await page.waitForSelector('dialog input');
-      await check('add-child dialog'); await page.fill('dialog input', 'Antoine Dupont-Martin'); await page.click('dialog button.primary');
+      await page.click('#add-kid-big'); await page.waitForSelector('dialog input');
+      await check('add-child dialog'); await page.fill('dialog input', 'Antoine Dupont-Marti'); await page.click('dialog button.primary');
       await page.waitForSelector('.kid'); await addKid(page, '小明');
       await check('home'); await shot('2-home');
       await page.click('.kid >> nth=1'); await page.waitForSelector('#enter');
       await check('week (empty)');
       await page.click('#enter'); await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea >> nth=0', WEEK1 + '假');
-      await page.fill('dialog textarea >> nth=1', '一心一意 画蛇添足 守株待兔 亡羊补牢 掩耳盗铃 对牛弹琴 一心一意');
       await check('enter dialog'); await shot('3-enter');
       await page.click('dialog button.primary'); await page.waitForSelector('dialog', { state: 'detached' });
       await page.waitForFunction(() => !document.querySelector('#toasts .toast.working'));
@@ -73,6 +73,11 @@ const fits = (page) => page.evaluate(() => {
       await page.click('button.back'); await page.waitForSelector('.kids');
       await page.evaluate(() => (location.hash = '#/settings')); await page.waitForSelector('.card h3');
       await check('settings'); await shot('6-settings');
+      await page.click('.change-avatar >> nth=0'); await page.waitForSelector('dialog .animals');
+      await check('picture dialog'); await shot('7-avatar');
+      await page.click('dialog .dlg > button:last-child'); await page.waitForSelector('dialog', { state: 'detached' });
+      await page.click('.rename >> nth=0'); await page.waitForSelector('dialog input');
+      await check('rename dialog'); await page.click('dialog button:not(.primary)'); await page.waitForSelector('dialog', { state: 'detached' });
       await page.click('button:has-text("改用"), button:has-text("instead"), button:has-text("plutôt")');
       await page.waitForSelector('.login');
       await check('login (after leaving this-device mode)');

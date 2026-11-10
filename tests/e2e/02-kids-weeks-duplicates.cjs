@@ -1,64 +1,68 @@
-// Children (3), entering a week, "already learned?" detection, shared idioms, week navigation, rename / delete.
-const { start, checks, addKid, openKid, enterWeek, gotoWeek, WEEK1, WEEK2, WEEK3 } = require('./harness.cjs');
+// Children (3) and where they are managed (Settings, not the home screen), entering a week, "already learned?" detection, week navigation,
+// rename / delete in Settings (cancel = no message), and that a child's own page has no delete.
+const { start, checks, addKid, openKid, enterWeek, gotoWeek, openSettings, goHome, WEEK1, WEEK2, WEEK3 } = require('./harness.cjs');
 const { ok, done } = checks();
 (async () => {
   const { browser, page } = await start(new Map(), { local: true, today: '2026-11-10' });
+
+  // the very first time: nothing but one big + in the middle
+  ok(await page.locator('#add-kid-big').count() === 1 && await page.locator('main button').count() === 1, 'first time, nobody yet: the only thing on the screen is the big + (add a child)');
   for (const n of ['Dory', 'Leo', 'Antoine']) await addKid(page, n);
   ok(await page.locator('.kid').count() === 3, 'three children on the home screen');
-  await page.click('text=＋ 添加孩子'); await page.fill('dialog input', 'dory'); await page.click('dialog button.primary');
+  ok(await page.locator('main button').count() === 3 && await page.locator('#add-kid, #add-kid-big, #import-btn').count() === 0, 'once there are children the home screen holds only the children: no add / import buttons');
+
+  // adding is in Settings: a second "Dory" is refused, cancelling adds nobody and says nothing
+  await openSettings(page);
+  ok(await page.locator('.kidrow').count() === 3 && await page.locator('#import-btn').count() === 1, 'Settings lists the children and has "add a child" and "import from Excel"');
+  await page.click('#add-kid'); await page.fill('dialog input', 'dory'); await page.click('dialog button.primary');
   await page.waitForSelector('#toasts .toast:has-text("同名")');
-  ok(await page.locator('.kid').count() === 3, 'a second "Dory" is refused with a message');
-  await page.click('text=＋ 添加孩子'); await page.fill('dialog input', 'Nobody'); await page.click('dialog button:has-text("取消")');
+  ok(await page.locator('.kidrow').count() === 3, 'a second "Dory" is refused with a message');
+  await page.click('#add-kid'); await page.fill('dialog input', 'Nobody'); await page.click('dialog button:has-text("取消")');
   await page.waitForTimeout(300);
-  ok(await page.locator('.kid').count() === 3 && await page.locator('#toasts .toast:has-text("已添加 Nobody")').count() === 0, 'cancelling "add a child" adds nobody and shows no "done" message');
+  ok(await page.locator('.kidrow').count() === 3 && await page.locator('#toasts .toast:has-text("已添加 Nobody")').count() === 0, 'cancelling "add a child" adds nobody and shows no "done" message');
+  await goHome(page);
 
   await openKid(page, 'Dory');
+  ok(await page.locator('button[title=更多]').count() === 0 && await page.locator('text=删除').count() === 0, "a child's own page has no menu and no delete (that is in Settings)");
   ok((await page.textContent('h2.sec >> nth=0')).includes('（0）'), 'this week (2026-11-08) is shown first and is empty');
   ok((await page.textContent('.wlabel .muted')).startsWith('2026-11-08'), 'the week starts on the Sunday before today');
+  ok(await page.locator('.idiom, .idioms, #enter-idioms').count() === 0 && !(await page.textContent('.narrow')).includes('成语'), 'no idioms on the child page (they are the same for everybody, so not shown here)');
 
   // week 1 entry: live check while typing
   await page.click('#enter');
+  ok(await page.locator('dialog textarea').count() === 1, 'the entry has only the characters box');
   await page.fill('dialog input[type=date]', '2026-10-27');         // a Tuesday: snaps to Sunday 10-25
   ok((await page.textContent('dialog .muted.small')).includes('2026-10-25'), 'a date inside the week snaps to its Sunday');
-  await page.fill('dialog textarea >> nth=0', '假 辣，酸、贫\n纺 abc 123 炒缸锅烛扇');
+  await page.fill('dialog textarea', '假 辣，酸、贫\n纺 abc 123 炒缸锅烛扇');
   ok((await page.textContent('#note-chars')).includes('共 10 个汉字，新的 10 个'), 'spaces, punctuation, digits and letters are dropped: 10 characters');
-  await page.fill('dialog textarea >> nth=1', '一心一意 三心二意，画蛇添足\n守株待兔 亡羊补牢 掩耳盗铃');
-  ok((await page.textContent('#note-idioms')).includes('共 6 个成语'), '6 idioms recognised');
   await page.click('dialog button.primary');
   await page.waitForSelector('dialog', { state: 'detached' });
   await page.waitForSelector('#toasts .toast:has-text("已保存")');
-  ok((await page.textContent('#toasts')).includes('新增 10 个汉字、6 个成语'), 'result message says what was saved');
+  ok((await page.textContent('#toasts')).includes('新增 10 个汉字'), 'result message says what was saved');
   ok((await page.textContent('.wlabel strong')) === '第1周', 'week 1');
-  ok(await page.locator('.cards .tzg').count() === 10, '10 characters shown for the week');
-  ok(await page.locator('.idiom').count() === 6, '6 idioms shown for the week');
-  ok((await page.textContent('.cards')).includes('假'), 'the typed characters are there');
+  ok(await page.locator('.cards .tzg').count() === 10 && (await page.textContent('.cards')).includes('假'), '10 characters shown for the week');
 
-  // week 2 and week 3 (week 3 repeats two characters from week 1 and 2 and an idiom)
-  await enterWeek(page, '2026-11-01', WEEK2, '见义勇为 一鸣惊人 井底之蛙 狐假虎威 对牛弹琴 马到成功');
+  // week 2, then week 3 (which repeats two characters)
+  await enterWeek(page, '2026-11-01', WEEK2);
   ok((await page.textContent('.wlabel strong')) === '第2周', 'week 2 numbered from week 1');
   await page.click('#enter');
   await page.fill('dialog input[type=date]', '2026-11-08');
-  await page.fill('dialog textarea >> nth=0', WEEK3 + '假鼓');
+  await page.fill('dialog textarea', WEEK3 + '假鼓');
   const note = await page.textContent('#note-chars');
   ok(note.includes('新的 10 个'), 'week 3: 10 new characters');
   ok(note.includes('已学过') && note.includes('假（第1周）') && note.includes('鼓（第2周）'), 'duplicates are named with the week they were learned in');
-  await page.fill('dialog textarea >> nth=1', '一心一意 新成语一二');
-  ok((await page.textContent('#note-idioms')).includes('一心一意（第1周）'), 'an idiom learned before is detected (shared by all children)');
   await page.click('dialog button.primary');
   await page.waitForSelector('#toasts .toast:has-text("已学过，已跳过")');   // (the toast of the previous save may still be on screen)
   const msg = await page.textContent('#toasts');
-  ok(msg.includes('新增 10 个汉字、1 个成语') && msg.includes('3 个已学过'), 'saving skips the learned ones (2 characters + 1 idiom) and says how many');
-  ok(await page.locator('.cards .tzg').count() === 10, 'week 3 has exactly its 10 new characters (no duplicates added)');
-  ok((await page.textContent('.cards')).indexOf('假') < 0, 'the repeated character is not in week 3');
+  ok(msg.includes('新增 10 个汉字') && msg.includes('2 个已学过'), 'saving skips the learned ones and says how many (2)');
+  ok(await page.locator('.cards .tzg').count() === 10 && (await page.textContent('.cards')).indexOf('假') < 0, 'week 3 has exactly its 10 new characters; the repeated one is not added again');
   ok((await page.textContent('button[data-tab=learned]')).includes('30'), 'learned tab counts 30 characters');
-
-  // nothing new: the save button stays disabled
   await page.click('#enter');
-  await page.fill('dialog textarea >> nth=0', '假辣');
+  await page.fill('dialog textarea', '假辣');
   ok(await page.locator('dialog button.primary').isDisabled(), 'only learned characters typed: Save is disabled');
   await page.click('dialog button:has-text("取消")');
 
-  // week navigation
+  // week navigation (forward arrows, the list for earlier weeks)
   await gotoWeek(page, '2026-11-01');
   ok((await page.textContent('.wlabel strong')) === '第2周' && await page.locator('.cards .tzg').count() === 10, 'choosing week 2 in the week list shows it');
   await page.click('button[title=下一周]'); await page.click('button[title=下一周]');
@@ -66,31 +70,28 @@ const { ok, done } = checks();
   await page.click('text=回到本周');
   ok((await page.textContent('.wlabel .muted')).startsWith('2026-11-08'), '"back to this week" returns to the current week');
 
-  // children are independent: Leo has not learned anything
-  await page.click('button.back');
-  await page.waitForSelector('.kids');
-  ok((await page.textContent('.kid:has-text("Dory")')).includes('已学 30 字'), 'Dory: 30 characters on the home card');
-  ok((await page.textContent('.kid:has-text("Leo")')).includes('已学 0 字'), 'Leo: 0 (each child has their own library)');
+  // children are independent
+  await goHome(page);
+  ok((await page.textContent('.kid:has-text("Dory")')).includes('已学 30 字') && (await page.textContent('.kid:has-text("Leo")')).includes('已学 0 字'), 'Dory 30, Leo 0: each child has their own library');
   await openKid(page, 'Leo');
-  await page.click('#enter'); await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea >> nth=0', '假鼓');
+  await page.click('#enter'); await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea', '假鼓');
   ok((await page.textContent('#note-chars')).includes('新的 2 个'), 'Leo can learn what Dory has already learned');
   await page.click('dialog button:has-text("取消")');
-  await page.click('button[title=更多]');
-  await page.click('dialog button:has-text("修改名字")'); await page.fill('dialog input', 'Léo'); await page.click('dialog button.primary');
-  await page.waitForSelector('h1:has-text("Léo")');
-  ok(true, 'rename works');
 
-  // delete: cancelling is silent, confirming removes the child but not the idioms
-  await page.click('button[title=更多]'); await page.click('dialog button:has-text("删除这个孩子")');
+  // rename and delete are in Settings
+  await openSettings(page);
+  await page.click('.kidrow:has-text("Leo") .rename'); await page.fill('dialog input', 'Léo'); await page.click('dialog button.primary');
+  await page.waitForSelector('.kidrow:has-text("Léo")');
+  ok(true, 'rename (in Settings) works');
+  await page.click('.kidrow:has-text("Léo") .delete');
+  ok((await page.textContent('dialog')).includes('0 个汉字'), 'the delete question says how much would be lost');
   await page.click('dialog button:has-text("取消")');
   await page.waitForTimeout(300);
-  ok(await page.locator('#toasts .toast:has-text("已删除")').count() === 0, 'cancelling a delete shows no "done" message');
-  await page.click('button[title=更多]'); await page.click('dialog button:has-text("删除这个孩子")');
-  await page.click('dialog button.danger');
+  ok(await page.locator('#toasts .toast:has-text("已删除")').count() === 0 && await page.locator('.kidrow').count() === 3, 'cancelling a delete shows no "done" message and deletes nobody');
+  await page.click('.kidrow:has-text("Léo") .delete'); await page.click('dialog button.danger');
   await page.waitForSelector('#toasts .toast:has-text("已删除")');
-  ok(await page.locator('.kid').count() === 2, 'child deleted');
-  await openKid(page, 'Dory');
-  await gotoWeek(page, '2026-10-25');
-  ok(await page.locator('.idiom').count() === 6, 'idioms (shared) are untouched');
+  ok(await page.locator('.kidrow').count() === 2, 'child deleted');
+  await goHome(page);
+  ok(await page.locator('.kid').count() === 2, 'the home screen follows');
   await done(browser);
 })();

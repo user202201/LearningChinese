@@ -9,3 +9,4 @@
 09-update
 10-week-page-and-viewer
 11-centering-devices
+12-children-settings-avatar

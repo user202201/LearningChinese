@@ -1,6 +1,6 @@
 // Data in the private repository: which files are written, UTF-8 round trip, a second device sees it, two devices editing at the same time
 // are merged (not overwritten), a lost connection is reported and nothing is claimed as saved, delete removes the file.
-const { start, checks, addKid, openKid, enterWeek, gotoWeek, WEEK1, WEEK2, REPO, URL } = require('./harness.cjs');
+const { start, checks, addKid, openKid, enterWeek, gotoWeek, openSettings, WEEK1, WEEK2, REPO, URL } = require('./harness.cjs');
 const { ok, done } = checks();
 (async () => {
   const store = new Map();
@@ -11,13 +11,12 @@ const { ok, done } = checks();
   ok(kids.kids.length === 2 && kids.kids[0].name === 'Dory' && !!kids.kids[0].id, 'kids.json lists the children');
   const id = kids.kids[0].id, id2 = kids.kids[1].id;
   await openKid(page, 'Dory');
-  await enterWeek(page, '2026-10-25', WEEK1, '一心一意 画蛇添足');
+  await enterWeek(page, '2026-10-25', WEEK1);
   ok(store.has(`kids/${id}.json`) && !store.has(`kids/${id2}.json`), 'characters go to kids/<id>.json of that child only');
   const kd = JSON.parse(store.get(`kids/${id}.json`));
   ok(kd.weeks.length === 1 && kd.weeks[0].start === '2026-10-25' && kd.weeks[0].chars.join('') === WEEK1, 'file content: week start and the characters, UTF-8 intact');
-  ok(JSON.parse(store.get('idioms.json')).weeks[0].items.join(',') === '一心一意,画蛇添足', 'idioms are in idioms.json (shared)');
   ok(JSON.parse(store.get('kids.json')).startWeek === '2026-10-25', 'the first week entered becomes week 1');
-  ok([...store.keys()].every((k) => k === 'kids.json' || k === 'idioms.json' || /^kids\/k\w+\.json$/.test(k)), 'nothing else is written to the repository');
+  ok([...store.keys()].every((k) => k === 'kids.json' || /^kids\/k\w+\.json$/.test(k)), 'nothing else is written to the repository');
 
   // a second device (fresh browser) signs in and sees the same data
   const b = await start(store, { today: '2026-11-10' });
@@ -51,8 +50,8 @@ const { ok, done } = checks();
   opts.offline = false;
 
   // delete a child: its file is removed from the repository
-  await page.click('button.back'); await openKid(page, 'Leo');
-  await page.click('button[title=更多]'); await page.click('dialog button:has-text("删除这个孩子")'); await page.click('dialog button.danger');
+  await openSettings(page);
+  await page.click('.kidrow:has-text("Leo") .delete'); await page.click('dialog button.danger');
   await page.waitForSelector('#toasts .toast:has-text("已删除")');
   ok(JSON.parse(store.get('kids.json')).kids.length === 1, 'child removed from kids.json');
   ok(!store.has(`kids/${id2}.json`) || log.deletes.length === 1, 'and its data file is deleted');

@@ -5,7 +5,8 @@
  *   kids/<id>.json   { weeks: [{ start, chars: ["假", ...] }] }  characters of ONE child (each child learns different ones)
  *   idioms.json      { weeks: [{ start, items: ["一心一意", ...] }] }  idioms, the same for all children
  */
-export interface Kid { id: string; name: string; color: string }
+/** avatar: `animal:<name>` (a drawn animal), or a small photo as a data: URL; none = an animal chosen from the id */
+export interface Kid { id: string; name: string; color: string; avatar?: string }
 export interface KidsFile { kids: Kid[]; startWeek?: string }
 export interface Week { start: string; chars: string[] }
 export interface KidData { weeks: Week[] }

@@ -59,7 +59,7 @@ exports.start = async function (store = new Map(), opts = {}) {
   if (opts.noLogin) return { browser, page, store, log, ctx };
   if (opts.local) { await page.click('#local-btn'); }
   else { await page.fill('input[type=text]', REPO); await page.fill('input[type=password]', 'good'); await page.click('button.primary'); }
-  await page.waitForSelector('.kids, .empty');
+  await page.waitForSelector('.kids, .empty-home');
   return { browser, page, store, log, ctx };
 };
 
@@ -73,20 +73,25 @@ exports.checks = function () {
 };
 
 // ---- helpers shared by the suites ----
+/** Settings (the gear on the home screen): where the children are added, renamed, given a picture, deleted and where Excel is imported */
+exports.openSettings = async (page) => { await page.evaluate(() => (location.hash = '#/settings')); await page.waitForSelector('#add-kid'); };
+exports.goHome = async (page) => { await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kids, .empty-home'); };
+/** adds a child the way a user does: the big + when there is nobody yet, otherwise in Settings; ends on the home screen */
 exports.addKid = async (page, name) => {
-  await page.click('main button.primary.wide');   // "+ Add a child" in any language
+  if (await page.locator('#add-kid-big').count()) await page.click('#add-kid-big');
+  else { await exports.openSettings(page); await page.click('#add-kid'); }
   await page.fill('dialog input', name);
   await page.click('dialog button.primary');
-  await page.waitForSelector('.kname:has-text("' + name + '")');
+  await page.waitForSelector(`.kname:has-text("${name}")`);
+  await exports.goHome(page);
 };
 exports.openKid = async (page, name) => { await page.click('.kid:has-text("' + name + '")'); await page.waitForSelector('#enter'); };
 /** earlier weeks are reached by tapping the week's name (the arrow only goes forward) */
 exports.gotoWeek = async (page, start) => { await page.click('#week-pick'); await page.click(`.weekrow[data-start="${start}"]`); await page.waitForSelector('dialog', { state: 'detached' }); };
-exports.enterWeek = async (page, date, chars, idioms = '') => {
+exports.enterWeek = async (page, date, chars) => {
   await page.click('#enter');
   await page.fill('dialog input[type=date]', date);
   await page.fill('dialog textarea >> nth=0', chars);
-  if (idioms) await page.fill('dialog textarea >> nth=1', idioms);
   await page.click('dialog button.primary');
   await page.waitForSelector('dialog', { state: 'detached' });
   await page.waitForFunction(() => !document.querySelector('#toasts .toast.working'));   // the saving is finished

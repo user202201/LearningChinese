@@ -30,10 +30,10 @@ const { ok, done } = checks();
   await pub.browser.close();
 
   await page.fill('input[type=text]', REPO); await page.fill('input[type=password]', 'good'); await page.click('button.primary');
-  await page.waitForSelector('.empty');
-  ok((await page.textContent('.empty')).includes('还没有孩子'), 'good token: home screen, no children yet');
+  await page.waitForSelector('.empty-home');
+  ok((await page.textContent('.empty-home')).includes('还没有孩子'), 'good token: home screen, no children yet');
   await page.reload();
-  await page.waitForSelector('.empty');
+  await page.waitForSelector('.empty-home');
   ok(true, 'stays signed in after reload');
 
   // QR link for another device
@@ -60,7 +60,7 @@ const { ok, done } = checks();
   });
   const p2 = await other.newPage();
   await p2.goto(link);
-  await p2.waitForSelector('.empty');
+  await p2.waitForSelector('.empty-home');
   ok(!(await p2.url()).includes('/link/'), 'link sign-in: lands on the home screen and the token is gone from the address bar');
 
   // sign out
@@ -75,9 +75,9 @@ const { ok, done } = checks();
   // this-device mode: no account, nothing leaves the device
   let outside = 0;
   page.on('request', (r) => { if (/api\.github\.com/.test(r.url())) outside++; });
-  await page.click('text=在本机使用（不需要账号）'); await page.waitForSelector('.empty');
+  await page.click('text=在本机使用（不需要账号）'); await page.waitForSelector('.empty-home');
   ok(outside === 0, 'this-device mode: no request to GitHub');
-  await page.reload(); await page.waitForSelector('.empty');
+  await page.reload(); await page.waitForSelector('.empty-home');
   ok(true, 'this-device mode survives a reload');
   await done(browser);
 })();
