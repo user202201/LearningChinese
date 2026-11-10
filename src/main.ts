@@ -169,8 +169,7 @@ async function renderHome() {
     list.append(
       h("button", { class: "kid", style: `--kid:${k.color}`, onclick: () => (location.hash = `#/kid/${k.id}`) },
         avatarEl(k.id),
-        h("span", { class: "kname user" }, k.name),
-        h("span", { class: "ksub" }, `已学 ${n} 字`),
+        h("span", { class: "kinfo" }, h("span", { class: "kname user" }, k.name), h("span", { class: "ksub" }, `已学 ${n} 字`)),
         h("span", { class: "chev" }, "›")),
     );
   }

@@ -28,6 +28,7 @@ const fits = (page) => page.evaluate(() => {
     if (r.right > W + 1 || r.left < -1) bad.push('outside the screen: ' + (el.textContent || el.className).trim().slice(0, 30));
     if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflow !== 'visible' && el.tagName !== 'H1') bad.push('clipped text: ' + el.textContent.trim().slice(0, 30));
   }
+  for (const n of document.querySelectorAll('.kname')) if (n.getBoundingClientRect().width < 40) bad.push('child name squeezed out: ' + n.textContent);   // (found on CI with wider fonts: a long "N characters learned" took all the room)
   const btns = [...document.querySelectorAll(document.querySelector('dialog[open]') ? 'dialog[open] button' : '.page button, .login button')]   // (behind an open dialog nothing counts)
     .filter((b) => b.getBoundingClientRect().width);
   for (let i = 0; i < btns.length; i++) for (let j = i + 1; j < btns.length; j++) {

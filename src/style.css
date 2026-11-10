@@ -109,8 +109,9 @@ svg[data-art] { display: block; width: 100%; height: 100%; }
 .kid::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 10px; background: var(--kid); }
 .kid:active { box-shadow: 0 0 0 var(--kid-line), var(--shadow); }
 .kid .avatar { width: 64px; height: 64px; margin-left: 6px; }
-.kname { flex: 1; min-width: 0; font-size: 22px; font-weight: 800; }
-.ksub { color: var(--kid); background: var(--kid-soft); border-radius: 999px; padding: 4px 12px; font-size: 14px; font-weight: 800; white-space: nowrap; }
+.kinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }   /* the name has its own line: a long "N characters learned" can never squeeze it out */
+.kname { max-width: 100%; font-size: 22px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+.ksub { max-width: 100%; color: var(--kid); background: var(--kid-soft); border-radius: 999px; padding: 3px 12px; font-size: 14px; font-weight: 800; }
 .chev { color: var(--kid); font-size: 30px; font-weight: 800; }
 
 /* tabs */
