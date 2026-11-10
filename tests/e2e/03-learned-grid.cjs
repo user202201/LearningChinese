@@ -1,9 +1,10 @@
 // "已学": every learned character in a 田字格 cell, tap the screen to show / hide pinyin, scroll up / down through all of them.
-const { start, checks, addKid, openKid, enterWeek, WEEK1 } = require('./harness.cjs');
+const { start, checks, addKid, openKid, enterWeek, gotoWeek, WEEK1 } = require('./harness.cjs');
 const { ok, done } = checks();
 const MANY = Array.from('一二三四五六七八九十上下大小山水火土木金日月田人口手足目耳心中天地风雨花草鸟鱼马牛羊虫书门工农学校早晚东西南北左右前后红黄蓝绿白黑'); // 60 distinct
+// (today is late in the year so that all the weeks entered below are in the past: a week can only be prepared one week ahead)
 (async () => {
-  const { browser, page } = await start(new Map(), { local: true, today: '2026-11-08', viewport: { width: 820, height: 1000 } });
+  const { browser, page } = await start(new Map(), { local: true, today: '2026-12-20', viewport: { width: 820, height: 1000 } });
   await addKid(page, 'Dory'); await openKid(page, 'Dory');
   await page.click('button[data-tab=learned]');
   await page.waitForSelector('#learned-scroll');
@@ -60,7 +61,7 @@ const MANY = Array.from('一二三四五六七八九十上下大小山水火土�
   await page.screenshot({ path: (process.env.D || 'tests/out/work/') + 'learned-grid.png' });
 
   // the week view follows the same pinyin setting
-  await page.click('button:has-text("本周")');
+  await page.click('button:has-text("本周")'); await gotoWeek(page, '2026-11-29');
   await page.waitForSelector('.cards .tzg .py');
   await page.waitForFunction(() => document.querySelector('.cards .tzg .py')?.textContent);
   ok(await page.locator('.cards .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) === 'visible', 'the week cards show pinyin when it is on');

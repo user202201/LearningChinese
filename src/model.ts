@@ -115,6 +115,11 @@ export function addIdioms(all: IdiomsFile, start: string, items: string[]): { da
   return { data: { weeks }, added: fresh.length };
 }
 
+/** takes a character out of the week it is in (a week left empty disappears) */
+export function removeChar(kid: KidData, ch: string): KidData {
+  return { weeks: kid.weeks.map((w) => ({ ...w, chars: w.chars.filter((c) => c !== ch) })).filter((w) => w.chars.length > 0) };
+}
+
 /** every character the child has learned, oldest week first */
 export const allChars = (kid: KidData): string[] => kid.weeks.flatMap((w) => w.chars);
 export const allIdioms = (all: IdiomsFile): string[] => all.weeks.flatMap((w) => w.items);

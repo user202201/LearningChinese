@@ -1,5 +1,13 @@
 /** Translations of the UI texts, keyed by the Chinese source text (see i18n.ts). `npm run check:i18n` fails when one is missing. */
 export const EN: Record<string, string> = {
+  "删除这个汉字": "Delete this character",
+  "删除这个汉字？": "Delete this character?",
+  "把“{0}”从这个孩子的记录里删除？": "Delete “{0}” from this child's record?",
+  "已删除“{0}”": "Deleted “{0}”",
+  "管理模式": "Manage mode",
+  "打开后，“本周”和“已学”里每个汉字的右上角会出现红色“−”，点一下就能删除这个汉字。用完请关掉。": "When on, every character in “This week” and “Learned” gets a red “−” in its corner; tap it to delete the character. Please turn it off when you are done.",
+  "管理模式：点汉字右上角的红色“−”删除": "Manage mode: tap the red “−” on a character to delete it",
+  "−": "−",
   "{0} 个汉字": "{0} characters",
   "{0} 的 {1} 个汉字和学习记录会被删除，不能恢复。": "{0}'s {1} characters and learning record will be deleted and cannot be restored.",
   "从相册选择": "Choose from the photo library",
@@ -177,6 +185,14 @@ export const EN: Record<string, string> = {
   "重试": "Retry",
 };
 export const FR: Record<string, string> = {
+  "删除这个汉字": "Supprimer ce caractère",
+  "删除这个汉字？": "Supprimer ce caractère ?",
+  "把“{0}”从这个孩子的记录里删除？": "Supprimer « {0} » de l'historique de cet enfant ?",
+  "已删除“{0}”": "« {0} » supprimé",
+  "管理模式": "Mode gestion",
+  "打开后，“本周”和“已学”里每个汉字的右上角会出现红色“−”，点一下就能删除这个汉字。用完请关掉。": "Activé, chaque caractère de « Cette semaine » et « Appris » reçoit un « − » rouge dans son coin ; touchez-le pour supprimer le caractère. Pensez à le désactiver ensuite.",
+  "管理模式：点汉字右上角的红色“−”删除": "Mode gestion : touchez le « − » rouge d'un caractère pour le supprimer",
+  "−": "−",
   "{0} 个汉字": "{0} caractères",
   "{0} 的 {1} 个汉字和学习记录会被删除，不能恢复。": "Les {1} caractères et l'historique de {0} seront supprimés, sans retour possible.",
   "从相册选择": "Choisir dans la photothèque",

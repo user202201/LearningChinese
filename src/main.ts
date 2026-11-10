@@ -13,14 +13,14 @@ import * as I from "./importer";
 const app = document.getElementById("app")!;
 
 // ---------- settings (only per-device conveniences; the learning data lives behind api.ts) ----------
-interface Settings { lang: LangPref; pinyin: boolean }
+interface Settings { lang: LangPref; pinyin: boolean; manage: boolean }
 const SETTINGS_KEY = "learn.settings.v1";
 function loadSettings(): Settings {
   try {
     const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
-    return { lang: ["auto", "zh", "en", "fr"].includes(s.lang) ? s.lang : "auto", pinyin: !!s.pinyin };
+    return { lang: ["auto", "zh", "en", "fr"].includes(s.lang) ? s.lang : "auto", pinyin: !!s.pinyin, manage: !!s.manage };
   } catch {
-    return { lang: "auto", pinyin: false };
+    return { lang: "auto", pinyin: false, manage: false };
   }
 }
 const settings = loadSettings();
@@ -55,6 +55,13 @@ const restart = () => {
   else location.hash = "#/";
 };
 
+/** manage mode: a red "−" at the corner of a character (like deleting an app on the iPhone); `onDelete` is called with the character */
+const withDelete = (el: HTMLElement, ch: string, onDelete: (ch: string) => void) => {
+  el.classList.add("managing");
+  el.querySelector(".box")!.append(h("button", { class: "del", title: "删除这个汉字", "aria-label": "删除这个汉字", onclick: (e: Event) => { e.stopPropagation(); onDelete(ch); } }, "−"));
+  return el;
+};
+
 /** a character in a 田字格 cell: pinyin line above, the character in a square with a dashed cross */
 const cell = (ch: string) =>
   h("div", { class: "tzg", "data-ch": ch }, h("div", { class: "py" }), h("div", { class: "box" }, h("span", { class: "ch user" }, ch)));
@@ -76,6 +83,12 @@ const stagger = <T extends HTMLElement>(els: T[]): T[] => {
 };
 const backBtn = (to: string, label = "返回") => h("button", { class: "icon back", title: label, "aria-label": label, onclick: () => (location.hash = to) }, "‹");
 const gearBtn = () => h("button", { class: "icon", title: "设置", "aria-label": "设置", onclick: () => (location.hash = "#/settings") }, "⚙");
+
+/**
+ * A screen is loaded asynchronously. When the user goes somewhere else meanwhile (two quick taps), the slower, older load must not
+ * paint over the newer screen: every route() starts a new epoch and a load that finds a newer epoch stops without showing anything.
+ */
+let epoch = 0;
 
 function show(view: HTMLElement) {
   app.replaceChildren(view);
@@ -165,13 +178,15 @@ function renderLogin(message = "") {
 
 // ---------- home: the children ----------
 async function renderHome() {
+  const my = epoch;
   showLoading();
   try {
     await loadShared();
     await Promise.all(kidsFile.kids.map((k) => loadKid(k.id)));
   } catch (e) {
-    return showError(e, renderHome);
+    return my === epoch ? showError(e, renderHome) : undefined;
   }
+  if (my !== epoch) return; // the user went somewhere else meanwhile
   const hero = h("header", { class: "top hero home-hero" },
     h("span", { class: "mascot" }, mascot()),
     h("div", { class: "hero-text" }, h("h1", {}, "识字小助手"), h("p", {}, "今天学点什么？")),
@@ -220,14 +235,16 @@ async function addKid(after: () => void) {
 
 // ---------- one child ----------
 async function renderKid(id: string, tab: "week" | "learned") {
+  const my = epoch;
   showLoading();
   let kid: M.KidData;
   try {
     await loadShared();
     kid = await loadKid(id);
   } catch (e) {
-    return showError(e, () => renderKid(id, tab));
+    return my === epoch ? showError(e, () => renderKid(id, tab)) : undefined;
   }
+  if (my !== epoch) return;
   const k = kidsFile.kids.find((x) => x.id === id);
   if (!k) {
     toast("找不到这个孩子");
@@ -254,8 +271,11 @@ async function renderKid(id: string, tab: "week" | "learned") {
     ),
   );
   if (tab === "week") renderWeek(body, k, kid);
-  else renderLearned(body, kid);
+  else renderLearned(body, k, kid);
 }
+
+/** characters a week is meant to have: with this many the + is not offered any more */
+const WEEKLY = 10;
 
 function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   body.replaceChildren();
@@ -266,16 +286,19 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
     curWeek = start;
     renderWeek(body, k, kid);
   };
-  // only forward: earlier weeks are in "Learned" (and can be reached by tapping the week's name)
+  // back as far as the first week that has something (or this week); forward only as far as NEXT week (to prepare it), or as far as the last week that already has something
+  const lowest = [todayWeek, ...kid.weeks.map((x) => x.start)].sort()[0];
+  const highest = [M.addDays(todayWeek, 7), ...kid.weeks.map((x) => x.start)].sort().at(-1)!;
   const bar = h("div", { class: "weekbar" },
-    h("button", { class: "icon", title: "上一周", "aria-label": "上一周", disabled: curWeek <= todayWeek, onclick: () => go(M.addDays(curWeek, -7)) }, "‹"),
+    h("button", { class: "icon", title: "上一周", "aria-label": "上一周", disabled: curWeek <= lowest, onclick: () => go(M.addDays(curWeek, -7)) }, "‹"),
     h("button", { class: "wlabel", id: "week-pick", title: "选择周", "aria-label": "选择周", onclick: () => void pickWeek(kid).then((start) => start && go(start)) },
       h("strong", {}, `第${no}周`), h("span", { class: "muted" }, `${curWeek} ~ ${M.addDays(curWeek, 6)}`)),
-    h("button", { class: "icon", title: "下一周", "aria-label": "下一周", onclick: () => go(M.addDays(curWeek, 7)) }, "›"),
+    h("button", { class: "icon", title: "下一周", "aria-label": "下一周", disabled: curWeek >= highest, onclick: () => go(M.addDays(curWeek, 7)) }, "›"),
   );
   const chars = w?.chars ?? [];
   const cards = chars.map((c, i) => {
     const el = cell(c);
+    if (settings.manage) return withDelete(el, c, (ch) => void deleteChar(k, ch)); // manage mode: delete instead of opening the big view
     el.classList.add("tappable");
     el.setAttribute("role", "button");
     el.tabIndex = 0;
@@ -286,10 +309,11 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   const grid = h("div", { class: "cards" + (settings.pinyin ? " pinyin-on" : "") }, ...stagger(cards));
   body.append(
     h("div", { class: "narrow" },
+      manageBar(),
       bar,
       curWeek === todayWeek ? null : h("button", { class: "link", onclick: () => go(todayWeek) }, "回到本周"),
       h("div", { class: "sec-row" }, h("h2", { class: "sec" }, `汉字（${chars.length}）`),
-        chars.length ? h("button", { class: "plus", id: "enter", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k) }, "＋") : null),
+        chars.length && chars.length < WEEKLY ? h("button", { class: "plus", id: "enter", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k) }, "＋") : null),
       chars.length
         ? grid
         : h("div", { class: "add-empty" }, h("button", { class: "add-big", id: "enter", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k) }, "＋"), h("p", {}, "点 ＋ 录入这一周的汉字")),
@@ -381,14 +405,15 @@ function openViewer(chars: string[], start: number, color: string) {
   void loadPinyin().then(() => show());
 }
 
-function renderLearned(body: HTMLElement, kid: M.KidData) {
+function renderLearned(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   const chars = M.allChars(kid);
   const head = h("div", { class: "learned-head" },
     h("div", { class: "big" }, h("strong", { id: "count" }, String(chars.length)), " 字"),
     h("div", { class: "muted small" }, "点击屏幕显示 / 隐藏拼音"),
   );
-  const grid = h("div", { class: "grid" + (settings.pinyin ? " pinyin-on" : ""), id: "grid" }, ...stagger(chars.map(cell)));
-  const scroller = h("div", { class: "scroll", id: "learned-scroll" }, head, chars.length ? grid : h("p", { class: "empty" }, "还没有学过的字，先去“本周”录入吧。"));
+  const cells = chars.map((c) => (settings.manage ? withDelete(cell(c), c, (ch) => void deleteChar(k, ch)) : cell(c)));
+  const grid = h("div", { class: "grid" + (settings.pinyin ? " pinyin-on" : ""), id: "grid" }, ...stagger(cells));
+  const scroller = h("div", { class: "scroll", id: "learned-scroll" }, h("div", { class: "narrow" }, manageBar()), head, chars.length ? grid : h("p", { class: "empty" }, "还没有学过的字，先去“本周”录入吧。"));
   // a tap anywhere on the screen (not a scroll) shows / hides the pinyin
   scroller.addEventListener("click", () => {
     settings.pinyin = !settings.pinyin;
@@ -398,6 +423,28 @@ function renderLearned(body: HTMLElement, kid: M.KidData) {
   });
   body.replaceChildren(scroller);
   if (settings.pinyin) void fillPinyin(grid);
+}
+
+/** shown while manage mode is on: says so and turns it off again */
+function manageBar(): HTMLElement | null {
+  if (!settings.manage) return null;
+  return h("div", { class: "managebar" }, h("span", {}, "管理模式：点汉字右上角的红色“−”删除"),
+    h("button", { class: "mini", id: "manage-off", onclick: () => { settings.manage = false; saveSettings(); void route(); } }, "完成"));
+}
+
+async function deleteChar(k: M.Kid, ch: string) {
+  const yes = await confirmDlg("删除这个汉字？", `把“${ch}”从这个孩子的记录里删除？`, "删除", true);
+  if (!yes) return; // cancelled: no "done" message
+  const done = toast("正在删除…", 0, true);
+  try {
+    kidCache.set(k.id, await api.update<M.KidData>(`kids/${k.id}.json`, M.EMPTY_KID, (cur) => M.removeChar(cur, ch), `delete ${k.id}`));
+    done();
+    toast(`已删除“${ch}”`);
+    void route();
+  } catch (e) {
+    done();
+    toast(errText(e), 6000);
+  }
 }
 
 async function renameKid(k: M.Kid) {
@@ -713,17 +760,20 @@ if (!__MOBILE__ && import.meta.env.PROD) {
 
 // ---------- settings ----------
 async function renderSettings() {
+  const my = epoch;
   showLoading();
   try {
     await loadShared();
   } catch (e) {
-    return showError(e, () => void renderSettings());
+    return my === epoch ? showError(e, () => void renderSettings()) : undefined;
   }
+  if (my !== epoch) return;
   const lang = h("div", { class: "seg" },
     ...([["auto", "自动"], ...LANGS] as [LangPref, string][]).map(([v, name]) =>
       h("button", { class: settings.lang === v ? "on" : "", onclick: () => { settings.lang = v; saveSettings(); setLang(v); void renderSettings(); } }, name)),
   );
   const pinyin = h("input", { type: "checkbox", checked: settings.pinyin, onchange: (e: Event) => { settings.pinyin = (e.target as HTMLInputElement).checked; saveSettings(); } });
+  const manage = h("input", { type: "checkbox", id: "manage-mode", checked: settings.manage, onchange: (e: Event) => { settings.manage = (e.target as HTMLInputElement).checked; saveSettings(); } });
   const a = api.getAuth();
   const account = api.isLocal()
     ? h("div", { class: "card" }, h("h3", {}, "数据保存位置"), h("p", {}, "这台设备（浏览器）里，不会上传。换设备或清除浏览器数据会丢失。"),
@@ -748,6 +798,8 @@ async function renderSettings() {
       topBar("设置", backBtn("#/", "完成")),
       h("main", { class: "scroll" }, h("div", { class: "narrow" },
         kids,
+        h("div", { class: "card" }, h("label", { class: "check" }, manage, "管理模式"),
+          h("p", { class: "muted small" }, "打开后，“本周”和“已学”里每个汉字的右上角会出现红色“−”，点一下就能删除这个汉字。用完请关掉。")),
         h("div", { class: "card" }, h("h3", {}, "语言"), lang),
         h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已学”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),
         account,
@@ -784,6 +836,7 @@ async function showQr() {
 
 // ---------- routing ----------
 async function route() {
+  epoch++;
   const hash = location.hash;
   const link = api.parseLink(hash);
   if (link) {

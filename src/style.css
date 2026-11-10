@@ -267,3 +267,13 @@ button.animal.on { border-color: #fff; outline: 4px solid var(--accent); }
 .scan-video.mirror { transform: scaleX(-1); }
 .row.center-row { justify-content: center; margin: 4px 0 8px; }
 button.shutter { width: 72px; height: 72px; min-height: 72px; padding: 0; border-radius: 50%; border: 6px solid #fff; background: var(--accent); box-shadow: 0 0 0 4px var(--accent), 0 6px 14px rgba(0,0,0,.25); }
+
+/* manage mode: a red minus on every character, the cards wiggle a little like icons on an iPhone */
+.managebar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 10px; padding: 8px 8px 8px 16px; border-radius: 18px; background: #ffe3e3; color: #c92a2a; font-weight: 800; font-size: 14px; }
+.managebar button.mini { flex: none; min-height: 36px; background: #fff; }
+.tzg .box { position: relative; }
+.tzg .del { position: absolute; top: -9px; right: -9px; z-index: 2; width: 30px; height: 30px; min-height: 30px; padding: 0; border-radius: 50%; border: 2px solid #fff; background: #e03131; color: #fff; font: 800 22px/1 var(--round); box-shadow: 0 2px 5px rgba(0,0,0,.3); display: grid; place-items: center; overflow: visible; }
+.tzg .del:active { transform: scale(.9); box-shadow: 0 2px 5px rgba(0,0,0,.3); }
+.tzg.managing .box { animation: wiggle .22s ease-in-out infinite alternate; }
+.tzg.managing:nth-child(even) .box { animation-delay: -.11s; }
+@keyframes wiggle { from { transform: rotate(-1.4deg); } to { transform: rotate(1.4deg); } }

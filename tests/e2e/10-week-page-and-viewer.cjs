@@ -9,7 +9,7 @@ const OUT = process.env.D || 'tests/out/work/';
 
   // --- the week page
   ok((await page.textContent('.wlabel .muted')).startsWith('2026-11-08'), 'opens on the week that contains today (Sunday 2026-11-08)');
-  ok(await page.locator('button[title=上一周]').isDisabled(), 'the left arrow is off on the current week: only forward');
+  ok(await page.locator('button[title=上一周]').isDisabled(), 'nothing entered anywhere yet: there is no earlier week to go back to, the left arrow is off');
   ok(await page.locator('button.primary.wide').count() === 0, 'no big "enter this week" button any more');
   const big = await page.locator('#enter').boundingBox();
   const area = await page.locator('.narrow').boundingBox();
@@ -22,19 +22,26 @@ const OUT = process.env.D || 'tests/out/work/';
   await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea', WEEK3);
   await page.click('dialog button.primary'); await page.waitForSelector('dialog', { state: 'detached' });
   await page.waitForFunction(() => !document.querySelector('#toasts .toast.working') && document.querySelectorAll('.cards .tzg').length === 10);
-  const small = await page.locator('#enter').boundingBox();
-  ok(await page.locator('#enter.plus').count() === 1 && small.width <= 48, 'with characters in the week the + is a small round button in the heading (' + Math.round(small.width) + 'px)');
-  await page.screenshot({ path: OUT + 'week-filled.png' });
+  ok(await page.locator('#enter').count() === 0, 'with the 10 characters of the week in, there is no + any more');
 
-  // forward only
+  // fewer than 10: a small + to complete the week
   await page.click('button[title=下一周]');
-  ok((await page.textContent('.wlabel strong')) === '第2周' && !(await page.locator('button[title=上一周]').isDisabled()), 'forward to next week (week 2): the left arrow comes on');
-  ok(await page.locator('#enter.add-big').count() === 1, 'a week in the future is empty and can be filled (a big +)');
+  ok((await page.textContent('.wlabel strong')) === '第2周' && await page.locator('#enter.add-big').count() === 1, 'a week in the future is empty and can be filled (a big +)');
+  await page.click('#enter'); await page.fill('dialog input[type=date]', '2026-11-15'); await page.fill('dialog textarea', '一二三四五六');
+  await page.click('dialog button.primary'); await page.waitForSelector('dialog', { state: 'detached' });
+  await page.waitForFunction(() => document.querySelectorAll('.cards .tzg').length === 6 && !document.querySelector('#toasts .toast.working'));
+  const small = await page.locator('#enter').boundingBox();
+  ok(await page.locator('#enter.plus').count() === 1 && small.width <= 48, 'with 6 of the 10 the + is a small round button in the heading (' + Math.round(small.width) + 'px)');
+  await page.screenshot({ path: OUT + 'week-filled.png' });
+  // both ways: back to the first week that has something, forward without limit
+  ok(!(await page.locator('button[title=上一周]').isDisabled()), 'in week 2 the left arrow is on (week 1 has characters)');
   await page.click('button[title=上一周]');
-  ok((await page.textContent('.wlabel .muted')).startsWith('2026-11-08') && await page.locator('button[title=上一周]').isDisabled(), 'back to the current week, and the left arrow goes off again');
+  ok((await page.textContent('.wlabel strong')) === '第1周' && await page.locator('.cards .tzg').count() === 10, 'the left arrow shows the week before, with its characters');
+  ok(await page.locator('button[title=上一周]').isDisabled(), 'week 1 is the first one with something: the left arrow is off there');
+  await page.click('button[title=下一周]');
+  ok((await page.textContent('.wlabel .muted')).startsWith('2026-11-15') && await page.locator('button[title=下一周]').isDisabled(), 'forward goes only as far as NEXT week (2026-11-15): there the right arrow is off');
 
   // coming back from the home screen starts on the current week again
-  await page.click('button[title=下一周]'); await page.click('button[title=下一周]');
   await page.click('button.back'); await page.waitForSelector('.kids');
   await openKid(page, 'Dory');
   ok((await page.textContent('.wlabel .muted')).startsWith('2026-11-08'), 'opening the child again starts on the current week, not where you left');
@@ -43,8 +50,8 @@ const OUT = process.env.D || 'tests/out/work/';
   await enterWeek(page, '2026-10-25', WEEK1);
   await page.click('#week-pick');
   const rows = await page.$$eval('.weekrow', (e) => e.map((r) => ({ start: r.dataset.start, text: r.textContent, on: r.classList.contains('on') })));
-  ok(rows.map((r) => r.start).join() === '2026-11-08,2026-10-25', 'the week list shows the weeks that have something, newest first');
-  ok(rows[0].text.includes('本周') && rows[0].text.includes('10 个汉字') && rows[1].text.includes('第1周'), 'each row: the week, "this week" badge, how much is in it');
+  ok(rows.map((r) => r.start).join() === '2026-11-15,2026-11-08,2026-10-25', 'the week list shows the weeks that have something, newest first');
+  ok(rows[1].text.includes('本周') && rows[1].text.includes('10 个汉字') && rows[2].text.includes('第1周'), 'each row: the week, "this week" badge, how much is in it');
   await page.screenshot({ path: OUT + 'week-list.png' });
   await page.click('dialog button:not(.weekrow)'); await page.waitForSelector('dialog', { state: 'detached' });
   ok(await page.locator('#toasts .toast:has-text("已选")').count() === 0, 'closing the week list changes nothing and shows no message');

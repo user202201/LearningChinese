@@ -1,6 +1,6 @@
 // Children (3) and where they are managed (Settings, not the home screen), entering a week, "already learned?" detection, week navigation,
 // rename / delete in Settings (cancel = no message), and that a child's own page has no delete.
-const { start, checks, addKid, openKid, enterWeek, gotoWeek, openSettings, goHome, WEEK1, WEEK2, WEEK3 } = require('./harness.cjs');
+const { start, checks, addKid, openKid, enterWeek, gotoWeek, openEntry, openSettings, goHome, WEEK1, WEEK2, WEEK3 } = require('./harness.cjs');
 const { ok, done } = checks();
 (async () => {
   const { browser, page } = await start(new Map(), { local: true, today: '2026-11-10' });
@@ -45,7 +45,7 @@ const { ok, done } = checks();
   // week 2, then week 3 (which repeats two characters)
   await enterWeek(page, '2026-11-01', WEEK2);
   ok((await page.textContent('.wlabel strong')) === '第2周', 'week 2 numbered from week 1');
-  await page.click('#enter');
+  await openEntry(page);   // (the week just saved has its 10 characters and no +)
   await page.fill('dialog input[type=date]', '2026-11-08');
   await page.fill('dialog textarea', WEEK3 + '假鼓');
   const note = await page.textContent('#note-chars');
@@ -57,7 +57,7 @@ const { ok, done } = checks();
   ok(msg.includes('新增 10 个汉字') && msg.includes('2 个已学过'), 'saving skips the learned ones and says how many (2)');
   ok(await page.locator('.cards .tzg').count() === 10 && (await page.textContent('.cards')).indexOf('假') < 0, 'week 3 has exactly its 10 new characters; the repeated one is not added again');
   ok((await page.textContent('button[data-tab=learned]')).includes('30'), 'learned tab counts 30 characters');
-  await page.click('#enter');
+  await openEntry(page);   // (the week just saved has its 10 characters and no +)
   await page.fill('dialog textarea', '假辣');
   ok(await page.locator('dialog button.primary').isDisabled(), 'only learned characters typed: Save is disabled');
   await page.click('dialog button:has-text("取消")');

@@ -85,11 +85,19 @@ exports.addKid = async (page, name) => {
   await page.waitForSelector(`.kname:has-text("${name}")`);
   await exports.goHome(page);
 };
-exports.openKid = async (page, name) => { await page.click('.kid:has-text("' + name + '")'); await page.waitForSelector('#enter'); };
+exports.openKid = async (page, name) => { await page.click('.kid:has-text("' + name + '")'); await page.waitForSelector('.weekbar'); };   // (not #enter: a week with its 10 characters has no +)
 /** earlier weeks are reached by tapping the week's name (the arrow only goes forward) */
 exports.gotoWeek = async (page, start) => { await page.click('#week-pick'); await page.click(`.weekrow[data-start="${start}"]`); await page.waitForSelector('dialog', { state: 'detached' }); };
-exports.enterWeek = async (page, date, chars) => {
+/** opens the entry window the way a user gets there: a week with its 10 characters has no +, so go to an empty week (forward as far as it goes, then back) and tap its big + */
+exports.openEntry = async (page) => {
+  for (const dir of ['下一周', '上一周']) {
+    while (!(await page.locator('#enter').count())) { const b = page.locator(`button[title=${dir}]`); if (await b.isDisabled()) break; await b.click(); }
+    if (await page.locator('#enter').count()) break;
+  }
   await page.click('#enter');
+};
+exports.enterWeek = async (page, date, chars) => {
+  await exports.openEntry(page);
   await page.fill('dialog input[type=date]', date);
   await page.fill('dialog textarea >> nth=0', chars);
   await page.click('dialog button.primary');

@@ -57,7 +57,7 @@ const fits = (page) => page.evaluate(() => {
       await check('add-child dialog'); await page.fill('dialog input', 'Antoine Dupont-Marti'); await page.click('dialog button.primary');
       await page.waitForSelector('.kid'); await addKid(page, '小明');
       await check('home'); await shot('2-home');
-      await page.click('.kid >> nth=1'); await page.waitForSelector('#enter');
+      await page.click('.kid >> nth=1'); await page.waitForSelector('.weekbar');
       await check('week (empty)');
       await page.click('#enter'); await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea >> nth=0', WEEK1 + '假');
       await check('enter dialog'); await shot('3-enter');

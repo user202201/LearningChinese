@@ -50,7 +50,7 @@ const SAMPLE = path.resolve(__dirname, '../fixtures/sample.xlsx');
   ok(JSON.parse(store.get('idioms.json')).weeks.map((w) => w.items.length).join() === '6,6', 'idioms: 2 weeks of 6');
 
   // the imported data is there in the child's page
-  await page.click('.kid:has-text("Dory")'); await page.waitForSelector('#enter');
+  await page.click('.kid:has-text("Dory")'); await page.waitForSelector('.weekbar');
   ok((await page.textContent('.wlabel strong')) === '第3周' && await page.locator('.cards .tzg').count() === 10, "Dory's page shows week 3 with its 10 characters");
   await gotoWeek(page, '2026-10-25');
   ok((await page.textContent('.wlabel strong')) === '第1周' && await page.locator('.cards .tzg').count() === 10 && await page.locator('.idiom').count() === 0, 'week 1 shows its characters; the idioms of the 成语 tab are saved (idioms.json) but not shown on the page');

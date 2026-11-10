@@ -40,9 +40,10 @@ const { ok, done } = checks();
   ok((await page.textContent('#toasts')).includes('已保存'), 'and the user is told it was saved');
 
   // lost connection: an error is shown, no "saved" message
-  await page.waitForSelector('#enter');                 // (the page has finished reloading after the save)
+  await page.waitForSelector('.weekbar');                 // (the page has finished reloading after the save)
   opts.offline = true;
-  await page.click('#enter'); await page.fill('dialog textarea >> nth=0', '梨桃李'); await page.click('dialog button.primary');
+  await page.click('button[title=下一周]');           // (the week with its 10 characters has no +: the next week is empty)
+  await page.click('#enter'); await page.fill('dialog textarea', '梨桃李'); await page.click('dialog button.primary');
   await page.waitForSelector('#toasts .toast:has-text("网络请求失败")', { timeout: 15000 });
   ok(await page.locator('#toasts .toast:has-text("已保存")').count() === 0 || (await page.textContent('#toasts')).indexOf('网络请求失败') >= 0, 'offline: the failure is reported');
   ok(await page.locator('#toasts .toast.working').count() === 0, 'the "saving…" spinner is closed when it failed');

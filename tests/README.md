@@ -11,6 +11,7 @@ Browser tests (Playwright + Chromium, touch-sized windows) against the app runni
 | 03-learned-grid | every learned character in a 田字格, tap = show / hide pinyin, scrolling through 70 characters |
 | 04-github-storage | which files are written, UTF-8, second device, two devices at once are merged, lost connection is reported, delete |
 | 10-week-page-and-viewer | the week page (today first, forward only, plus buttons) and the full-screen character (tap, buttons, swipe, arrow keys, pinyin) |
+| 13-manage-mode | manage mode (Settings): a red - on every character to delete a wrongly entered one; cancel is silent; also in "Learned"; the + comes back below 10; an emptied week disappears; sizes on 5 screens |
 | 12-children-settings-avatar | children are managed in Settings; pictures: 12 animals, a photo from the library (cut square, small JPEG), the camera, bad file, refused camera, cancel, second device |
 | 11-centering-devices | equal space left / right on 11 emulated screens (iPhone, iPad, desktop), full-screen character exactly centred, nothing overlapping |
 | 09-update | Settings -> check for updates / force refresh (cache cleared, still signed in), the new-version bar, on a real production build; the iOS build has none of it |
