@@ -22,5 +22,6 @@ project PianistAssistant (same login, same storage idea, same test approach). Th
 8. **Every action answers.** Each user action that takes time or changes data shows a message through `toast()` (`src/ui.ts`): `working=true` (spinner) while it runs,
    closed when done, then a result message (or the error). Messages are always in the top band. Cancelling a confirmation must not produce a "done" message.
 9. **Automate.** Anything needed on every release (translations check, tests, deploy) belongs in a workflow or script (`.github/workflows/`), not in a to-do list for the user.
-10. **Planned, not built yet** (agreed with the user, see README): full-screen big character with left/right swipe, game mode (10 s countdown ring, wrong answers come back at the end,
+10. **Camera.** The login screen scans a sign-in QR code with the camera (`src/scan.ts`); the iOS app will need the camera permission text (`NSCameraUsageDescription`) when it is packaged.
+11. **Planned, not built yet** (agreed with the user, see README): full-screen big character with left/right swipe, game mode (10 s countdown ring, wrong answers come back at the end,
     adult taps right / wrong; speech recognition only as an optional experiment), weekly review by spaced repetition, Excel (.xlsx) import / paste / export, iOS packaging (Capacitor).

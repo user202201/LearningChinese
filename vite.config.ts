@@ -10,6 +10,8 @@ export default defineConfig({
   },
   base: mobile ? "./" : process.env.BASE_PATH ?? "/LearningChinese/",
   // (".test" hosts: the end-to-end tests open the dev server under a made-up host name to check the "public repository" refusal)
+  // pre-bundle at start: otherwise the dev server finds pinyin-pro in the middle of a page visit and reloads the page (flaky tests)
+  optimizeDeps: { include: ["pinyin-pro", "qrcode"] },
   server: { allowedHosts: [".test"] },
   build: mobile ? { outDir: "dist-app" } : {},
 });

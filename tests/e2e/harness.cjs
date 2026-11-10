@@ -8,7 +8,7 @@ exports.URL = process.env.APP_URL || 'http://localhost:5173/';
 /** store: Map path -> string; opts: locale, viewport, local (use this device), today ('YYYY-MM-DD' for the page's clock), hooks.beforePut(path) */
 exports.start = async function (store = new Map(), opts = {}) {
   const browser = await chromium.launch({ args: ['--host-resolver-rules=MAP app.test 127.0.0.1'] });
-  const ctx = await browser.newContext({ locale: opts.locale || 'zh-CN', viewport: opts.viewport || { width: 1180, height: 820 }, hasTouch: !!opts.touch });
+  const ctx = await browser.newContext({ locale: opts.locale || 'zh-CN', viewport: opts.viewport || { width: 1180, height: 820 }, hasTouch: !!opts.touch, reducedMotion: opts.motion ? 'no-preference' : 'reduce' });   // (the pop-in animations are off in tests so that measurements are stable; 06-look tests them)
   const page = await ctx.newPage();
   if (opts.today) await page.clock.setFixedTime(new Date(opts.today + 'T10:00:00'));
   page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
@@ -51,6 +51,7 @@ exports.start = async function (store = new Map(), opts = {}) {
     }
     return json({}, 404);
   });
+  if (opts.init) await page.addInitScript(opts.init, opts.initArg);   // e.g. a pretend camera
   await page.goto(opts.url || exports.URL);
   if (opts.noLogin) return { browser, page, store, log, ctx };
   if (opts.local) { await page.click('text=在本机使用（不需要账号）'); }

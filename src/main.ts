@@ -4,6 +4,8 @@ import * as api from "./api";
 import * as M from "./model";
 import { h, toast, modal, askText, confirmDlg } from "./ui";
 import { LANGS, setLang, type LangPref } from "./i18n";
+import { animal, mascot } from "./art";
+import { scanQr } from "./scan";
 
 const app = document.getElementById("app")!;
 
@@ -54,9 +56,15 @@ const restart = () => {
 const cell = (ch: string) =>
   h("div", { class: "tzg", "data-ch": ch }, h("div", { class: "py" }), h("div", { class: "box" }, h("span", { class: "ch user" }, ch)));
 
-function topBar(title: string, left?: HTMLElement, right?: HTMLElement, userTitle = false) {
-  return h("header", { class: "top" }, left ?? h("span", { class: "slot" }), h("h1", { class: userTitle ? "user-title" : "" }, title), right ?? h("span", { class: "slot" }));
+function topBar(title: string, left?: HTMLElement, right?: HTMLElement) {
+  return h("header", { class: "top plain" }, left ?? h("span", { class: "slot" }), h("h1", {}, title), right ?? h("span", { class: "slot" }));
 }
+const avatarEl = (id: string) => h("span", { class: "avatar" }, animal(id));
+/** sets the stagger of the pop-in animation on a list of elements */
+const stagger = <T extends HTMLElement>(els: T[]): T[] => {
+  els.forEach((e, i) => e.style.setProperty("--i", String(Math.min(i, 14))));
+  return els;
+};
 const backBtn = (to: string, label = "返回") => h("button", { class: "icon back", title: label, "aria-label": label, onclick: () => (location.hash = to) }, "‹");
 const gearBtn = () => h("button", { class: "icon", title: "设置", "aria-label": "设置", onclick: () => (location.hash = "#/settings") }, "⚙");
 
@@ -97,35 +105,50 @@ function renderLogin(message = "") {
   const remember = h("input", { type: "checkbox", checked: true });
   const err = h("p", { class: "err" }, message);
   const btn = h("button", { class: "primary wide" }, "登录");
-  const go = async () => {
-    btn.disabled = true;
+  const scan = h("button", { class: "scan wide", id: "scan-btn" }, "扫码登录");
+  const signIn = async (tokenText: string, repoText: string) => {
+    btn.disabled = scan.disabled = true;
     err.textContent = "";
     const done = toast("正在登录…", 0, true);
     try {
-      await api.login(token.value, repo.value, remember.checked);
+      await api.login(tokenText, repoText, remember.checked);
       done();
       toast("已登录");
       restart();
     } catch (e) {
       done();
       err.textContent = errText(e);
-      btn.disabled = false;
+      btn.disabled = scan.disabled = false;
     }
   };
+  const go = () => signIn(token.value, repo.value);
   btn.addEventListener("click", go);
   token.addEventListener("keydown", (e) => e.key === "Enter" && go());
+  // scan the QR code shown by a device that is already signed in (Settings → Sign in on another device): no typing
+  scan.addEventListener("click", async () => {
+    err.textContent = "";
+    try {
+      const link = await scanQr(api.parseLink);
+      if (link) await signIn(link.token, link.repo); // cancelled (null): no message
+    } catch (e) {
+      err.textContent = errText(e);
+    }
+  });
   show(
     h("div", { class: "login" }, h("div", { class: "card" },
-      h("div", { class: "logo" }),
+      h("span", { class: "mascot" }, mascot()),
       h("h1", {}, "识字小助手"),
       h("p", { class: "muted" }, "记录孩子每周学的汉字和成语。数据保存在你自己的私有 GitHub 仓库里，只有你能看到。"),
+      scan,
+      h("p", { class: "muted small center" }, "在已经登录的设备上：设置 → 登录到其他设备，会出现二维码。"),
+      h("div", { class: "or" }, "或者手动输入"),
       h("label", {}, "数据仓库（私有）", repo),
       h("label", {}, "令牌", token),
       h("label", { class: "check" }, remember, "保持登录"),
       err,
       btn,
       h("div", { class: "or" }, "或者"),
-      h("button", { class: "wide", onclick: () => { api.useLocal(); restart(); } }, "在本机使用（不需要账号）"),
+      h("button", { class: "wide", id: "local-btn", onclick: () => { api.useLocal(); restart(); } }, "在本机使用（不需要账号）"),
       h("p", { class: "muted small" }, "本机使用时，数据只保存在这台设备的浏览器里，不会上传。"),
     )),
   );
@@ -144,17 +167,21 @@ async function renderHome() {
   for (const k of kidsFile.kids) {
     const n = M.allChars(kidCache.get(k.id) ?? M.EMPTY_KID).length;
     list.append(
-      h("button", { class: "kid", onclick: () => (location.hash = `#/kid/${k.id}`) },
-        h("span", { class: "avatar user", style: `background:${k.color}` }, Array.from(k.name)[0] ?? "?"),
+      h("button", { class: "kid", style: `--kid:${k.color}`, onclick: () => (location.hash = `#/kid/${k.id}`) },
+        avatarEl(k.id),
         h("span", { class: "kname user" }, k.name),
         h("span", { class: "ksub" }, `已学 ${n} 字`),
         h("span", { class: "chev" }, "›")),
     );
   }
   if (!kidsFile.kids.length) list.append(h("p", { class: "empty" }, "还没有孩子，先添加一个吧。"));
+  stagger([...list.querySelectorAll<HTMLElement>(".kid")]);
   show(
     h("div", { class: "page" },
-      topBar("识字小助手", undefined, gearBtn()),
+      h("header", { class: "top hero home-hero" },
+        h("span", { class: "mascot" }, mascot()),
+        h("div", { class: "hero-text" }, h("h1", {}, "识字小助手"), h("p", {}, "今天学点什么？")),
+        gearBtn()),
       h("main", { class: "scroll" }, h("div", { class: "narrow" }, list, h("button", { class: "primary wide", onclick: addKid }, "＋ 添加孩子"))),
     ),
   );
@@ -206,8 +233,11 @@ async function renderKid(id: string, tab: "week" | "learned") {
     h("button", { class: tab === "learned" ? "on" : "", "data-tab": "learned", onclick: () => (location.hash = `#/kid/${id}/learned`) }, `已学 ${nChars}`),
   );
   show(
-    h("div", { class: "page" },
-      topBar(k.name, backBtn("#/", "孩子"), h("button", { class: "icon", title: "更多", "aria-label": "更多", onclick: () => kidMenu(k) }, "⋯"), true),
+    h("div", { class: "page", style: `--kid:${k.color}` },
+      h("header", { class: "top hero kid-hero" },
+        backBtn("#/", "孩子"),
+        h("h1", { class: "user-title" }, avatarEl(k.id), k.name),
+        h("button", { class: "icon", title: "更多", "aria-label": "更多", onclick: () => kidMenu(k) }, "⋯")),
       h("div", { class: "tabs-row" }, tabs),
       body,
     ),
@@ -233,7 +263,7 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
     h("button", { class: "icon", title: "下一周", "aria-label": "下一周", onclick: () => shift(1) }, "›"),
   );
   const chars = w?.chars ?? [];
-  const grid = h("div", { class: "cards" + (settings.pinyin ? " pinyin-on" : "") }, ...chars.map(cell));
+  const grid = h("div", { class: "cards" + (settings.pinyin ? " pinyin-on" : "") }, ...stagger(chars.map(cell)));
   const items = iw?.items ?? [];
   body.append(
     h("div", { class: "narrow" },
@@ -241,8 +271,8 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
       isNow ? null : h("button", { class: "link", onclick: () => { curWeek = M.sundayOf(M.todayLocal()); renderWeek(body, k, kid); } }, "回到本周"),
       h("h2", { class: "sec" }, `汉字（${chars.length}）`),
       chars.length ? grid : h("p", { class: "empty" }, "这一周还没有录入汉字。"),
-      h("h2", { class: "sec" }, `成语（${items.length}）`),
-      items.length ? h("div", { class: "idioms" }, ...items.map((t) => h("span", { class: "idiom user" }, t))) : h("p", { class: "empty" }, "这一周还没有录入成语。"),
+      h("h2", { class: "sec idi" }, `成语（${items.length}）`),
+      items.length ? h("div", { class: "idioms" }, ...stagger(items.map((t) => h("span", { class: "idiom user" }, t)))) : h("p", { class: "empty" }, "这一周还没有录入成语。"),
       h("button", { class: "primary wide", id: "enter", onclick: () => enterDialog(k) }, "＋ 录入这一周的内容"),
     ),
   );
@@ -257,7 +287,7 @@ function renderLearned(body: HTMLElement, kid: M.KidData) {
     h("div", { class: "muted" }, `成语 ${nIdioms} 个`),
     h("div", { class: "muted small" }, "点击屏幕显示 / 隐藏拼音"),
   );
-  const grid = h("div", { class: "grid" + (settings.pinyin ? " pinyin-on" : ""), id: "grid" }, ...chars.map(cell));
+  const grid = h("div", { class: "grid" + (settings.pinyin ? " pinyin-on" : ""), id: "grid" }, ...stagger(chars.map(cell)));
   const scroller = h("div", { class: "scroll", id: "learned-scroll" }, head, chars.length ? grid : h("p", { class: "empty" }, "还没有学过的字，先去“本周”录入吧。"));
   // a tap anywhere on the screen (not a scroll) shows / hides the pinyin
   scroller.addEventListener("click", () => {
@@ -426,7 +456,7 @@ async function showQr() {
   const url = await QRCode.toDataURL(link, { margin: 2, width: 320 });
   await modal<boolean>((close) =>
     h("div", { class: "dlg" }, h("h2", {}, "登录到其他设备"),
-      h("p", {}, "用手机相机扫描，打开后自动登录。"),
+      h("p", {}, "在新设备的登录页点“扫码登录”扫描，或直接用手机相机扫描。"),
       h("img", { class: "qr", src: url, alt: "QR", "data-link": link }),
       h("p", { class: "warn small" }, "二维码里含有令牌，只给自己的设备扫，不要截图发给别人。"),
       h("button", { class: "wide primary", onclick: () => close(true) }, "完成")));

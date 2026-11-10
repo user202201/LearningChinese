@@ -16,7 +16,8 @@ export const EMPTY_KIDS: KidsFile = { kids: [] };
 export const EMPTY_KID: KidData = { weeks: [] };
 export const EMPTY_IDIOMS: IdiomsFile = { weeks: [] };
 
-export const KID_COLORS = ["#e0634f", "#3d8bd9", "#4aa564", "#e0a03a", "#9a63c9", "#3bb0b0"];
+/** a bright colour for each child (all dark enough for white text) */
+export const KID_COLORS = ["#f2545b", "#1c7ed6", "#2f9e44", "#e8590c", "#7950f2", "#099268"];
 
 // ---------- dates (always plain YYYY-MM-DD, computed in UTC so summer time cannot shift a week) ----------
 const DAY = 86400000;

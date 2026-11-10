@@ -45,7 +45,7 @@ const { ok, done } = checks();
   await page.fill('dialog textarea >> nth=1', '一心一意 新成语一二');
   ok((await page.textContent('#note-idioms')).includes('一心一意（第1周）'), 'an idiom learned before is detected (shared by all children)');
   await page.click('dialog button.primary');
-  await page.waitForSelector('#toasts .toast:has-text("已保存")');
+  await page.waitForSelector('#toasts .toast:has-text("已学过，已跳过")');   // (the toast of the previous save may still be on screen)
   const msg = await page.textContent('#toasts');
   ok(msg.includes('新增 10 个汉字、1 个成语') && msg.includes('3 个已学过'), 'saving skips the learned ones (2 characters + 1 idiom) and says how many');
   ok(await page.locator('.cards .tzg').count() === 10, 'week 3 has exactly its 10 new characters (no duplicates added)');

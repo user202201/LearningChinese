@@ -18,6 +18,8 @@ that only a token of yours can read and write.
 - **This week**: the characters and idioms of the week (previous / next week), enter new ones — pasting is fine, spaces and punctuation are dropped,
   and characters / idioms **already learned are detected** (with the week) and skipped.
 - **Learned**: every learned character in a 田字格 cell; tap the screen to show / hide pinyin; scroll up and down through all of them.
+- **Sign in without typing**: on the login screen tap *Sign in by scanning a QR code* and scan the code shown by a device that is already signed in (Settings → Sign in on another device).
+- A child-friendly look: a colour and an animal for every child, a mascot, chunky buttons.
 - Languages: 中文 / English / Français.
 
 ## Data (in the private repository)

@@ -19,7 +19,7 @@ const MANY = Array.from('一二三四五六七八九十上下大小山水火土�
 
   const box = page.locator('#grid .tzg .box').first();
   const css = await box.evaluate((e) => { const c = getComputedStyle(e); return { img: c.backgroundImage, border: c.borderTopWidth, ar: e.getBoundingClientRect().width / e.getBoundingClientRect().height }; });
-  ok(css.img.includes('gradient') && css.border === '2px', '田字格: a bordered square with a dashed cross');
+  ok(css.img.includes('gradient') && css.border === '3px', '田字格: a bordered square with a dashed cross');
   ok(Math.abs(css.ar - 1) < 0.02, 'the cell is square');
   const fs = await page.locator('#grid .ch').first().evaluate((e) => parseFloat(getComputedStyle(e).fontSize));
   const bw = await box.evaluate((e) => e.getBoundingClientRect().width);

@@ -28,7 +28,8 @@ const fits = (page) => page.evaluate(() => {
     if (r.right > W + 1 || r.left < -1) bad.push('outside the screen: ' + (el.textContent || el.className).trim().slice(0, 30));
     if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflow !== 'visible' && el.tagName !== 'H1') bad.push('clipped text: ' + el.textContent.trim().slice(0, 30));
   }
-  const btns = [...document.querySelectorAll('dialog[open] button, .page button, .login button')].filter((b) => b.getBoundingClientRect().width);
+  const btns = [...document.querySelectorAll(document.querySelector('dialog[open]') ? 'dialog[open] button' : '.page button, .login button')]   // (behind an open dialog nothing counts)
+    .filter((b) => b.getBoundingClientRect().width);
   for (let i = 0; i < btns.length; i++) for (let j = i + 1; j < btns.length; j++) {
     const a = btns[i].getBoundingClientRect(), b = btns[j].getBoundingClientRect();
     if (a.left < b.right - 2 && b.left < a.right - 2 && a.top < b.bottom - 2 && b.top < a.bottom - 2 && !btns[i].contains(btns[j]) && !btns[j].contains(btns[i])) bad.push('overlap: ' + btns[i].textContent.trim() + ' / ' + btns[j].textContent.trim());
@@ -48,7 +49,7 @@ const fits = (page) => page.evaluate(() => {
         if (lang !== 'zh') { const c = await chineseLeft(page); ok(c.length === 0, `${tag} ${what}: no Chinese UI text left` + (c.length ? ' -> ' + c.join(' | ') : '')); }
       };
       await check('login'); await shot('1-login');
-      await page.click('.login button:not(.primary):not(.link) >> nth=0'); await page.waitForSelector('.empty');
+      await page.click('#local-btn'); await page.waitForSelector('.empty');
       await check('home (no children)');
       await page.click('button.primary'); await page.waitForSelector('dialog input');
       await check('add-child dialog'); await page.fill('dialog input', 'Antoine Dupont-Martin'); await page.click('dialog button.primary');

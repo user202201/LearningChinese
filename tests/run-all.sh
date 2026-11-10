@@ -22,7 +22,7 @@ run_one() {
   local s="$1" log="$OUT/$1.log"
   for attempt in 1 2; do
     D="$OUT/work/" timeout 280 node "$ROOT/tests/e2e/$s.cjs" > "$log" 2>&1 && { echo "PASS  $s"; return 0; }
-    [ $attempt = 1 ] && echo "retry $s (first run failed)"
+    [ $attempt = 1 ] && { cp "$log" "$OUT/$s.first-try.log"; echo "retry $s (first run failed)"; }
   done
   echo "FAIL  $s"; grep -E "^FAIL|Error" "$log" | head -5 | sed 's/^/        /'
   return 1

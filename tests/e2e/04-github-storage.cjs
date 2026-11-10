@@ -41,6 +41,7 @@ const { ok, done } = checks();
   ok((await page.textContent('#toasts')).includes('已保存'), 'and the user is told it was saved');
 
   // lost connection: an error is shown, no "saved" message
+  await page.waitForSelector('#enter');                 // (the page has finished reloading after the save)
   opts.offline = true;
   await page.click('#enter'); await page.fill('dialog textarea >> nth=0', '梨桃李'); await page.click('dialog button.primary');
   await page.waitForSelector('#toasts .toast:has-text("网络请求失败")', { timeout: 15000 });
