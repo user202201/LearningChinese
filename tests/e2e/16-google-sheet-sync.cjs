@@ -50,7 +50,7 @@ function makeEnv({ files = {}, props = {}, status = {}, noUi = false, answers = 
   const triggers = [{ fn: 'somethingElse', minutes: 60, id: 0 }]; let tid = 1;
   const ctx = {
     SpreadsheetApp: { getUi: () => { if (noUi) throw new Error('Cannot call SpreadsheetApp.getUi() from this context.'); return ui; }, getActiveSpreadsheet: () => ss },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (propStore.has(k) ? propStore.get(k) : null), setProperties: (o) => Object.entries(o).forEach(([k, v]) => propStore.set(k, v)) }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (propStore.has(k) ? propStore.get(k) : null), setProperties: (o) => Object.entries(o).forEach(([k, v]) => propStore.set(k, v)), setProperty: (k, v) => { propStore.set(k, String(v)); }, getProperties: () => Object.fromEntries(propStore), deleteProperty: (k) => { propStore.delete(k); } }) },
     UrlFetchApp: { fetch: (url, o) => {
       const m = /^https:\/\/api\.github\.com\/repos\/([^/]+\/[^/]+)\/contents\/(.+)$/.exec(url);
       log.fetches.push({ method: (o.method || 'get').toLowerCase(), headers: o.headers, mute: o.muteHttpExceptions });
@@ -77,8 +77,8 @@ const userSheet = () => [trow('第1周-2026-10-25', W1, 10), trow('第2周-2026-
 const REPO = { GITHUB_REPO: 'someone/LearningData', GITHUB_TOKEN: 'github_pat_readonly' };
 const kidsJson = (names, startWeek = '2026-10-25') => ({ kids: names.map((n) => ({ id: 'k' + n.toLowerCase(), name: n })), startWeek });
 const weeks = (...ws) => ({ weeks: ws.map(([start, cs]) => ({ start, chars: C(cs) })) });
-/** the audit: every write must be a single cell in B..K, into a cell that was empty before */
-const auditOk = (log) => log.writes.filter((w) => w.tab && w.tab !== '同步状态').every((w) => !w.clear && w.col >= 2 && w.col <= 11 && String(w.before).trim() === '');
+/** the audit: every write is ONE cell of B..K: either a fill into a cell that was empty, or (only for `dropped`, the characters the app really deleted) a clear of a cell that held exactly that character */
+const auditOk = (log, dropped = []) => log.writes.filter((w) => w.tab && w.tab !== '同步状态').every((w) => !w.clear && w.col >= 2 && w.col <= 11 && (String(w.before).trim() === '' ? w.value !== '' : (w.value === '' && dropped.includes(w.before))));
 
 (async () => {
   const E = makeEnv();
@@ -147,7 +147,71 @@ const auditOk = (log) => log.writes.filter((w) => w.tab && w.tab !== '同步状�
   // characters typed by hand that the app does not know, and a character deleted in the app: nothing is taken away
   e = makeEnv({ files: { 'kids.json': kidsJson(['Dory']), 'kids/kdory.json': weeks(['2026-10-25', '假辣']) }, props: REPO, tabs: { Dory: [trow('第1周-2026-10-25', '假辣酸贫纺', 5)] } });
   e.run('syncAuto');
-  ok(e.sheets.get('Dory').grid[0].slice(1, 6).join('') === '假辣酸贫纺' && e.log.writes.filter((w) => w.tab === 'Dory').length === 0, 'characters typed by hand that the app does not have, or deleted in the app (manage mode), stay in the sheet: nothing is ever removed');
+  ok(e.sheets.get('Dory').grid[0].slice(1, 6).join('') === '假辣酸贫纺' && e.log.writes.filter((w) => w.tab === 'Dory').length === 0, 'characters typed by hand that the app does not have stay in the sheet (the first sync has no record of what the app had, so it removes nothing)');
+
+  // ---------- what was deleted in the app is cleared in the sheet (only that, only the cell that holds exactly that character)
+  const A = (...ws) => weeks(...ws);
+  ok(JSON.stringify(E.ctx.removedChars_({ '2026-10-25': '假辣酸' }, [{ start: '2026-10-25', chars: C('假酸') }])) === '[{"start":"2026-10-25","chars":["辣"]}]', 'the characters the app dropped = the record of the last sync minus what the app has now');
+  ok(JSON.stringify(E.ctx.removedChars_({ '2026-10-25': '假辣' }, [{ start: '2026-11-01', chars: C('假辣') }])) === '[{"start":"2026-10-25","chars":["假","辣"]}]' && E.ctx.removedChars_({ '2026-10-25': '假' }, [{ start: '2026-10-25', chars: C('假甲') }]).length === 0 && E.ctx.removedChars_(null, []).length === 0, 'a week that vanished drops all its characters; new characters drop nothing; no record drops nothing');
+  const F = { 'kids.json': kidsJson(['Dory']), 'kids/kdory.json': A(['2026-10-25', W1], ['2026-11-01', W2]) };
+  let d = makeEnv({ files: F, props: REPO, tabs: { Dory: userSheet().slice(0, 2) } });
+  d.run('syncAuto');
+  ok(d.props.get('S|kdory|2026-10-25') === W1 && d.props.get('S|kdory|2026-11-01') === W2 && d.log.writes.filter((w) => w.tab === 'Dory').length === 0, 'the first sync only records what the app has (kept in the script properties of the sheet), and changes nothing');
+  F['kids/kdory.json'] = A(['2026-10-25', W1.replace('辣', '')], ['2026-11-01', W2]);       // 辣 was deleted in the app (manage mode)
+  d.log.writes.length = 0; d.run('syncAuto');
+  const dw = d.log.writes.filter((w) => w.tab === 'Dory');
+  ok(dw.length === 1 && dw[0].value === '' && dw[0].before === '辣' && dw[0].row === 1 && dw[0].col === 3, 'a character deleted in the app is cleared in the sheet: exactly that one cell (' + JSON.stringify(dw.map((w) => [w.row, w.col, w.before, w.value])) + ')');
+  ok(d.sheets.get('Dory').cell(1, 1) === '第1周-2026-10-25' && d.sheets.get('Dory').cell(1, 12) === 10 && d.sheets.get('Dory').grid[0].slice(1, 11).join('') === W1.replace('辣', ''), 'the rest of the row, A and L are untouched (the sheet\'s own formulas recalculate the total)');
+  ok(auditOk(d.log, ['辣']) && /清除 1 个/.test(d.sheets.get('同步状态').cell(4, 2)) && d.props.get('S|kdory|2026-10-25') === W1.replace('辣', ''), 'AUDIT passes; the status says 1 cleared; the record follows the app');
+  d.log.writes.length = 0; d.run('syncAuto');
+  ok(d.log.writes.filter((w) => w.tab === 'Dory').length === 0, 'syncing again changes nothing');
+
+  // typed by hand and unknown to the app: never touched; a cell changed by hand after the sync: not cleared
+  const FL = { 'kids.json': kidsJson(['Leo']), 'kids/kleo.json': A(['2026-10-25', '春夏秋'], ['2026-11-01', '一二三']) };
+  d = makeEnv({ files: FL, props: REPO, tabs: { Leo: [['第1周-2026-10-25', '甲'], ['第2周-2026-11-01', '乙']] } });
+  d.run('syncAuto');
+  ok(d.sheets.get('Leo').grid[0].slice(1, 5).join('') === '甲春夏秋' && d.sheets.get('Leo').grid[1].slice(1, 5).join('') === '乙一二三', 'Leo: the typed 甲 / 乙 stay in front and the app\'s characters fill the empty cells after them');
+  d.sheets.get('Leo').getRange(1, 4, 1, 1).setValue('改');                               // 夏 was changed by hand in the sheet
+  FL['kids/kleo.json'] = A(['2026-10-25', '春夏秋']);                                       // the app: week 2 deleted entirely
+  d.log.writes.length = 0; d.run('syncAuto');
+  ok(d.sheets.get('Leo').grid[1].slice(1, 5).join('') === '乙' && d.sheets.get('Leo').cell(2, 1) === '第2周-2026-11-01', 'a whole week deleted in the app: its characters are cleared; the typed 乙 and the label stay');
+  // a cell that was changed by hand after the sync, and then the app deletes that character: the cell no longer holds it, so it is left alone
+  const FH = { 'kids.json': kidsJson(['Leo']), 'kids/kleo.json': A(['2026-10-25', '春夏秋']) };
+  d = makeEnv({ files: FH, props: REPO, tabs: { Leo: [['第1周-2026-10-25', '甲']] } });
+  d.run('syncAuto');                                                                      // row: 甲 春 夏 秋
+  d.sheets.get('Leo').getRange(1, 4, 1, 1).setValue('改');                               // 夏 is changed by hand to 改
+  FH['kids/kleo.json'] = A(['2026-10-25', '春秋']);                                         // and the app deletes 夏
+  d.log.writes.length = 0; d.run('syncAuto');
+  ok(d.sheets.get('Leo').grid[0].slice(1, 5).join('') === '甲春改秋' && d.log.writes.filter((w) => w.tab === 'Leo').length === 0, 'a cell that no longer holds the deleted character (changed by hand) is not cleared; the typed 甲 stays');
+
+  // moving a character to another week; the record of one child does not touch another
+  const FM = { 'kids.json': kidsJson(['Dory', 'Leo']), 'kids/kdory.json': A(['2026-10-25', '假辣'], ['2026-11-01', '鼓']), 'kids/kleo.json': A(['2026-10-25', '春']) };
+  d = makeEnv({ files: FM, props: REPO, tabs: { Dory: [['第1周-2026-10-25'], ['第2周-2026-11-01']], Leo: [['第1周-2026-10-25']] } });
+  d.run('syncAuto');
+  FM['kids/kdory.json'] = A(['2026-10-25', '假'], ['2026-11-01', '鼓辣']);
+  d.run('syncAuto');
+  ok(d.sheets.get('Dory').grid[0].slice(1, 4).join('') === '假' && d.sheets.get('Dory').grid[1].slice(1, 4).join('') === '鼓辣' && d.sheets.get('Leo').grid[0].slice(1, 3).join('') === '春' && d.props.get('S|kleo|2026-10-25') === '春', 'a character moved to another week: gone from the old row, in the new one; the other child is untouched');
+
+  // safety: no data for the child (nothing is cleared), too many at once (nothing is cleared, then allowed by a setting)
+  const FS = { 'kids.json': kidsJson(['Dory']), 'kids/kdory.json': A(['2026-10-25', W1], ['2026-11-01', W2]) };
+  d = makeEnv({ files: FS, props: REPO, tabs: { Dory: userSheet().slice(0, 2) } });
+  d.run('syncAuto');
+  delete FS['kids/kdory.json'];
+  d.log.writes.length = 0; d.run('syncAuto');
+  ok(d.log.writes.filter((w) => w.tab === 'Dory').length === 0 && d.props.get('S|kdory|2026-10-25') === W1, 'GitHub has no file for the child any more (a mistake, not a deletion): nothing is cleared and the record is kept');
+  const FB = { 'kids.json': kidsJson(['Dory']), 'kids/kdory.json': A(['2026-10-25', W1], ['2026-11-01', W2], ['2026-11-08', W3], ['2026-11-15', '一']) };
+  d = makeEnv({ files: FB, props: REPO, tabs: { Dory: [...userSheet()] } });
+  d.run('syncAuto');
+  FB['kids/kdory.json'] = { weeks: [] };                                                    // 31 characters gone at once
+  d.log.writes.length = 0; d.run('syncAuto');
+  ok(d.log.writes.filter((w) => w.tab === 'Dory').length === 0 && d.sheets.get('同步状态').cell(4, 2).includes('安全上限 30') && d.props.get('S|kdory|2026-10-25') === W1, '31 characters gone at once is more than the safety limit (30): nothing is cleared, the status says why, the record is kept');
+  d.props.set('MAX_DELETES', '50');
+  d.log.writes.length = 0; d.run('syncAuto');
+  ok(d.log.writes.filter((w) => w.tab === 'Dory' && w.value === '').length === 31 && !d.props.has('S|kdory|2026-10-25'), 'with MAX_DELETES raised in the script properties they are cleared (all 31 cells that the sheet holds) and the record is emptied');
+  // a recorded week that has no row in the sheet: a note, no error
+  d = makeEnv({ files: { 'kids.json': kidsJson(['Dory']), 'kids/kdory.json': A(['2026-11-01', W2]) }, props: { ...REPO, 'S|kdory|2026-10-25': '假' }, tabs: { Dory: [['第1周-2026-11-01']] } });
+  d.run('syncNow');
+  ok(d.log.alerts[0].title === '同步完成' && d.log.alerts[0].msg.includes('要清除的字') && d.sheets.get('Dory').grid[0].slice(1, 11).join('') === W2, 'a character to clear in a week that has no row in the sheet: mentioned in the status, nothing breaks, the rest is synced');
 
   // ---------- awkward cases
   e = makeEnv({ files: { 'kids.json': kidsJson(['Dory', 'Mia']), 'kids/kdory.json': weeks(['2026-10-25', '假辣']), 'kids/kmia.json': weeks(['2026-10-25', '猫狗']) }, props: REPO, tabs: { dory: [trow('第1周-2026-10-25', '', 0)] } });

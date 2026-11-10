@@ -5,10 +5,15 @@
  *         把“表格里还没有的字”填进对应孩子标签页、对应那一周那一行的 B ～ K 列的【空格】里。
  *
  * 它【只往空格里填】：
- *   - 不删除、不覆盖任何已有内容（包括你手动录入的字）；
+ *   - 不覆盖任何已有内容（包括你手动录入的字）；
  *   - 不碰 A 列、L 列，也不碰公式、格式、条件格式——你表格自己的“自动生成周标签、累计字数、
  *     重复检测变色”照常工作；
  *   - 这一周这一行里已经有的字不会重复填；重复运行不会重复填。
+ * 在 App 里【删掉】的字，下次同步会从表格里清掉那一格（让表格和 App 保持一致）：
+ *   - 脚本每次同步后记下“App 当时有哪些字”；只清“上次 App 有、这次 App 没有了”的字，
+ *     而且只清那一格里正好是这个字的格子；
+ *   - 你手动录入、App 里本来就没有的字永远不动；
+ *   - 保险：读不到这个孩子的数据时不删；一次要删的字超过 30 个时不删，并在“同步状态”里提醒你。
  * 找行的办法：看这个孩子标签页 A 列里已经有的“第N周-日期”（例如 第3周-2026-11-08），
  *   按日期对上 App 里的周；A 列还是空的下一周，就按“每周一行”顺着往下推。
  * 只读：脚本只读取 GitHub，不会改动 App 里的任何数据。
@@ -20,6 +25,8 @@ var STATUS_TAB = '同步状态';
 var FIRST_CHAR_COL = 2;        // B 列
 var CHAR_COLS = 10;            // B ～ K：每周 10 个字
 var EVERY_MINUTES = 10;        // 自动同步的间隔（分钟；只能是 1、5、10、15、30）
+var MAX_DELETES = 30;          // 一次同步里，一个孩子最多从表格里清掉这么多个字（再多就不清，提醒你；可在脚本属性里加 MAX_DELETES 改）
+var RECORD_PREFIX = 'S|';      // 脚本属性里“App 上次有哪些字”的记录：S|孩子编号|周日期 = 这一周的字
 
 // ---------- 菜单 ----------
 function onOpen() {
@@ -63,7 +70,7 @@ function readConfig_() {
   var p = PropertiesService.getScriptProperties();
   var repo = p.getProperty('GITHUB_REPO'), token = p.getProperty('GITHUB_TOKEN');
   if (!repo || !token) throw new Error('还没有设置 GitHub 连接：请先点菜单 识字助手 → 1. 设置 GitHub 连接。');
-  return { repo: repo, token: token, first: p.getProperty('FIRST_WEEK') || '' };
+  return { repo: repo, token: token, first: p.getProperty('FIRST_WEEK') || '', maxDeletes: Number(p.getProperty('MAX_DELETES')) || MAX_DELETES };
 }
 
 // ---------- 读取 GitHub ----------
@@ -124,6 +131,21 @@ function rowForWeek_(map, labels, start) {
   return { row: row };
 }
 /**
+ * 上次同步时 App 里有、这次没有了的字（在 App 里删掉的，或者换到别的周去了）。
+ * record：上次的记录 {周日期: '这一周的字'}；weeks：这次 App 里的周 [{start, chars}]。
+ * 返回 [{start, chars: [字…]}]
+ */
+function removedChars_(record, weeks) {
+  var now = {};
+  (weeks || []).forEach(function (w) { now[w.start] = {}; (w.chars || []).forEach(function (c) { now[w.start][c] = true; }); });
+  var out = [];
+  Object.keys(record || {}).sort().forEach(function (start) {
+    var gone = Array.from(String(record[start])).filter(function (c) { return !(now[start] && now[start][c]); });
+    if (gone.length) out.push({ start: start, chars: gone });
+  });
+  return out;
+}
+/**
  * 把汉字填进这一行 B ～ K 的空格：已经有的字不重复，已有内容一律不动。
  * current：这一行 B ～ K 现在的 10 个格子。返回 { fills: [[第几格(0～9), 字]], present: 已有的个数, noRoom: [放不下的字] }
  */
@@ -158,14 +180,21 @@ function readLabels_(sheet) {
   return last < 1 ? [] : sheet.getRange(1, 1, last, 1).getDisplayValues().map(function (r) { return r[0]; });
 }
 
-/** 一个孩子：把 App 里的字填进表格。返回这个孩子的统计和说明 */
-function syncKid_(sheet, kidData, fallbackFirst) {
-  var out = { added: 0, present: 0, noRoom: [], notes: [], weeks: 0 };
+/**
+ * 一个孩子：把 App 里的字填进表格的空格；再把“App 里已经删掉的字”从表格里清掉。
+ * kidData：这个孩子在 GitHub 上的数据（读不到时传 null：只填不删）；record：上次的记录；maxDeletes：一次最多清几个字。
+ * 返回统计和说明；out.keepRecord 为 true 时，调用的人不要更新记录（这次没删成，下次再来）。
+ */
+function syncKid_(sheet, kidData, fallbackFirst, record, maxDeletes) {
+  var out = { added: 0, present: 0, deleted: 0, noRoom: [], notes: [], weeks: 0, keepRecord: false };
   var weeks = ((kidData && kidData.weeks) || []).filter(function (w) { return w.chars && w.chars.length; })
     .sort(function (a, b) { return a.start < b.start ? -1 : a.start > b.start ? 1 : 0; });
-  if (!weeks.length) return out;
+  var removed = kidData && record ? removedChars_(record, weeks) : [];
+  if (!weeks.length && !removed.length) return out;
   var labels = readLabels_(sheet);
-  var map = rowMap_(labels, fallbackFirst || weeks[0].start);
+  var map = rowMap_(labels, fallbackFirst || (weeks.length ? weeks[0].start : ''));
+  if (!map) return out;
+  // 1. 填
   weeks.forEach(function (w) {
     var at = rowForWeek_(map, labels, w.start);
     if (at.skip) { out.notes.push(at.skip); return; }
@@ -181,7 +210,46 @@ function syncKid_(sheet, kidData, fallbackFirst) {
       out.notes.push('第 ' + at.row + ' 行（' + w.start + '）B～K 已经满了，放不下：' + r.noRoom.join(''));
     }
   });
+  // 2. 清：只清 App 里已经没有的字，而且只清“这一格里正好是这个字”的格子
+  var total = removed.reduce(function (n, r) { return n + r.chars.length; }, 0);
+  if (total > maxDeletes) {
+    out.keepRecord = true;
+    out.notes.push('App 里一次删掉了 ' + total + ' 个字，超过安全上限 ' + maxDeletes + '，这次没有从表格里清除（确认没问题的话，在脚本属性里加 MAX_DELETES = 更大的数，或者在表格里手动清）');
+    return out;
+  }
+  removed.forEach(function (r) {
+    var at = rowForWeek_(map, labels, r.start);
+    if (at.skip) { out.notes.push('要清除的字：' + at.skip); return; }
+    var current = sheet.getRange(at.row, FIRST_CHAR_COL, 1, CHAR_COLS).getValues()[0];
+    r.chars.forEach(function (c) {
+      for (var i = 0; i < CHAR_COLS; i++) {
+        if (String(current[i]).trim() === c) {
+          sheet.getRange(at.row, FIRST_CHAR_COL + i).setValue('');
+          current[i] = '';
+          out.deleted++;
+          break;
+        }
+      }
+    });
+  });
   return out;
+}
+
+/** 脚本属性里这个孩子“上次同步时 App 有哪些字”的记录 */
+function readRecord_(props, kidId) {
+  var all = props.getProperties(), p = RECORD_PREFIX + kidId + '|', out = {};
+  Object.keys(all).forEach(function (k) { if (k.indexOf(p) === 0) out[k.slice(p.length)] = all[k]; });
+  return out;
+}
+function saveRecord_(props, kidId, record, kidData) {
+  var p = RECORD_PREFIX + kidId + '|', keep = {};
+  ((kidData && kidData.weeks) || []).forEach(function (w) {
+    if (!w.chars || !w.chars.length) return;
+    keep[w.start] = true;
+    var v = w.chars.join('');
+    if (record[w.start] !== v) props.setProperty(p + w.start, v);
+  });
+  Object.keys(record).forEach(function (s) { if (!keep[s]) props.deleteProperty(p + s); });
 }
 
 function writeStatus_(ss, ok, message, lines) {
@@ -199,20 +267,24 @@ function writeStatus_(ss, ok, message, lines) {
 function doSync_() {
   var cfg = readConfig_();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var props = PropertiesService.getScriptProperties();
   var kidsFile = ghGet_(cfg, 'kids.json');
   if (!kidsFile) throw new Error('仓库里还没有 kids.json：请先在 App 里添加孩子和汉字。');
   var kids = kidsFile.kids || [];
   var fallback = cfg.first || kidsFile.startWeek || '';
-  var lines = [], addedAll = 0;
+  var lines = [], addedAll = 0, deletedAll = 0;
   kids.forEach(function (k) {
     var sheet = findTab_(ss, k.name);
     if (!sheet) { lines.push(k.name + '：表格里没有叫“' + k.name + '”的标签页，已跳过（请把标签页改成孩子的名字）'); return; }
-    var data = ghGet_(cfg, 'kids/' + k.id + '.json') || { weeks: [] };
-    var r = syncKid_(sheet, data, fallback);
+    var data = ghGet_(cfg, 'kids/' + k.id + '.json');          // null = 读不到这个孩子的文件：只填不删，也不改记录
+    var record = readRecord_(props, k.id);
+    var r = syncKid_(sheet, data || { weeks: [] }, fallback, data ? record : null, cfg.maxDeletes);
+    if (data && !r.keepRecord) saveRecord_(props, k.id, record, data);
     addedAll += r.added;
-    lines.push(k.name + '：新填入 ' + r.added + ' 个字，已有 ' + r.present + ' 个' + (r.notes.length ? '；注意：' + r.notes.join('；') : ''));
+    deletedAll += r.deleted;
+    lines.push(k.name + '：新填入 ' + r.added + ' 个字，已有 ' + r.present + ' 个' + (r.deleted ? '，清除 ' + r.deleted + ' 个（App 里已删除）' : '') + (r.notes.length ? '；注意：' + r.notes.join('；') : ''));
   });
-  var message = '新填入 ' + addedAll + ' 个字（' + kids.length + ' 个孩子）';
+  var message = '新填入 ' + addedAll + ' 个字' + (deletedAll ? '，清除 ' + deletedAll + ' 个字' : '') + '（' + kids.length + ' 个孩子）';
   writeStatus_(ss, true, message, lines);
   return message + '\n' + lines.join('\n');
 }
