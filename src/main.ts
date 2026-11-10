@@ -6,6 +6,8 @@ import { h, toast, modal, askText, confirmDlg } from "./ui";
 import { LANGS, setLang, type LangPref } from "./i18n";
 import { animal, mascot } from "./art";
 import { scanQr } from "./scan";
+import { readTable, readWorkbook, type SheetData } from "./xlsx";
+import * as I from "./importer";
 
 const app = document.getElementById("app")!;
 
@@ -181,7 +183,7 @@ async function renderHome() {
         h("span", { class: "mascot" }, mascot()),
         h("div", { class: "hero-text" }, h("h1", {}, "识字小助手"), h("p", {}, "今天学点什么？")),
         gearBtn()),
-      h("main", { class: "scroll" }, h("div", { class: "narrow" }, list, h("button", { class: "primary wide", onclick: addKid }, "＋ 添加孩子"))),
+      h("main", { class: "scroll" }, h("div", { class: "narrow" }, list, h("button", { class: "primary wide", onclick: addKid }, "＋ 添加孩子"), h("button", { class: "wide", id: "import-btn", onclick: importFlow }, "从 Excel 导入"))),
     ),
   );
 }
@@ -411,6 +413,124 @@ async function enterDialog(k: M.Kid) {
   } catch (e) {
     done();
     toast(errText(e), 6000);
+  }
+}
+
+// ---------- import from a spreadsheet (Excel / Google Sheets) ----------
+/** step 1: choose the .xlsx file (all tabs are read) or paste the cells of one tab */
+function pickSheets(): Promise<SheetData[] | null> {
+  return modal<SheetData[]>((close) => {
+    const err = h("p", { class: "err", id: "import-err" });
+    const file = h("input", { type: "file", accept: ".xlsx", id: "import-file", hidden: true });
+    file.addEventListener("change", async () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      err.textContent = "";
+      try {
+        close(readWorkbook(await f.arrayBuffer()));
+      } catch (e) {
+        err.textContent = errText(e);
+        file.value = "";
+      }
+    });
+    const target = h("select", { id: "paste-target", "aria-label": "粘贴到" },
+      ...kidsFile.kids.map((k) => h("option", { value: k.name, class: "user" }, k.name)), h("option", { value: "成语" }, "成语"));
+    const paste = h("textarea", { rows: 4, id: "paste-text", placeholder: "在表格里选中这个标签页的内容，复制后粘贴到这里", "aria-label": "表格内容" });
+    const go = h("button", { id: "paste-go", onclick: () => {
+      const rows = readTable(paste.value);
+      if (!rows.length) return void (err.textContent = "还没有粘贴内容");
+      close([{ name: target.value, rows }]);
+    } }, "预览");
+    return h("div", { class: "dlg wide-dlg" }, h("h2", {}, "从 Excel 导入"),
+      h("p", { class: "muted" }, "每个孩子一个标签页（标签页的名字就是孩子的名字），每行一周：第一列是“第1周-2026-10-25”，后面是这一周的汉字。标签页“成语”放成语，格式一样。"),
+      h("p", { class: "muted small" }, "在 Google 表格里：文件 → 下载 → Microsoft Excel (.xlsx)，然后选择下载的文件。"),
+      h("label", { class: "filebtn" }, "选择 Excel 文件", file),
+      h("div", { class: "or" }, "或者粘贴一个标签页的内容"),
+      h("label", {}, "粘贴到", target), paste, go,
+      err,
+      h("button", { class: "wide", onclick: () => close(null) }, "取消"));
+  });
+}
+
+/** step 2: what would happen, tab by tab; the user chooses what to import */
+function previewImport(entries: I.Entry[]): Promise<I.Entry[]> {
+  return modal<I.Entry[]>((close) => {
+    const checks = entries.map((e) => h("input", { type: "checkbox", checked: e.added > 0, disabled: e.added === 0 }));
+    const go = h("button", { class: "primary", id: "import-go" }, "导入");
+    const sync = () => (go.disabled = !entries.some((e, i) => checks[i].checked && e.added > 0));
+    checks.forEach((c) => c.addEventListener("change", sync));
+    sync();
+    go.addEventListener("click", () => close(entries.filter((_, i) => checks[i].checked && entries[i].added > 0)));
+    const rows = entries.map((e, i) => {
+      const n = e.parsed.weeks.length;
+      const lines: (HTMLElement | null)[] = [];
+      if (!n) lines.push(h("div", { class: "warn" }, "没有认出内容。第一列要写成“第1周-2026-10-25”，后面是汉字。"));
+      else {
+        lines.push(h("div", {}, e.kind === "idioms" ? `${n} 周，${e.total} 个成语，其中新的 ${e.added} 个` : `${n} 周，${e.total} 个汉字，其中新的 ${e.added} 个`));
+        if (e.skipped) lines.push(h("div", { class: "warn" }, `已学过，会跳过：${e.skipped} 个（同一个字出现在多周时，只留最早的一周）`));
+        if (e.present && !e.added && !e.skipped) lines.push(h("div", { class: "muted" }, "都已经有了"));
+        else if (e.present) lines.push(h("div", { class: "muted" }, `已经有了：${e.present} 个`));
+      }
+      if (e.parsed.skippedRows.length) lines.push(h("div", { class: "warn" }, `有 ${e.parsed.skippedRows.length} 行没认出日期，已忽略（第 ${e.parsed.skippedRows.slice(0, 8).join("、")} 行）`));
+      return h("div", { class: "entry" },
+        h("label", { class: "check" }, checks[i], h("strong", { class: "user" }, e.name),
+          e.kind === "chars" && !e.exists ? h("span", { class: "badge" }, "新建孩子") : null),
+        ...lines);
+    });
+    return h("div", { class: "dlg wide-dlg" }, h("h2", {}, "导入预览"), ...rows,
+      h("div", { class: "row end" }, h("button", { onclick: () => close(null) }, "取消"), go));
+  }).then((r) => r ?? []);
+}
+
+async function importFlow() {
+  const sheets = await pickSheets();
+  if (!sheets) return; // cancelled: no message
+  if (!sheets.length) return void toast("这个文件里没有表格内容");
+  const entries = I.plan(sheets, kidsFile, (id) => kidCache.get(id) ?? M.EMPTY_KID, idioms);
+  const chosen = await previewImport(entries);
+  if (!chosen.length) return; // cancelled, or nothing new: no "done" message
+  const done = toast("正在导入…", 0, true);
+  try {
+    const firstWeek = chosen.flatMap((e) => e.parsed.weeks.map((w) => w.start)).sort()[0];
+    const ids = new Map<string, string>();
+    kidsFile = await api.update<M.KidsFile>("kids.json", M.EMPTY_KIDS, (cur) => {
+      ids.clear();
+      const kids = cur.kids.slice();
+      for (const e of chosen.filter((x) => x.kind === "chars")) {
+        const name = Array.from(e.name.trim()).slice(0, 20).join("");
+        let k = kids.find((x) => x.name.toLowerCase() === name.toLowerCase());
+        if (!k) kids.push((k = { id: M.newKidId(), name, color: M.KID_COLORS[kids.length % M.KID_COLORS.length] }));
+        ids.set(e.name, k.id);
+      }
+      return { ...cur, kids, startWeek: M.pickStartWeek(cur.startWeek, firstWeek) };
+    }, "import: children");
+    let chars = 0, idiomsAdded = 0, skipped = 0;
+    for (const e of chosen) {
+      if (e.kind === "chars") {
+        const id = ids.get(e.name)!;
+        let added = 0, skip = 0;
+        kidCache.set(id, await api.update<M.KidData>(`kids/${id}.json`, M.EMPTY_KID, (cur) => {
+          const r = I.applyChars(cur, e.parsed.weeks);
+          added = r.added; skip = r.skipped;
+          return r.data;
+        }, `import: ${id}`));
+        chars += added; skipped += skip;
+      } else {
+        let added = 0, skip = 0;
+        idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => {
+          const r = I.applyIdioms(cur, e.parsed.weeks);
+          added = r.added; skip = r.skipped;
+          return r.data;
+        }, "import: idioms");
+        idiomsAdded += added; skipped += skip;
+      }
+    }
+    done();
+    toast(skipped ? `已导入：${chars} 个汉字、${idiomsAdded} 个成语；另有 ${skipped} 个已学过，已跳过` : `已导入：${chars} 个汉字、${idiomsAdded} 个成语`, 6000);
+    void renderHome();
+  } catch (e) {
+    done();
+    toast(errText(e), 8000);
   }
 }
 

@@ -24,6 +24,8 @@ exports.start = async function (store = new Map(), opts = {}) {
     if (opts.offline) return route.abort();
     if (p === '/repos/' + REPO) return json({ permissions: { push: true }, default_branch: 'main', private: true });
     if (p === '/repos/demo/PublicRepo') return json({ permissions: { push: true }, default_branch: 'main', private: false });
+    if (p === '/repos/demo/PianistScores') return json({ permissions: { push: true }, default_branch: 'main', private: true });
+    if (p === '/repos/demo/PianistScores/contents') return json([{ name: 'scores', type: 'dir' }, { name: 'README.md', type: 'file' }]);
     if (p === '/repos/demo/ReadOnly') return json({ permissions: { push: false }, default_branch: 'main', private: true });
     if (p === '/user') return json({ login: 'tester' });
     const m = p.match(new RegExp('^/repos/' + REPO + '/contents/(.+)$'));

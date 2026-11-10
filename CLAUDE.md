@@ -24,4 +24,5 @@ project PianistAssistant (same login, same storage idea, same test approach). Th
 9. **Automate.** Anything needed on every release (translations check, tests, deploy) belongs in a workflow or script (`.github/workflows/`), not in a to-do list for the user.
 10. **Camera.** The login screen scans a sign-in QR code with the camera (`src/scan.ts`); the iOS app will need the camera permission text (`NSCameraUsageDescription`) when it is packaged.
 11. **Planned, not built yet** (agreed with the user, see README): full-screen big character with left/right swipe, game mode (10 s countdown ring, wrong answers come back at the end,
-    adult taps right / wrong; speech recognition only as an optional experiment), weekly review by spaced repetition, Excel (.xlsx) import / paste / export, iOS packaging (Capacitor).
+    adult taps right / wrong; speech recognition only as an optional experiment), weekly review by spaced repetition, Excel (.xlsx) EXPORT (import is built: `src/importer.ts`, `src/xlsx.ts`), iOS packaging (Capacitor).
+12. **One repository per app.** The login refuses a repository that holds another app's data (the piano app's `scores/` `inbox/` `pdfs/`). There are no accounts in this app: a token is just a GitHub key, and the data goes to the repository typed on the login screen.

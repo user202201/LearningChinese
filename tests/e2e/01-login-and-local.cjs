@@ -16,6 +16,11 @@ const { ok, done } = checks();
   await page.waitForFunction(() => document.querySelector('.login .err')?.textContent.includes('写权限'));
   ok(true, 'token without write access: refused');
 
+  // another app's data (the piano app's scores repository): refused, even with a token that works for it
+  await page.fill('input[type=text]', 'demo/PianistScores'); await page.fill('input[type=password]', 'good'); await page.click('button.primary');
+  await page.waitForFunction(() => document.querySelector('.login .err')?.textContent.includes('钢琴'));
+  ok(await page.locator('.login').count() === 1, "the piano app's scores repository is refused: the two apps never share a repository");
+
   // a public repository must be refused on a real host (on localhost it is allowed for development)
   const pub = await start(new Map(), { noLogin: true, url: 'http://app.test:5173/' });
   await pub.page.waitForSelector('.login');

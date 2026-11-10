@@ -118,6 +118,14 @@ export async function login(token: string, repo: string, remember = true): Promi
     throw new Error("该仓库是公开的，学习记录会被所有人看到。请使用私有仓库。");
   }
   a.branch = info.default_branch;
+  // not another app's data: the piano app keeps its scores in scores/ inbox/ pdfs/ — this app would mix its files into that repository
+  const root = await fetch(`https://api.github.com/repos/${repo}/contents?ref=${encodeURIComponent(a.branch)}`, { headers: headers(a) });
+  if (root.ok) {
+    const items = (await root.json()) as { name: string; type: string }[];
+    if (Array.isArray(items) && items.some((i) => i.type === "dir" && ["scores", "inbox", "pdfs"].includes(i.name))) {
+      throw new Error("这是钢琴练习项目的谱子仓库，不能用来存识字数据。请换一个专门的私有仓库（例如 LearningData）。");
+    }
+  }
   const u = await fetch("https://api.github.com/user", { headers: headers(a) });
   if (u.ok) a.user = ((await u.json()) as { login: string }).login;
   logout();
