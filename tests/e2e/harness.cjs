@@ -12,6 +12,7 @@ exports.start = async function (store = new Map(), opts = {}) {
   const ctx = await browser.newContext({ locale: opts.locale || 'zh-CN', viewport: opts.viewport || { width: 1180, height: 820 }, hasTouch: !!opts.touch, reducedMotion: opts.motion ? 'no-preference' : 'reduce' });   // (the pop-in animations are off in tests so that measurements are stable; 06-look tests them)
   const page = await ctx.newPage();
   if (opts.today) await page.clock.setFixedTime(new Date(opts.today + 'T10:00:00'));
+  if (opts.clock) await page.clock.install({ time: new Date(opts.clock) });   // a clock the test can move forward (page.clock.runFor); it also decides what "today" is
   page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
   const log = { gets: [], puts: [], deletes: [] };
   const version = new Map();                      // path -> number (the "sha")

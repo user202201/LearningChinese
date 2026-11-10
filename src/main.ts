@@ -6,6 +6,9 @@ import { h, toast, modal, askText, confirmDlg } from "./ui";
 import { LANGS, setLang, type LangPref } from "./i18n";
 import { ANIMAL_NAMES, animal, animalNamed, mascot } from "./art";
 import { fileToAvatar, takePhoto } from "./photo";
+import { loadPinyin, pinyinOf } from "./pinyin";
+import * as G from "./game.ts";
+import { openGame } from "./gameui";
 import { scanQr } from "./scan";
 import { readTable, readWorkbook, type SheetData } from "./xlsx";
 import * as I from "./importer";
@@ -14,14 +17,14 @@ import syncScript from "../docs/google-sheet-sync/sync.gs?raw";   // the Google 
 const app = document.getElementById("app")!;
 
 // ---------- settings (only per-device conveniences; the learning data lives behind api.ts) ----------
-interface Settings { lang: LangPref; pinyin: boolean; manage: boolean }
+interface Settings { lang: LangPref; pinyin: boolean; manage: boolean; gameSeconds: number }
 const SETTINGS_KEY = "learn.settings.v1";
 function loadSettings(): Settings {
   try {
     const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
-    return { lang: ["auto", "zh", "en", "fr"].includes(s.lang) ? s.lang : "auto", pinyin: !!s.pinyin, manage: !!s.manage };
+    return { lang: ["auto", "zh", "en", "fr"].includes(s.lang) ? s.lang : "auto", pinyin: !!s.pinyin, manage: !!s.manage, gameSeconds: Number.isFinite(s.gameSeconds) && s.gameSeconds >= 1 && s.gameSeconds <= 30 ? s.gameSeconds : 5 };
   } catch {
-    return { lang: "auto", pinyin: false, manage: false };
+    return { lang: "auto", pinyin: false, manage: false, gameSeconds: 5 };
   }
 }
 const settings = loadSettings();
@@ -30,20 +33,12 @@ function saveSettings() {
 }
 
 // ---------- pinyin (optional; loaded only when needed, computed on this device) ----------
-let pinyinFn: ((ch: string) => string) | null = null;
-let pinyinLoading: Promise<void> | null = null;
-function loadPinyin(): Promise<void> {
-  return (pinyinLoading ??= import("pinyin-pro")
-    .then((m) => { pinyinFn = (ch) => m.pinyin(ch); })
-    .catch(() => { pinyinLoading = null; }));
-}
 /** fills the pinyin of every `.py` element below `root` (when the pinyin library is available) */
 async function fillPinyin(root: ParentNode) {
   await loadPinyin();
-  if (!pinyinFn) return;
   root.querySelectorAll<HTMLElement>(".tzg").forEach((c) => {
     const py = c.querySelector(".py");
-    if (py && !py.textContent) py.textContent = pinyinFn!(c.dataset.ch ?? "");
+    if (py && !py.textContent) py.textContent = pinyinOf(c.dataset.ch ?? "");
   });
 }
 
@@ -256,7 +251,7 @@ async function addKid(after: () => void) {
 }
 
 // ---------- one child ----------
-async function renderKid(id: string, tab: "week" | "learned") {
+async function renderKid(id: string, tab: "week" | "learned" | "game") {
   const my = epoch;
   showLoading();
   let kid: M.KidData;
@@ -281,6 +276,7 @@ async function renderKid(id: string, tab: "week" | "learned") {
   const tabs = h("div", { class: "seg tabs" },
     h("button", { class: tab === "week" ? "on" : "", onclick: () => (location.hash = `#/kid/${id}`) }, "本周"),
     h("button", { class: tab === "learned" ? "on" : "", "data-tab": "learned", onclick: () => (location.hash = `#/kid/${id}/learned`) }, `已学 ${nChars}`),
+    h("button", { class: tab === "game" ? "on" : "", "data-tab": "game", id: "tab-game", onclick: () => (location.hash = `#/kid/${id}/game`) }, "游戏"),
   );
   show(
     h("div", { class: "page", style: `--kid:${k.color}` },
@@ -294,7 +290,8 @@ async function renderKid(id: string, tab: "week" | "learned") {
     ),
   );
   if (tab === "week") renderWeek(body, k, kid);
-  else renderLearned(body, k, kid);
+  else if (tab === "learned") renderLearned(body, k, kid);
+  else void renderGameLobby(body, k, kid);
 }
 
 /** characters a week is meant to have: with this many the + is not offered any more */
@@ -377,7 +374,7 @@ function openViewer(chars: string[], start: number, color: string) {
     const ch = chars[i];
     box.dataset.ch = ch;
     (box.querySelector(".ch") as HTMLElement).textContent = ch;
-    (box.querySelector(".py") as HTMLElement).textContent = pinyinFn ? pinyinFn(ch) : "";
+    (box.querySelector(".py") as HTMLElement).textContent = pinyinOf(ch);
     count.textContent = `${i + 1} / ${chars.length}`;
     prev.disabled = i === 0;
     next.disabled = i === chars.length - 1;
@@ -499,6 +496,7 @@ async function deleteKid(k: M.Kid) {
   try {
     kidsFile = await api.update<M.KidsFile>("kids.json", M.EMPTY_KIDS, (cur) => ({ ...cur, kids: cur.kids.filter((x) => x.id !== k.id) }), `remove ${k.id}`);
     await api.remove(`kids/${k.id}.json`, `remove ${k.id}`);
+    await api.remove(`kids/${k.id}.review.json`, `remove ${k.id}`);   // the game's progress goes with the child
     kidCache.delete(k.id);
     done();
     toast(`已删除 ${k.name}`);
@@ -580,6 +578,87 @@ async function changeAvatar(k: M.Kid, after: () => void) {
     done();
     toast(errText(e), 6000);
   }
+}
+
+// ---------- the game ----------
+const reviewPath = (id: string) => `kids/${id}.review.json`;
+
+/** what a finished (or left) game changes: the cards of the characters that were asked, and "last time" */
+async function saveGame(k: M.Kid, results: G.Result[], score: number, total: number, finished: boolean) {
+  const done = toast("正在保存…", 0, true);
+  try {
+    await api.update<G.Review>(reviewPath(k.id), G.EMPTY_REVIEW, (cur) => G.applyResults(cur, results, M.todayLocal(), finished ? { score, total } : undefined), `game ${k.id}`);
+    done();
+    toast("已记录这次练习");
+  } catch (e) {
+    done();
+    toast(errText(e), 6000);
+  }
+}
+
+/** the questions of today's game: all characters of the week + the earlier ones that are due (by the memory curve), shuffled */
+function gameQueue(kid: M.KidData, review: G.Review): { queue: G.Q[]; week: string | null; thisWeek: number; again: number } {
+  const week = G.gameWeek(kid, M.todayLocal());
+  if (!week) return { queue: [], week: null, thisWeek: 0, again: 0 };
+  const thisChars = M.weekOf(kid, week)?.chars ?? [];
+  const rev = G.pickReview(kid, review, week, M.todayLocal());
+  return { queue: G.buildQueue(thisChars, week, rev), week, thisWeek: thisChars.length, again: rev.length };
+}
+
+function playGame(k: M.Kid, queue: G.Q[]) {
+  openGame({
+    color: k.color,
+    seconds: settings.gameSeconds,
+    queue,
+    onSave: (results, score, total, finished) => saveGame(k, results, score, total, finished),
+    onAgain: () => void startGame(k),
+    onClose: () => void route(),
+  });
+}
+/** a new game from the newest data (after "play again") */
+async function startGame(k: M.Kid) {
+  try {
+    const kid = await loadKid(k.id);
+    const review = (await api.readJson<G.Review>(reviewPath(k.id))) ?? G.EMPTY_REVIEW;
+    const q = gameQueue(kid, review).queue;
+    if (q.length) playGame(k, q);
+    else void route();
+  } catch (e) {
+    toast(errText(e), 6000);
+    void route();
+  }
+}
+
+/** the "Game" tab: what will be asked today, the countdown, the start button */
+async function renderGameLobby(body: HTMLElement, k: M.Kid, kid: M.KidData) {
+  const my = epoch;
+  body.replaceChildren(h("div", { class: "center-msg" }, h("div", { class: "spin" })));
+  let review: G.Review;
+  try {
+    review = (await api.readJson<G.Review>(reviewPath(k.id))) ?? G.EMPTY_REVIEW;
+  } catch (e) {
+    if (my !== epoch) return;
+    return void body.replaceChildren(h("div", { class: "center-msg" }, h("p", { class: "err" }, errText(e)), h("button", { class: "primary", onclick: () => void renderGameLobby(body, k, kid) }, "重试")));
+  }
+  if (my !== epoch) return;
+  const g = gameQueue(kid, review);
+  const secs = h("div", { class: "secs", id: "game-secs" }, ...[3, 5, 8, 10, 15].map((n) =>
+    h("button", { class: "secbtn" + (n === settings.gameSeconds ? " on" : ""), "data-sec": String(n), onclick: () => {
+      settings.gameSeconds = n;
+      saveSettings();
+      secs.querySelectorAll<HTMLElement>("button.secbtn").forEach((b) => b.classList.toggle("on", b.dataset.sec === String(n)));
+    } }, `${n} 秒`)));
+  const stars = review.last ? "★".repeat(review.last.stars) + "☆".repeat(3 - review.last.stars) : "";
+  const start = h("button", { class: "primary wide", id: "game-start", disabled: g.queue.length === 0, onclick: () => playGame(k, gameQueue(kid, review).queue) }, "开始游戏");
+  body.replaceChildren(h("div", { class: "narrow lobby" },
+    h("div", { class: "lobby-hero" }, h("span", { class: "mascot big" }, mascot()), h("h2", {}, "准备好了吗？")),
+    g.queue.length
+      ? h("div", { class: "lobby-counts", id: "game-counts" }, h("span", { class: "pill" }, `本周 ${g.thisWeek} 个字`), h("span", { class: "pill alt" }, `复习 ${g.again} 个字`))
+      : h("p", { class: "empty" }, "还没有汉字，先到“本周”录入吧。"),
+    review.last ? h("p", { class: "muted center", id: "game-last" }, `上次（${review.last.date}）：${review.last.score} / ${review.last.total}  ${stars}`) : null,
+    h("h3", { class: "mini-h center" }, "倒计时"), secs,
+    start,
+    h("p", { class: "muted small center" }, "大人看着孩子读，读对了点绿色对勾，不会或超时点红色叉叉。答错的字最后会再练。")));
 }
 
 // ---------- entering a week ----------
@@ -931,8 +1010,8 @@ async function route() {
   }
   if (!api.isSignedIn()) return renderLogin();
   if (!/^#\/kid\//.test(hash)) { curWeek = ""; curWeekKid = ""; }
-  const kid = /^#\/kid\/([\w-]+)(?:\/(learned))?$/.exec(hash);
-  if (kid) return renderKid(kid[1], kid[2] ? "learned" : "week");
+  const kid = /^#\/kid\/([\w-]+)(?:\/(learned|game))?$/.exec(hash);
+  if (kid) return renderKid(kid[1], kid[2] === "learned" ? "learned" : kid[2] === "game" ? "game" : "week");
   if (hash === "#/settings") return void renderSettings();
   return renderHome();
 }
