@@ -135,6 +135,7 @@ export const getLang = (): Lang => current;
 export function setLang(pref: LangPref) {
   current = resolveLang(pref);
   document.documentElement.lang = current === "zh" ? "zh-CN" : current;
+  document.title = tr("识字小助手", current);   // (the browser tab / home-screen name follows the language too)
   patchDialogs();
   observer?.disconnect();
   observer = null;
