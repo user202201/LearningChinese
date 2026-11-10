@@ -91,10 +91,10 @@ const fits = (page) => page.evaluate(() => {
   await page.evaluate(() => (location.hash = '#/settings')); await page.waitForSelector('.card h3');
   await page.click('.seg button:has-text("English")');
   ok((await page.textContent('h1')) === 'Settings', 'choosing English switches the screen at once');
-  ok((await page.title()) === 'Hanzi Pal', 'the app name in English is "Hanzi Pal" (hanzi + pal, a friend that helps with characters), also in the browser tab');
+  ok((await page.title()) === 'Hanzippy', 'the app name in English is "Hanzippy" (hanzi + zippy: lively, quick), also in the browser tab');
   await page.click('.seg button:has-text("Français")');
   ok((await page.textContent('h1')) === 'Réglages', 'choosing Français switches it to French');
-  ok((await page.title()) === 'Mots Cases', 'the app name in French is "Mots Cases" (mots croisés + the 田字格 case), also in the browser tab');
+  ok((await page.title()) === 'Motcart', 'the app name in French is "Motcart" (mot + carte, a word card; it also sounds like Mozart), also in the browser tab');
   await page.reload(); await page.waitForSelector('h1');
   ok((await page.textContent('h1')) === 'Réglages', 'the language choice is remembered');
   await page.click('.seg button:has-text("中文")');
