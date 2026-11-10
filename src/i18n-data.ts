@@ -1,5 +1,6 @@
 /** Translations of the UI texts, keyed by the Chinese source text (see i18n.ts). `npm run check:i18n` fails when one is missing. */
 export const EN: Record<string, string> = {
+  "点汉字显示 / 隐藏拼音；点屏幕左边 / 右边，或左右滑动，切换汉字": "Tap the character to show / hide pinyin; tap the left / right of the screen, or swipe, to switch",
   "删除这个汉字": "Delete this character",
   "删除这个汉字？": "Delete this character?",
   "把“{0}”从这个孩子的记录里删除？": "Delete “{0}” from this child's record?",
@@ -26,7 +27,6 @@ export const EN: Record<string, string> = {
   "关闭": "Close",
   "汉字 {0} · 成语 {1}": "Characters {0} · Idioms {1}",
   "点 ＋ 录入这一周的汉字": "Tap + to enter this week's characters",
-  "点击汉字显示 / 隐藏拼音，左右滑动切换": "Tap the character to show / hide pinyin, swipe left or right to switch",
   "选择周": "Choose a week",
   "＋": "+",
   "应用": "App",
@@ -185,6 +185,7 @@ export const EN: Record<string, string> = {
   "重试": "Retry",
 };
 export const FR: Record<string, string> = {
+  "点汉字显示 / 隐藏拼音；点屏幕左边 / 右边，或左右滑动，切换汉字": "Touchez le caractère pour afficher / masquer le pinyin ; touchez la gauche / droite de l'écran, ou glissez, pour changer",
   "删除这个汉字": "Supprimer ce caractère",
   "删除这个汉字？": "Supprimer ce caractère ?",
   "把“{0}”从这个孩子的记录里删除？": "Supprimer « {0} » de l'historique de cet enfant ?",
@@ -211,7 +212,6 @@ export const FR: Record<string, string> = {
   "关闭": "Fermer",
   "汉字 {0} · 成语 {1}": "Caractères {0} · Idiomes {1}",
   "点 ＋ 录入这一周的汉字": "Touchez + pour saisir les caractères de la semaine",
-  "点击汉字显示 / 隐藏拼音，左右滑动切换": "Touchez le caractère pour afficher / masquer le pinyin, glissez à gauche ou à droite pour changer",
   "选择周": "Choisir une semaine",
   "＋": "+",
   "应用": "Application",

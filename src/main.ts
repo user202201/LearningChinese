@@ -349,7 +349,7 @@ function openViewer(chars: string[], start: number, color: string) {
   const stage = h("div", { class: "vstage" }, box);
   const root = h("div", { class: "viewer" + (settings.pinyin ? " pinyin-on" : ""), id: "viewer", role: "dialog", "aria-modal": "true", style: `--kid:${color}` },
     h("div", { class: "vtop" }, count, close), stage,
-    h("div", { class: "vbar" }, prev, h("p", { class: "vhint" }, "点击汉字显示 / 隐藏拼音，左右滑动切换"), next));
+    h("div", { class: "vbar" }, prev, h("p", { class: "vhint" }, "点汉字显示 / 隐藏拼音；点屏幕左边 / 右边，或左右滑动，切换汉字"), next));
   const show = (dir = 0) => {
     const ch = chars[i];
     box.dataset.ch = ch;
@@ -389,16 +389,21 @@ function openViewer(chars: string[], start: number, color: string) {
   prev.addEventListener("click", () => move(-1));
   next.addEventListener("click", () => move(1));
   close.addEventListener("click", quit);
+  // The whole screen is the control: a tap on the 田字格 shows / hides the pinyin; a tap anywhere else goes to the previous character (left half of the
+  // screen) or the next one (right half), so nobody has to hit a small button; a swipe left / right does the same. The buttons stay as they were.
   let down: { x: number; y: number } | null = null;
-  stage.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY }; });
-  stage.addEventListener("pointerup", (e) => {
+  root.addEventListener("pointerdown", (e) => { down = (e.target as Element).closest("button") ? null : { x: e.clientX, y: e.clientY }; });
+  root.addEventListener("pointerup", (e) => {
     if (!down) return;
     const dx = e.clientX - down.x, dy = e.clientY - down.y;
     down = null;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) move(dx < 0 ? 1 : -1);
-    else if (Math.abs(dx) < 12 && Math.abs(dy) < 12) toggle();
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) return move(dx < 0 ? 1 : -1);
+    if (Math.abs(dx) >= 12 || Math.abs(dy) >= 12) return;
+    const t = e.target as Element;
+    if (t.closest(".box")) toggle();
+    else if (!t.closest(".vtop, .vhint")) move(e.clientX < window.innerWidth / 2 ? -1 : 1);
   });
-  stage.addEventListener("pointercancel", () => (down = null));
+  root.addEventListener("pointercancel", () => (down = null));
   document.addEventListener("keydown", onKey);
   document.body.append(root);
   show();

@@ -1,6 +1,6 @@
 // The week page (opens on the week we are in, arrows only forward, small plus buttons, a big plus in an empty area, no big button)
 // and the full-screen character (tap a character; left / right by buttons, swipe, arrow keys; tap = pinyin; Esc / x closes).
-const { start, checks, addKid, openKid, enterWeek, gotoWeek, WEEK1, WEEK3 } = require('./harness.cjs');
+const { start, checks, addKid, openKid, enterWeek, gotoWeek, openEntry, WEEK1, WEEK3 } = require('./harness.cjs');
 const { ok, done } = checks();
 const OUT = process.env.D || 'tests/out/work/';
 (async () => {
@@ -107,6 +107,33 @@ const OUT = process.env.D || 'tests/out/work/';
   ok(await page.$eval('#viewer .tzg .py', (e) => getComputedStyle(e).visibility) === 'hidden', 'another tap hides it');
   await page.touchscreen.tap(195, 420);
 
+  // the big areas: a tap on the left part of the screen = previous, on the right part = next (no small button needed); the 田字格 only toggles the pinyin
+  const here = () => shown();
+  await page.touchscreen.tap(20, 420);                                  // far left, level with the character
+  ok((await here()) === chars[8], 'a tap on the left side of the screen goes to the previous character');
+  await page.touchscreen.tap(372, 420);                                 // far right
+  ok((await here()) === chars[9], 'a tap on the right side goes to the next one');
+  await page.touchscreen.tap(60, 120);                                  // above the character, left half
+  ok((await here()) === chars[8], 'a tap ABOVE the character, on the left half, goes back too');
+  await page.touchscreen.tap(330, 760);                                 // below the character, right half
+  ok((await here()) === chars[9], 'a tap BELOW the character, on the right half, goes forward');
+  await page.touchscreen.tap(330, 760);
+  ok((await here()) === chars[9], 'on the last character a tap on the right does nothing');
+  const py0 = await page.$eval('#viewer .tzg .py', (e) => getComputedStyle(e).visibility);
+  await page.touchscreen.tap(195, 420);
+  ok((await here()) === chars[9] && (await page.$eval('#viewer .tzg .py', (e) => getComputedStyle(e).visibility)) !== py0, 'a tap on the 田字格 does not move: it shows / hides the pinyin');
+  await page.touchscreen.tap(195, 420);
+  await page.touchscreen.tap(20, 420); await page.touchscreen.tap(20, 420);
+  ok((await here()) === chars[7], 'taps on the left side can follow each other: two steps back');
+  await page.click('#viewer-close');
+  await page.click('.cards .tzg >> nth=0'); await page.waitForSelector('#viewer');
+  await page.touchscreen.tap(20, 420);
+  ok((await here()) === chars[0], 'on the first character a tap on the left does nothing');
+  await page.touchscreen.tap(372, 420);
+  ok((await here()) === chars[1], 'and a tap on the right goes on');
+  await page.click('#viewer-close');
+  await page.click('.cards .tzg >> nth=9'); await page.waitForSelector('#viewer');   // (open again on the last one for the keyboard checks below)
+
   // keyboard (web), close
   await page.keyboard.press('ArrowLeft');
   ok((await shown()) === chars[8], 'arrow keys switch characters (web)');
@@ -117,6 +144,28 @@ const OUT = process.env.D || 'tests/out/work/';
   await page.waitForFunction(() => document.querySelector('.cards .tzg .py')?.textContent);
   ok(await page.locator('.cards.pinyin-on').count() === 1 && await page.$eval('.cards .tzg .py', (e) => getComputedStyle(e).visibility) === 'visible', 'and the pinyin choice made in the viewer applies to the week cards behind it');
   await browser.close();
+
+  // an iPad held sideways: the same, with the character box in the middle and wide areas on both sides
+  const ip = await start(new Map(), { local: true, today: '2026-11-10', touch: true, viewport: { width: 1180, height: 820 } });
+  await addKid(ip.page, 'Dory'); await openKid(ip.page, 'Dory'); await openEntry(ip.page);
+  await ip.page.fill('dialog input[type=date]', '2026-11-08'); await ip.page.fill('dialog textarea', WEEK3);
+  await ip.page.click('dialog button.primary'); await ip.page.waitForSelector('dialog', { state: 'detached' });
+  await ip.page.waitForFunction(() => document.querySelectorAll('.cards .tzg').length === 10 && !document.querySelector('#toasts .toast.working'));
+  const ic = await ip.page.$$eval('.cards .tzg', (e) => e.map((x) => x.dataset.ch));
+  await ip.page.click('.cards .tzg >> nth=4'); await ip.page.waitForSelector('#viewer');
+  const ish = () => ip.page.$eval('#viewer .tzg .ch', (e) => e.textContent);
+  const ibox = await ip.page.$eval('#viewer .tzg .box', (e) => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; });
+  ok(ibox.l > 250 && 1180 - ibox.r > 250, 'iPad landscape: the character box leaves wide areas on both sides (' + Math.round(ibox.l) + ' px each)');
+  await ip.page.touchscreen.tap(ibox.l / 2, 410);
+  ok((await ish()) === ic[3], 'iPad: a tap anywhere in the left area (' + Math.round(ibox.l / 2) + ', 410) goes back');
+  await ip.page.touchscreen.tap(1180 - ibox.l / 2, 410); await ip.page.touchscreen.tap(1180 - ibox.l / 2, 700);
+  ok((await ish()) === ic[5], 'iPad: taps in the right area, level with the box and below it, go forward');
+  await ip.page.touchscreen.tap(300, 100);
+  ok((await ish()) === ic[4], 'iPad: a tap high up on the left half goes back as well');
+  await ip.page.touchscreen.tap((ibox.l + ibox.r) / 2, (ibox.t + ibox.b) / 2);
+  ok((await ish()) === ic[4] && await ip.page.$eval('#viewer', (e) => e.classList.contains('pinyin-on')), 'iPad: a tap on the box itself toggles the pinyin and does not move');
+  await ip.page.screenshot({ path: OUT + 'viewer-ipad.png' });
+  await ip.browser.close();
 
   // languages: no Chinese UI text in the week page / viewer / week list
   for (const [locale] of [['en-US'], ['fr-FR']]) {

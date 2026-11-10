@@ -277,3 +277,7 @@ button.shutter { width: 72px; height: 72px; min-height: 72px; padding: 0; border
 .tzg.managing .box { animation: wiggle .22s ease-in-out infinite alternate; }
 .tzg.managing:nth-child(even) .box { animation-delay: -.11s; }
 @keyframes wiggle { from { transform: rotate(-1.4deg); } to { transform: rotate(1.4deg); } }
+
+/* the whole screen is the control: left half = previous, right half = next, the 田字格 = pinyin */
+.viewer { cursor: pointer; }
+.viewer .vstage { cursor: inherit; }
