@@ -61,6 +61,8 @@ const art = (page, where) => page.$eval(where + ' .avatar svg', (s) => s.dataset
   await sizesOk(page, 'Settings, after choosing an animal');
   ok((await art(page, row('Leo'))) === leoBefore && JSON.parse(store.get('kids.json')).kids[1].avatar === undefined, 'the other child is not changed');
   await goHome(page);
+  const gear = await page.evaluate(() => { const b = document.querySelector('button[aria-label="设置"]'); const r = b.getBoundingClientRect(), s = b.querySelector('svg')?.getBoundingClientRect(); return { text: b.textContent.trim(), svg: !!s, dx: s ? s.left + s.width / 2 - (r.left + r.width / 2) : 99, dy: s ? s.top + s.height / 2 - (r.top + r.height / 2) : 99, size: s ? s.width : 0 }; });
+  ok(gear.svg && gear.text === '' && Math.abs(gear.dx) < 1 && Math.abs(gear.dy) < 1 && gear.size >= 22, 'the settings gear is a drawn shape (not the text character ⚙, which each device draws in its own old way), centred in its button');
   ok((await art(page, '.kid:has-text("Dory")')) === 'owl', 'the home screen shows it');
   await openKid(page, 'Dory');
   ok((await art(page, '.kid-hero')) === 'owl', "the child's own page shows it");

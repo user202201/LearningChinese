@@ -389,3 +389,4 @@ button.gbtn { position: relative; width: clamp(104px, 28vw, 150px); height: auto
 /* no double-tap zoom anywhere (the web version on an iPhone / iPad would zoom the page when something is tapped twice, e.g. the child's picture or the arrows); pinch zoom still works */
 html, body, body * { touch-action: manipulation; }
 .hero-avatar, .hero-avatar * { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: auto; }
