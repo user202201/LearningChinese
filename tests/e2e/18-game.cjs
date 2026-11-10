@@ -99,6 +99,32 @@ const TODAY = '2026-11-10';
   await swipe(120); ok(await cur() === '游戏', 'and there is nothing further to the left');
   await swipe(-30); await swipe(-120, 150); ok(await cur() === '游戏', 'a short move or a mostly vertical one (scrolling) does not switch');
   await swipe(-120); await t.page.waitForSelector('.tabs button.on:has-text("本周")'); ok(await cur() === '本周', 'swiping left from Game goes to This week');
+  // --- self-test (on the Recorded tab): 30 random of all the recorded characters, asked like the game, nothing saved
+  await t.page.evaluate(() => (location.hash = '#/kid/kdory/learned')); await t.page.waitForSelector('#selftest');
+  const row = await t.page.evaluate(() => { const b = document.querySelector('#selftest').getBoundingClientRect(), big = document.querySelector('.learned-head .big').getBoundingClientRect(), s = document.querySelector('#learned-scroll').getBoundingClientRect(); return { right: s.right - b.right, gap: b.left - big.right, bigMid: (big.left + big.right) / 2 - (s.left + s.right) / 2, sameRow: Math.abs((b.top + b.bottom) / 2 - (big.top + big.bottom) / 2) < 30, text: document.querySelector('#selftest').textContent }; });
+  ok(row.text === '自测' && row.sameRow && row.right >= 0 && row.right < 24 && row.gap > 20 && Math.abs(row.bigMid) < 2, 'the self-test button is on the count row, pushed to the right edge (' + Math.round(row.right) + ' px from it, ' + Math.round(row.gap) + ' px from the count), the count stays centred');
+  const before = await rec(t.page, 'kdory');
+  const runTest = async () => { await t.page.click('#selftest'); await t.page.waitForSelector('#game'); return play(t.page, () => true); };
+  const T1 = await runTest();
+  const all = (A1 + A2 + A3);
+  ok(T1.length === 30 && new Set(T1.map((x) => x.ch)).size === 30 && T1.every((x) => all.includes(x.ch)), 'self-test asks 30 different recorded characters (Dory has 30: here all of them)');
+  await t.page.waitForSelector('#game-end');
+  ok(JSON.stringify(await rec(t.page, 'kdory')) === JSON.stringify(before), 'a self-test saves nothing (the memory-curve records are untouched)');
+  await t.page.click('#game-again'); await t.page.waitForSelector('#game-char');
+  const T2 = await play(t.page, () => true);
+  ok(T2.map((x) => x.ch).join('') !== T1.map((x) => x.ch).join(''), 'asking again gives another random order');
+  await t.page.click('#game-done'); await t.page.waitForSelector('#selftest');
+  ok(await t.page.locator('.tabs button.on:has-text("已入库")').count() === 1, 'Done brings you back to the Recorded tab');
+  await t.page.evaluate(() => (location.hash = '#/kid/kdory')); await t.page.waitForSelector('.weekbar');
+  // --- more than 30 recorded: exactly 30 of them, a different selection each time
+  const BIG = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'; const HAN = [...'一二三四五六七八九十天地人和大小上下左右中国山水火木土日月星云风雨雪花草树鸟鱼马牛羊']; 
+  const bigKid = { id: 'kbig', name: 'Big', color: '#2f9e44', weeks: [0, 1, 2, 3, 4].map((n) => ({ start: ['2026-10-04', '2026-10-11', '2026-10-18', '2026-10-25', '2026-11-01'][n], chars: HAN.slice(n * 10, n * 10 + 10) })) };
+  const tb = await open({ kids: [bigKid] });
+  await tb.page.evaluate(() => (location.hash = '#/kid/kbig/learned')); await tb.page.waitForSelector('#selftest');
+  const sel = [];
+  for (let n = 0; n < 2; n++) { await tb.page.click('#selftest'); await tb.page.waitForSelector('#game'); const got = await play(tb.page, () => true); sel.push(got.map((x) => x.ch)); await tb.page.click('#game-done'); await tb.page.waitForSelector('#selftest'); }
+  ok(sel.every((s) => s.length === 30 && new Set(s).size === 30 && s.every((c) => HAN.includes(c))) && sel[0].slice().sort().join('') !== sel[1].slice().sort().join(''), 'with 50 recorded characters the self-test asks exactly 30 of them, and a different 30 the second time');
+  await tb.browser.close();
   await t.page.click('#tab-game'); await t.page.waitForSelector('#game-start');
   const lob = await t.page.evaluate(() => { const r = (s) => document.querySelector(s)?.getBoundingClientRect(); const hero = r('.lobby-hero'), st = r('#game-start'); return { counts: !!document.querySelector('#game-counts'), last: !!document.querySelector('#game-last'), secs: !!document.querySelector('#game-secs'), small: !!document.querySelector('.lobby .small, .lobby .muted, .lobby .mini-h'), text: document.querySelector('.lobby').innerText.replace(/\s+/g, ' ').trim(), gap: st.top - hero.bottom, startBottom: st.bottom, vh: innerHeight }; });
   ok(!lob.counts && !lob.last && !lob.secs && !lob.small && lob.text === '准备好了吗？ 开始游戏', 'the lobby shows only "Ready?" and the start button (no counts, no countdown, no explanation): "' + lob.text + '"');

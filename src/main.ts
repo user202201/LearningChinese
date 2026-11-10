@@ -448,7 +448,10 @@ function openViewer(chars: string[], start: number, color: string) {
 function renderLearned(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   const chars = M.allChars(kid);
   const head = h("div", { class: "learned-head" },
-    h("div", { class: "big" }, h("strong", { id: "count" }, String(chars.length)), " 字"),
+    h("div", { class: "count-row" },
+      h("span", {}),
+      h("div", { class: "big" }, h("strong", { id: "count" }, String(chars.length)), " 字"),
+      chars.length ? h("button", { class: "selftest", id: "selftest", onclick: (e: Event) => { e.stopPropagation(); selfTest(k, kid); } }, "自测") : h("span", {})),
     h("div", { class: "muted small" }, "点击屏幕显示 / 隐藏拼音"),
   );
   const cells = chars.map((c) => (settings.manage ? withDelete(cell(c), c, (ch) => void deleteChar(k, ch)) : cell(c)));
@@ -463,6 +466,20 @@ function renderLearned(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   });
   body.replaceChildren(scroller);
   if (settings.pinyin) void fillPinyin(grid);
+}
+
+/** self-test: SELF_TEST random characters out of all the recorded ones, asked like the game (the adult ticks / crosses); practice only: nothing is saved */
+const SELF_TEST = 30;
+function selfTest(k: M.Kid, kid: M.KidData) {
+  const queue: G.Q[] = G.shuffle(M.allChars(kid)).slice(0, SELF_TEST).map((ch) => ({ ch, week: kid.weeks.find((w) => w.chars.includes(ch))?.start ?? "", review: false }));
+  openGame({
+    color: k.color,
+    seconds: settings.gameSeconds,
+    queue,
+    onSave: async () => {},   // (a test is not a practice session: the memory-curve cards are left alone)
+    onAgain: () => selfTest(k, kid),
+    onClose: () => void route(),
+  });
 }
 
 /** shown while manage mode is on: says so and turns it off again */
