@@ -144,6 +144,25 @@ const TODAY = '2026-11-10';
     return { dial: d.width, stroke: parseFloat(getComputedStyle(document.querySelector('#game .fg')).strokeWidth), circles: document.querySelectorAll('#game .gring circle').length, fs, boxR: b.width / 2, dx: Math.hypot(r.left + r.width / 2 - (b.left + b.width / 2), r.top + r.height / 2 - (b.top + b.height / 2)), corner: Math.hypot(r.width / 2, r.height / 2) }; });
   ok(geo.stroke / 100 <= 0.035 && geo.circles === 1, 'the ring is thin: ' + (geo.stroke).toFixed(1) + ' % of the board, and there is no thick track behind it');
   ok(geo.fs >= geo.dial * 0.55 && geo.corner + geo.dx <= geo.boxR * 0.99, 'the character is big (' + Math.round(geo.fs) + 'px on a ' + Math.round(geo.dial) + 'px board) and lies completely inside the round board');
+  // no frame, no board: only a dashed cross that fades away towards the edges
+  const sty = await t.page.evaluate(() => { const b = document.querySelector('#game .gbox'); const c = getComputedStyle(b), p = getComputedStyle(b, '::before'); return { border: c.borderTopWidth, shadow: c.boxShadow, bg: c.backgroundImage, radius: c.borderTopLeftRadius, mask: p.maskImage || p.webkitMaskImage, lines: p.backgroundImage, chOpacity: getComputedStyle(document.querySelector('#game-char')).opacity }; });
+  ok(sty.border === '0px' && sty.shadow === 'none' && sty.bg === 'none', 'the board has no frame, no shadow and no background (' + sty.border + ', ' + sty.shadow + ')');
+  ok(/radial-gradient/.test(sty.mask) && /gradient/.test(sty.lines) && sty.chOpacity === '1', 'the dashed cross is faded out by a mask towards the edge, the character itself is not');
+  await t.page.addStyleTag({ content: '#game-char { visibility: hidden !important; } #game .gsec { visibility: hidden; }' });   // (so that the character does not hide the lines in the measurement)
+  const lumDiff = async (fromR, toR) => {
+    const box = await t.page.$eval('#game .gbox', (e) => { const r = e.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, R: r.width / 2 }; });
+    const y0 = Math.round(box.cy - toR * box.R), y1 = Math.round(box.cy - fromR * box.R), x0 = Math.round(box.cx - 3);
+    const png = await t.page.screenshot({ clip: { x: x0, y: y0, width: 24, height: Math.max(4, y1 - y0) } });
+    return t.page.evaluate(async (b64) => {
+      const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height).data; const lum = (x, y) => { const i = (y * c.width + x) * 4; return 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]; };
+      let line = 0, ref = 0, n = 0; for (let y = 0; y < c.height; y++) { for (let x = 1; x <= 5; x++) { line += lum(x, y); n++; } for (let x = 16; x <= 20; x++) ref += lum(x, y); }
+      return (ref - line) / n;
+    }, png.toString('base64'));
+  };
+  const near = await lumDiff(0.10, 0.40), far = await lumDiff(0.82, 0.96);
+  ok(near > 3 && far < near * 0.4, 'measured on a screenshot: the cross is clear near the middle (' + near.toFixed(1) + ') and almost gone near the edge (' + far.toFixed(1) + ')');
   await t.page.screenshot({ path: OUT + 'game-urgent.png' });
   await t.page.clock.runFor(600);
   ok(await t.page.locator('#game-flash.no').count() === 1 && await t.page.locator('#game-py.show').count() === 1 && (await t.page.textContent('#game-score')) === '★ 0', 'time is up: counted as wrong (red cross), the right pinyin is shown, no point');

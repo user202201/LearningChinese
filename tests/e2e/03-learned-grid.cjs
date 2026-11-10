@@ -1,4 +1,4 @@
-// "已学": every learned character in a 田字格 cell, tap the screen to show / hide pinyin, scroll up / down through all of them.
+// "已入库": every learned character in a 田字格 cell, tap the screen to show / hide pinyin, scroll up / down through all of them.
 const { start, checks, addKid, openKid, enterWeek, gotoWeek, WEEK1 } = require('./harness.cjs');
 const { ok, done } = checks();
 const MANY = Array.from('一二三四五六七八九十上下大小山水火土木金日月田人口手足目耳心中天地风雨花草鸟鱼马牛羊虫书门工农学校早晚东西南北左右前后红黄蓝绿白黑'); // 60 distinct
@@ -8,7 +8,7 @@ const MANY = Array.from('一二三四五六七八九十上下大小山水火土�
   await addKid(page, 'Dory'); await openKid(page, 'Dory');
   await page.click('button[data-tab=learned]');
   await page.waitForSelector('#learned-scroll');
-  ok((await page.textContent('#learned-scroll')).includes('还没有学过的字'), 'empty library: tells where to add characters');
+  ok((await page.textContent('#learned-scroll')).includes('还没有入库的字'), 'empty library: tells where to add characters');
   await page.click('button:has-text("本周")');
   await enterWeek(page, '2026-10-25', WEEK1);
   const DATES = ['2026-11-01', '2026-11-08', '2026-11-15', '2026-11-22', '2026-11-29'];

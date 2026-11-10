@@ -50,11 +50,11 @@ const { ok, done } = checks();
   await page.fill('dialog textarea', WEEK3 + '假鼓');
   const note = await page.textContent('#note-chars');
   ok(note.includes('新的 10 个'), 'week 3: 10 new characters');
-  ok(note.includes('已学过') && note.includes('假（第1周）') && note.includes('鼓（第2周）'), 'duplicates are named with the week they were learned in');
+  ok(note.includes('已入库') && note.includes('假（第1周）') && note.includes('鼓（第2周）'), 'duplicates are named with the week they were learned in');
   await page.click('dialog button.primary');
-  await page.waitForSelector('#toasts .toast:has-text("已学过，已跳过")');   // (the toast of the previous save may still be on screen)
+  await page.waitForSelector('#toasts .toast:has-text("已入库，已跳过")');   // (the toast of the previous save may still be on screen)
   const msg = await page.textContent('#toasts');
-  ok(msg.includes('新增 10 个汉字') && msg.includes('2 个已学过'), 'saving skips the learned ones and says how many (2)');
+  ok(msg.includes('新增 10 个汉字') && msg.includes('2 个已入库'), 'saving skips the learned ones and says how many (2)');
   ok(await page.locator('.cards .tzg').count() === 10 && (await page.textContent('.cards')).indexOf('假') < 0, 'week 3 has exactly its 10 new characters; the repeated one is not added again');
   ok((await page.textContent('button[data-tab=learned]')).includes('30'), 'learned tab counts 30 characters');
   await openEntry(page);   // (the week just saved has its 10 characters and no +)
@@ -72,7 +72,7 @@ const { ok, done } = checks();
 
   // children are independent
   await goHome(page);
-  ok((await page.textContent('.kid:has-text("Dory")')).includes('已学 30 字') && (await page.textContent('.kid:has-text("Leo")')).includes('已学 0 字'), 'Dory 30, Leo 0: each child has their own library');
+  ok((await page.textContent('.kid:has-text("Dory")')).includes('已入库 30 字') && (await page.textContent('.kid:has-text("Leo")')).includes('已入库 0 字'), 'Dory 30, Leo 0: each child has their own library');
   await openKid(page, 'Leo');
   await page.click('#enter'); await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea', '假鼓');
   ok((await page.textContent('#note-chars')).includes('新的 2 个'), 'Leo can learn what Dory has already learned');

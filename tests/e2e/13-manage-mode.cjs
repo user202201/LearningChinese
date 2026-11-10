@@ -62,7 +62,7 @@ const { ok, done } = checks();
 
   // --- an emptied week disappears
   for (const c of '一二三四五六七八') { await page.click(`#grid .tzg[data-ch=${c}] .del`); await page.click('dialog button.danger'); await page.waitForFunction((n) => document.querySelectorAll('#grid .tzg').length === n && !document.querySelector('#toasts .toast.working'), 7 - '一二三四五六七八'.indexOf(c)); }
-  ok(kidFile().weeks.length === 0 && (await page.textContent('#learned-scroll')).includes('还没有学过的字'), 'a week with nothing left disappears; the empty "Learned" page says so');
+  ok(kidFile().weeks.length === 0 && (await page.textContent('#learned-scroll')).includes('还没有入库的字'), 'a week with nothing left disappears; the empty "Learned" page says so');
 
   // --- turning it off
   await page.click('#manage-off');

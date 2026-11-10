@@ -221,7 +221,7 @@ async function renderHome() {
     list.append(
       h("button", { class: "kid", style: `--kid:${k.color}`, onclick: () => (location.hash = `#/kid/${k.id}`) },
         avatarEl(k),
-        h("span", { class: "kinfo" }, h("span", { class: "kname user" }, k.name), h("span", { class: "ksub" }, `已学 ${n} 字`)),
+        h("span", { class: "kinfo" }, h("span", { class: "kname user" }, k.name), h("span", { class: "ksub" }, `已入库 ${n} 字`)),
         h("span", { class: "chev" }, "›")),
     );
   }
@@ -275,7 +275,7 @@ async function renderKid(id: string, tab: "week" | "learned" | "game") {
   const nChars = M.allChars(kid).length;
   const tabs = h("div", { class: "seg tabs" },
     h("button", { class: tab === "week" ? "on" : "", onclick: () => (location.hash = `#/kid/${id}`) }, "本周"),
-    h("button", { class: tab === "learned" ? "on" : "", "data-tab": "learned", onclick: () => (location.hash = `#/kid/${id}/learned`) }, `已学 ${nChars}`),
+    h("button", { class: tab === "learned" ? "on" : "", "data-tab": "learned", onclick: () => (location.hash = `#/kid/${id}/learned`) }, `已入库 ${nChars}`),
     h("button", { class: tab === "game" ? "on" : "", "data-tab": "game", id: "tab-game", onclick: () => (location.hash = `#/kid/${id}/game`) }, "游戏"),
   );
   show(
@@ -438,7 +438,7 @@ function renderLearned(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   );
   const cells = chars.map((c) => (settings.manage ? withDelete(cell(c), c, (ch) => void deleteChar(k, ch)) : cell(c)));
   const grid = h("div", { class: "grid" + (settings.pinyin ? " pinyin-on" : ""), id: "grid" }, ...stagger(cells));
-  const scroller = h("div", { class: "scroll", id: "learned-scroll" }, h("div", { class: "narrow" }, manageBar()), head, chars.length ? grid : h("p", { class: "empty" }, "还没有学过的字，先去“本周”录入吧。"));
+  const scroller = h("div", { class: "scroll", id: "learned-scroll" }, h("div", { class: "narrow" }, manageBar()), head, chars.length ? grid : h("p", { class: "empty" }, "还没有入库的字，先去“本周”录入吧。"));
   // a tap anywhere on the screen (not a scroll) shows / hides the pinyin
   scroller.addEventListener("click", () => {
     settings.pinyin = !settings.pinyin;
@@ -679,7 +679,7 @@ async function enterDialog(k: M.Kid) {
     const typedC = c.fresh.length + c.learned.length + c.inWeek.length;
     note1.replaceChildren();
     if (typedC) note1.append(h("div", {}, `共 ${typedC} 个汉字，新的 ${c.fresh.length} 个`));
-    if (c.learned.length) note1.append(h("div", { class: "warn" }, `已学过，保存时会跳过：${learnedText(c.learned)}`));
+    if (c.learned.length) note1.append(h("div", { class: "warn" }, `已入库，保存时会跳过：${learnedText(c.learned)}`));
     if (c.inWeek.length) note1.append(h("div", { class: "muted" }, `这一周已经有了：${c.inWeek.join("")}`));
     save.disabled = c.fresh.length === 0;
   };
@@ -712,7 +712,7 @@ async function enterDialog(k: M.Kid) {
     }, "start week");
     curWeek = start;
     done();
-    toast(skipped ? `已保存：新增 ${added} 个汉字；另有 ${skipped} 个已学过，已跳过` : `已保存：新增 ${added} 个汉字`, 5000);
+    toast(skipped ? `已保存：新增 ${added} 个汉字；另有 ${skipped} 个已入库，已跳过` : `已保存：新增 ${added} 个汉字`, 5000);
     route();
   } catch (e) {
     done();
@@ -771,7 +771,7 @@ function previewImport(entries: I.Entry[]): Promise<I.Entry[]> {
       if (!n) lines.push(h("div", { class: "warn" }, "没有认出内容。第一列要写成“第1周-2026-10-25”，后面是汉字。"));
       else {
         lines.push(h("div", {}, e.kind === "idioms" ? `${n} 周，${e.total} 个成语，其中新的 ${e.added} 个` : `${n} 周，${e.total} 个汉字，其中新的 ${e.added} 个`));
-        if (e.skipped) lines.push(h("div", { class: "warn" }, `已学过，会跳过：${e.skipped} 个（同一个字出现在多周时，只留最早的一周）`));
+        if (e.skipped) lines.push(h("div", { class: "warn" }, `已入库，会跳过：${e.skipped} 个（同一个字出现在多周时，只留最早的一周）`));
         if (e.present && !e.added && !e.skipped) lines.push(h("div", { class: "muted" }, "都已经有了"));
         else if (e.present) lines.push(h("div", { class: "muted" }, `已经有了：${e.present} 个`));
       }
@@ -830,7 +830,7 @@ async function importFlow() {
       }
     }
     done();
-    toast(skipped ? `已导入：${chars} 个汉字、${idiomsAdded} 个成语；另有 ${skipped} 个已学过，已跳过` : `已导入：${chars} 个汉字、${idiomsAdded} 个成语`, 6000);
+    toast(skipped ? `已导入：${chars} 个汉字、${idiomsAdded} 个成语；另有 ${skipped} 个已入库，已跳过` : `已导入：${chars} 个汉字、${idiomsAdded} 个成语`, 6000);
     restart(); // (the import is started from Settings: show the children)
   } catch (e) {
     done();
@@ -931,9 +931,9 @@ async function renderSettings() {
       h("main", { class: "scroll" }, h("div", { class: "narrow" },
         kids,
         h("div", { class: "card" }, h("label", { class: "check" }, manage, "管理模式"),
-          h("p", { class: "muted small" }, "打开后，“本周”和“已学”里每个汉字的右上角会出现红色“−”，点一下就能删除这个汉字。用完请关掉。")),
+          h("p", { class: "muted small" }, "打开后，“本周”和“已入库”里每个汉字的右上角会出现红色“−”，点一下就能删除这个汉字。用完请关掉。")),
         h("div", { class: "card" }, h("h3", {}, "语言"), lang),
-        h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已学”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),
+        h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已入库”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),
         account,
         h("div", { class: "card" }, h("h3", {}, "同步到 Google 表格"),
           h("p", { class: "muted small" }, "在 Google 表格里加一小段脚本，它会每周六、周日晚上各一次，自动把你在这里新加的汉字填进表格里对应孩子、对应那一周的空格，你在这里删掉的字也会从表格里清掉（你在表格里手动录的内容不会被改动，这里的数据也不会被改动）。请在电脑上设置，大约 10 分钟，只做一次。"),

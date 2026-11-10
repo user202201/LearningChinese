@@ -330,11 +330,13 @@ button.secbtn.on { background: var(--kid); color: #fff; border-color: transparen
 .gdial { position: relative; width: min(86vw, 47dvh, 520px); aspect-ratio: 1; cursor: pointer; }
 .gring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
 .gring .fg { fill: none; stroke-width: 2.4; stroke-linecap: round; }          /* a thin ring: full at the start, burning away; its colour is set by the game (green -> red) */
-.gbox { position: absolute; inset: 4.5%; border-radius: 50%; container-type: size; display: grid; place-items: center; border: 3px solid color-mix(in srgb, var(--kid) 55%, #fff); background-color: #fffdf8;
-  box-shadow: 0 6px 0 color-mix(in srgb, var(--kid) 30%, #fff);
-  background-image: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--kid) 40%, #fff) 0 5px, transparent 5px 9px), repeating-linear-gradient(to right, color-mix(in srgb, var(--kid) 40%, #fff) 0 5px, transparent 5px 9px);
-  background-size: 1.5px 100%, 100% 1.5px; background-position: center, center; background-repeat: no-repeat; }
-.gbox .ch { font-family: var(--kai); font-weight: 700; font-size: 66cqw; line-height: 1; color: #2d2230; }
+/* no frame and no round board: only a dashed cross behind the character that fades away towards the edges (a 田字格 that dissolves) */
+.gbox { position: absolute; inset: 4.5%; container-type: size; display: grid; place-items: center; border: 0; background: none; box-shadow: none; }
+.gbox::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--kid) 55%, #fff) 0 7px, transparent 7px 13px), repeating-linear-gradient(to right, color-mix(in srgb, var(--kid) 55%, #fff) 0 7px, transparent 7px 13px);
+  background-size: 2.5px 100%, 100% 2.5px; background-position: center, center; background-repeat: no-repeat;
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 0, #000 52%, transparent 100%); mask-image: radial-gradient(circle closest-side, #000 0, #000 52%, transparent 100%); }
+.gbox .ch { position: relative; font-family: var(--kai); font-weight: 700; font-size: 66cqw; line-height: 1; color: #2d2230; }
 .gpy { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); text-align: center; font-size: clamp(22px, 6vmin, 44px); font-weight: 800; line-height: 1.2; color: var(--kid); visibility: hidden; min-height: 1.2em; }
 .gpy.show { visibility: visible; }
 .gsec { position: absolute; top: 1%; right: 1%; min-width: 36px; height: 36px; padding: 0 6px; line-height: 36px; text-align: center; font-weight: 800; font-size: 19px; border-radius: 999px; background: #fff; color: var(--kid); box-shadow: var(--shadow); }
