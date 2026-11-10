@@ -534,6 +534,58 @@ async function importFlow() {
   }
 }
 
+// ---------- app updates (a web app on the iPad home screen has no reload button) ----------
+/** Forget the cached copies of the app and load the newest one. The sign-in and the data on this device are kept. */
+async function hardRefresh() {
+  const done = toast("正在更新…", 0, true);
+  try {
+    const regs = (await navigator.serviceWorker?.getRegistrations()) ?? [];
+    await Promise.all(regs.map((r) => r.unregister()));
+  } catch { /* no service worker */ }
+  try {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((k) => caches.delete(k)));
+  } catch { /* no cache storage */ }
+  void done;
+  // a changed query string also skips the browser's own HTTP cache for index.html
+  location.replace(`${location.pathname}?r=${Date.now()}${location.hash}`);
+}
+/** the build id of the newest version on the site (written at every build, see vite.config.ts); null when it cannot be read */
+async function latestBuild(): Promise<string | null> {
+  try {
+    const r = await fetch(new URL(`version.json?t=${Date.now()}`, document.baseURI), { cache: "no-store" });
+    if (!r.ok) return null;
+    const j = (await r.json()) as { build?: unknown };
+    return typeof j.build === "string" ? j.build : null;
+  } catch {
+    return null;
+  }
+}
+let updateBanner: HTMLElement | null = null;
+function showUpdateBanner() {
+  if (updateBanner?.isConnected) return;
+  updateBanner = h("div", { class: "updatebar", id: "update-bar" }, h("span", {}, "有新版本可用"), h("button", { class: "primary", id: "update-now", onclick: () => void hardRefresh() }, "立即更新"));
+  document.body.append(updateBanner);
+  document.body.classList.add("has-update"); // (leaves room under the last button)
+}
+/** @param quiet automatic checks say nothing unless there is a new version */
+async function checkUpdate(quiet = false) {
+  const done = quiet ? () => {} : toast("正在检查更新…", 0, true);
+  const b = await latestBuild();
+  done();
+  if (b === null) return void (quiet || toast("检查更新失败，请检查网络"));
+  if (b !== __BUILD__) {
+    showUpdateBanner();
+    if (!quiet) toast("有新版本可用，请点下方的“立即更新”", 6000);
+  } else if (!quiet) toast("已是最新版本");
+}
+if (!__MOBILE__ && import.meta.env.PROD) {
+  // look for a new version when the app opens, when it comes back to the front, and every 5 minutes (never reloads by itself: you may be typing)
+  setTimeout(() => void checkUpdate(true), 3000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) void checkUpdate(true); });
+  setInterval(() => void checkUpdate(true), 5 * 60_000);
+}
+
 // ---------- settings ----------
 function renderSettings() {
   const lang = h("div", { class: "seg" },
@@ -555,7 +607,12 @@ function renderSettings() {
         h("div", { class: "card" }, h("h3", {}, "语言"), lang),
         h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已学”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),
         account,
-        h("p", { class: "muted small center" }, `版本 ${__BUILD__}`),
+        h("div", { class: "card" }, h("h3", {}, "应用"),
+          ...(__MOBILE__ ? [] : [
+            h("button", { class: "wide", id: "check-update", onclick: () => void checkUpdate() }, "检查更新"),
+            h("button", { class: "wide", id: "hard-refresh", title: "一直显示旧版本时使用，不会退出登录", onclick: () => void hardRefresh() }, "强制刷新（清除缓存）"),
+          ]),
+          h("p", { class: "muted small center" }, `版本 ${__BUILD__}`)),
       )),
     ),
   );

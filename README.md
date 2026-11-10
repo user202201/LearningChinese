@@ -21,6 +21,7 @@ that only a token of yours can read and write.
 - **Import from Excel / Google Sheets**: one tab per child (the tab's name = the child's name), one row per week (`第1周-2026-10-25`, then the characters), a tab `成语` for the idioms. Download the sheet as .xlsx (Google Sheets: File → Download → Microsoft Excel) and choose it, or paste a tab's cells. A preview shows what is new and what is skipped before anything is saved.
 - **Sign in without typing**: on the login screen tap *Sign in by scanning a QR code* and scan the code shown by a device that is already signed in (Settings → Sign in on another device).
 - A child-friendly look: a colour and an animal for every child, a mascot, chunky buttons.
+- **Updating**: the site is rebuilt and published by GitHub after every push. On an iPad / phone: Settings → *Check for updates* (a bar *Update now* also appears by itself when a newer version exists) or *Force refresh (clear the cache)*; you stay signed in. No `git pull` is ever needed on a device.
 - Languages: 中文 / English / Français.
 
 ## Data (in the private repository)

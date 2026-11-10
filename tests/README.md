@@ -10,6 +10,7 @@ Browser tests (Playwright + Chromium, touch-sized windows) against the app runni
 | 02-kids-weeks-duplicates | 3 children, entering a week, "already learned?" detection (with the week), shared idioms, week navigation, rename / delete, cancel = no message |
 | 03-learned-grid | every learned character in a 田字格, tap = show / hide pinyin, scrolling through 70 characters |
 | 04-github-storage | which files are written, UTF-8, second device, two devices at once are merged, lost connection is reported, delete |
+| 09-update | Settings -> check for updates / force refresh (cache cleared, still signed in), the new-version bar, on a real production build; the iOS build has none of it |
 | 08-import-excel | import from Excel / Google Sheets: real .xlsx files, the user's layout, preview, duplicates, paste, bad files, cancel writes nothing |
 | 07-scan-login | the login screen scans a QR code with the camera (pretend camera): good code, other code, refused camera, bad token, camera switched off, en / fr |
 | 06-look | an animal + colour per child (stable, different), mascot, readable white text on every colour, animations off with "reduce motion" |

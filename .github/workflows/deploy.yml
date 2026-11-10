@@ -22,6 +22,7 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run build   # includes the translation check
+      - run: test -s dist/version.json   # the running app asks the site for this file to find out whether a newer version exists
       - uses: actions/upload-pages-artifact@v3
         with: { path: dist }
   deploy:
