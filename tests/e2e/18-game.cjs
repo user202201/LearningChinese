@@ -89,12 +89,15 @@ const TODAY = '2026-11-10';
   await t.page.waitForSelector('#tab-game');
   ok((await t.page.textContent('#tab-game')) === '游戏', 'the child\'s page has a "Game" tab next to "This week" and "Learned"');
   await t.page.click('#tab-game'); await t.page.waitForSelector('#game-start');
-  const counts = await t.page.textContent('#game-counts');
-  ok(counts.includes('本周 10 个字') && counts.includes('复习 10 个字') && !(await t.page.locator('#game-start').isDisabled()), 'the lobby says what will be asked today: 10 of this week + 10 to review');
-  ok((await t.page.getAttribute('#game-secs .on', 'data-sec')) === '5', 'the countdown is 5 seconds unless changed');
+  const lob = await t.page.evaluate(() => { const r = (s) => document.querySelector(s)?.getBoundingClientRect(); const hero = r('.lobby-hero'), st = r('#game-start'); return { counts: !!document.querySelector('#game-counts'), last: !!document.querySelector('#game-last'), secs: !!document.querySelector('#game-secs'), small: !!document.querySelector('.lobby .small, .lobby .muted, .lobby .mini-h'), text: document.querySelector('.lobby').innerText.replace(/\s+/g, ' ').trim(), gap: st.top - hero.bottom, startBottom: st.bottom, vh: innerHeight }; });
+  ok(!lob.counts && !lob.last && !lob.secs && !lob.small && lob.text === '准备好了吗？ 开始游戏', 'the lobby shows only "Ready?" and the start button (no counts, no countdown, no explanation): "' + lob.text + '"');
+  ok(!(await t.page.locator('#game-start').isDisabled()) && lob.gap > lob.vh * 0.12, 'the start button sits well below the title, not right under it (gap ' + Math.round(lob.gap) + ' px)');
+  await t.page.evaluate(() => (location.hash = '#/settings')); await t.page.waitForSelector('#game-secs');
+  ok((await t.page.getAttribute('#game-secs .on', 'data-sec')) === '5', 'the countdown (in Settings) is 5 seconds unless changed');
   await t.page.click('#game-secs [data-sec="8"]');
   ok(await t.page.evaluate(() => JSON.parse(localStorage.getItem('learn.settings.v1')).gameSeconds) === 8 && (await t.page.getAttribute('#game-secs .on', 'data-sec')) === '8', 'choosing 8 seconds is remembered');
   await t.page.click('#game-secs [data-sec="5"]');
+  await t.page.evaluate(() => (location.hash = '#/kid/kdory/game')); await t.page.waitForSelector('#game-start');
   await t.page.screenshot({ path: OUT + 'game-lobby-ui.png' });
 
   // --- the game is the same for every child; only the characters differ
@@ -109,7 +112,7 @@ const TODAY = '2026-11-10';
   ok(askedA.map((x) => x.ch).join('') !== A3 + A2, 'in a mixed (shuffled) order');
   await t.page.click('#game-done'); await t.page.waitForSelector('#game-start');
   await toGame(t.page, 'kleo');
-  ok((await t.page.textContent('#game-counts')).includes('本周 10 个字'), 'Leo: his own lobby, his own 10');
+  ok(!(await t.page.locator('#game-start').isDisabled()), 'Leo: his own lobby, ready to start');
   await t.page.click('#game-start'); await t.page.waitForSelector('#game');
   const domB = await t.page.evaluate(() => [...document.querySelectorAll('#game *')].map((e) => e.id || e.className).filter((x) => typeof x === 'string' && x).sort().join(','));
   const askedB = await play(t.page, () => true);
@@ -148,7 +151,7 @@ const TODAY = '2026-11-10';
   const sty = await t.page.evaluate(() => { const b = document.querySelector('#game .gbox'); const c = getComputedStyle(b), p = getComputedStyle(b, '::before'); return { border: c.borderTopWidth, shadow: c.boxShadow, bg: c.backgroundImage, radius: c.borderTopLeftRadius, mask: p.maskImage || p.webkitMaskImage, lines: p.backgroundImage, chOpacity: getComputedStyle(document.querySelector('#game-char')).opacity }; });
   ok(sty.border === '0px' && sty.shadow === 'none' && sty.bg === 'none', 'the board has no frame, no shadow and no background (' + sty.border + ', ' + sty.shadow + ')');
   ok(/radial-gradient/.test(sty.mask) && /gradient/.test(sty.lines) && sty.chOpacity === '1', 'the dashed cross is faded out by a mask towards the edge, the character itself is not');
-  await t.page.addStyleTag({ content: '#game-char { visibility: hidden !important; } #game .gsec { visibility: hidden; }' });   // (so that the character does not hide the lines in the measurement)
+  const hideStyle = await t.page.addStyleTag({ content: '#game-char { visibility: hidden !important; } #game .gsec { visibility: hidden; }' });   // (so that the character does not hide the lines in the measurement)
   const lumDiff = async (fromR, toR) => {
     const box = await t.page.$eval('#game .gbox', (e) => { const r = e.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, R: r.width / 2 }; });
     const y0 = Math.round(box.cy - toR * box.R), y1 = Math.round(box.cy - fromR * box.R), x0 = Math.round(box.cx - 3);
@@ -163,10 +166,20 @@ const TODAY = '2026-11-10';
   };
   const near = await lumDiff(0.10, 0.40), far = await lumDiff(0.82, 0.96);
   ok(near > 3 && far < near * 0.4, 'measured on a screenshot: the cross is clear near the middle (' + near.toFixed(1) + ') and almost gone near the edge (' + far.toFixed(1) + ')');
+  await hideStyle.evaluate((e) => e.remove());
   await t.page.screenshot({ path: OUT + 'game-urgent.png' });
   await t.page.clock.runFor(600);
   ok(await t.page.locator('#game-flash.no').count() === 1 && await t.page.locator('#game-py.show').count() === 1 && (await t.page.textContent('#game-score')) === '★ 0', 'time is up: counted as wrong (red cross), the right pinyin is shown, no point');
   ok(await t.page.locator('#game-right').isDisabled() && await t.page.locator('#game-wrong').isDisabled(), 'while the answer is shown the two buttons are off');
+  const behind = await t.page.evaluate(() => {
+    const f = document.querySelector('#game-flash'), c = document.querySelector('#game-char'), py = document.querySelector('#game-py');
+    const r = c.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    const fs = getComputedStyle(f), cs = getComputedStyle(c), ps = getComputedStyle(py);
+    const kids = [...f.parentElement.children]; const prs = py.getBoundingClientRect(), fr = f.getBoundingClientRect();
+    return { op: parseFloat(fs.opacity), bg: fs.backgroundColor, chOp: cs.opacity, chVis: cs.visibility, pyVis: ps.visibility, pyOp: ps.opacity, topIsChar: !!top && (top === c || !!top.closest('.gbox')), order: kids.indexOf(f) < kids.indexOf(document.querySelector('#game .gbox')), svg: f.querySelector('svg path')?.getAttribute('stroke') };
+  });
+  ok(behind.order && behind.topIsChar && behind.op <= 0.3 && behind.op > 0.05 && (behind.bg === 'rgba(0, 0, 0, 0)' || behind.bg === 'transparent'), 'the big red cross is a faint picture BEHIND the character: painted before it, ' + Math.round(behind.op * 100) + ' % strong, no solid background, the character is on top of it');
+  ok(behind.chOp === '1' && behind.chVis === 'visible' && behind.pyVis === 'visible' && behind.pyOp === '1' && behind.svg === '#e03131', 'the character and the pinyin are fully visible while the cross is shown (so it can be looked at again)');
   await t.page.screenshot({ path: OUT + 'game-timeout.png' });
   const first = (await st(t.page)).ch;
   await t.page.clock.runFor(1800);
@@ -241,7 +254,6 @@ const TODAY = '2026-11-10';
   const future = Object.fromEntries(C(A1).map((c) => [c, { box: 2, due: '2026-11-20', last: '2026-11-08', right: 2, wrong: 0 }]));
   t = await open({ kids: [DORY], review: { kdory: { cards: future, last: { date: '2026-11-09', score: 17, total: 20, stars: 2 }, plays: 1 } } });
   await toGame(t.page);
-  ok((await t.page.textContent('#game-counts')).includes('复习 10 个字') && (await t.page.textContent('#game-last')).includes('2026-11-09') && (await t.page.textContent('#game-last')).includes('17 / 20') && (await t.page.textContent('#game-last')).includes('★★☆'), 'the lobby shows the last time (date, 17 / 20, 2 stars) and 10 to review (only week 2: week 1 is not due until 11-20)');
   await t.page.click('#game-start'); await t.page.waitForSelector('#game');
   const asked3 = await play(t.page, () => true);
   ok(!asked3.some((x) => A1.includes(x.ch)) && asked3.filter((x) => A2.includes(x.ch)).length === 10, 'characters that are not due yet are not asked');

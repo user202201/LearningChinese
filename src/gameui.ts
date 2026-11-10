@@ -22,8 +22,8 @@ export interface GameOpts {
 const SVG = "http://www.w3.org/2000/svg";
 const R = 48.5;                                // radius of the ring in a 100 x 100 drawing (a thin ring on the very edge)
 const C = 2 * Math.PI * R;
-const tickSvg = () => { const s = document.createElementNS(SVG, "svg"); s.setAttribute("viewBox", "0 0 48 48"); s.setAttribute("aria-hidden", "true"); s.innerHTML = '<path d="M9 25l10 10L39 13" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>'; return s; };
-const crossSvg = () => { const s = document.createElementNS(SVG, "svg"); s.setAttribute("viewBox", "0 0 48 48"); s.setAttribute("aria-hidden", "true"); s.innerHTML = '<path d="M12 12l24 24M36 12L12 36" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>'; return s; };
+const tickSvg = (colour = "#fff") => { const s = document.createElementNS(SVG, "svg"); s.setAttribute("viewBox", "0 0 48 48"); s.setAttribute("aria-hidden", "true"); s.innerHTML = `<path d="M9 25l10 10L39 13" fill="none" stroke="${colour}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`; return s; };
+const crossSvg = (colour = "#fff") => { const s = document.createElementNS(SVG, "svg"); s.setAttribute("viewBox", "0 0 48 48"); s.setAttribute("aria-hidden", "true"); s.innerHTML = `<path d="M12 12l24 24M36 12L12 36" fill="none" stroke="${colour}" stroke-width="7" stroke-linecap="round"/>`; return s; };
 const starSvg = (on: boolean) => { const s = document.createElementNS(SVG, "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("aria-hidden", "true"); s.setAttribute("class", "gstar" + (on ? " on" : "")); s.innerHTML = '<path d="M12 1.800l3 6.500 7.100.9-5.200 4.900 1.400 7L12 17.600 5.700 21.100l1.400-7L1.900 9.200l7.100-.9z" stroke-width="1.500" stroke-linejoin="round"/>'; return s; };
 
 export function openGame(o: GameOpts): void {
@@ -55,7 +55,7 @@ export function openGame(o: GameOpts): void {
   ring.append(fg);
   const sec = h("span", { class: "gsec", id: "game-seconds" });
   const flash = h("div", { class: "gflash", id: "game-flash" });
-  const dial = h("div", { class: "gdial", id: "game-dial" }, py, ring, box, sec, flash);
+  const dial = h("div", { class: "gdial", id: "game-dial" }, py, ring, flash, box, sec);   // (the flash is before the board: it is painted BEHIND the character)
   const no = h("button", { class: "gbtn no", id: "game-wrong", title: "答错了", "aria-label": "答错了" }, crossSvg());
   const yes = h("button", { class: "gbtn yes", id: "game-right", title: "答对了", "aria-label": "答对了" }, tickSvg());
   const banner = h("div", { class: "gbanner", id: "game-banner" });
@@ -122,7 +122,7 @@ export function openGame(o: GameOpts): void {
     dial.classList.add(correct ? "ok" : "bad");
     fg.style.stroke = correct ? "#2f9e44" : "#e03131";
     flash.className = "gflash show " + (correct ? "yes" : "no");
-    flash.replaceChildren(correct ? tickSvg() : crossSvg());
+    flash.replaceChildren(correct ? tickSvg("#2f9e44") : crossSvg("#e03131"));
     void loadPinyin().then(() => { py.textContent = pinyinOf(q.ch); });
     if (!correct) reveal(true);                              // a miss shows the right reading
     dial.dataset.last = correct ? "right" : "wrong";

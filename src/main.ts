@@ -642,23 +642,11 @@ async function renderGameLobby(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   }
   if (my !== epoch) return;
   const g = gameQueue(kid, review);
-  const secs = h("div", { class: "secs", id: "game-secs" }, ...[3, 5, 8, 10, 15].map((n) =>
-    h("button", { class: "secbtn" + (n === settings.gameSeconds ? " on" : ""), "data-sec": String(n), onclick: () => {
-      settings.gameSeconds = n;
-      saveSettings();
-      secs.querySelectorAll<HTMLElement>("button.secbtn").forEach((b) => b.classList.toggle("on", b.dataset.sec === String(n)));
-    } }, `${n} 秒`)));
-  const stars = review.last ? "★".repeat(review.last.stars) + "☆".repeat(3 - review.last.stars) : "";
   const start = h("button", { class: "primary wide", id: "game-start", disabled: g.queue.length === 0, onclick: () => playGame(k, gameQueue(kid, review).queue) }, "开始游戏");
   body.replaceChildren(h("div", { class: "narrow lobby" },
     h("div", { class: "lobby-hero" }, h("span", { class: "mascot big" }, mascot()), h("h2", {}, "准备好了吗？")),
-    g.queue.length
-      ? h("div", { class: "lobby-counts", id: "game-counts" }, h("span", { class: "pill" }, `本周 ${g.thisWeek} 个字`), h("span", { class: "pill alt" }, `复习 ${g.again} 个字`))
-      : h("p", { class: "empty" }, "还没有汉字，先到“本周”录入吧。"),
-    review.last ? h("p", { class: "muted center", id: "game-last" }, `上次（${review.last.date}）：${review.last.score} / ${review.last.total}  ${stars}`) : null,
-    h("h3", { class: "mini-h center" }, "倒计时"), secs,
-    start,
-    h("p", { class: "muted small center" }, "大人看着孩子读，读对了点绿色对勾，不会或超时点红色叉叉。答错的字最后会再练。")));
+    g.queue.length ? null : h("p", { class: "empty" }, "还没有汉字，先到“本周”录入吧。"),
+    h("div", { class: "lobby-go" }, start)));
 }
 
 // ---------- entering a week ----------
@@ -904,6 +892,12 @@ async function renderSettings() {
     ...([["auto", "自动"], ...LANGS] as [LangPref, string][]).map(([v, name]) =>
       h("button", { class: settings.lang === v ? "on" : "", onclick: () => { settings.lang = v; saveSettings(); setLang(v); void renderSettings(); } }, name)),
   );
+  const secs = h("div", { class: "secs", id: "game-secs" }, ...[3, 5, 8, 10, 15].map((n) =>
+    h("button", { class: "secbtn" + (n === settings.gameSeconds ? " on" : ""), "data-sec": String(n), onclick: () => {
+      settings.gameSeconds = n;
+      saveSettings();
+      secs.querySelectorAll<HTMLElement>("button.secbtn").forEach((b) => b.classList.toggle("on", b.dataset.sec === String(n)));
+    } }, `${n} 秒`)));
   const pinyin = h("input", { type: "checkbox", checked: settings.pinyin, onchange: (e: Event) => { settings.pinyin = (e.target as HTMLInputElement).checked; saveSettings(); } });
   const manage = h("input", { type: "checkbox", id: "manage-mode", checked: settings.manage, onchange: (e: Event) => { settings.manage = (e.target as HTMLInputElement).checked; saveSettings(); } });
   const a = api.getAuth();
@@ -932,6 +926,7 @@ async function renderSettings() {
         kids,
         h("div", { class: "card" }, h("label", { class: "check" }, manage, "管理模式"),
           h("p", { class: "muted small" }, "打开后，“本周”和“已入库”里每个汉字的右上角会出现红色“−”，点一下就能删除这个汉字。用完请关掉。")),
+        h("div", { class: "card" }, h("h3", {}, "倒计时"), secs),
         h("div", { class: "card" }, h("h3", {}, "语言"), lang),
         h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已入库”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),
         account,
