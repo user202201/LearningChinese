@@ -285,6 +285,7 @@ export const EN: Record<string, string> = {
   "「{0}」和已有的「{1}」很像，是不是想写「{2}」？": "“{0}” looks like “{1}” which is already there: did you mean “{2}”?",
   "已学：第{0}周": "learned: week {0}",
   "改成「{0}」": "Change to “{0}”",
+  "表格 E 列有 {0} 个故事，会填入 {1} 个（App 里已经有自己故事的 {2} 个不改）": "Column E of the sheet has {0} stories, {1} will be filled in ({2} idioms that already have a story in the app are not changed)",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -572,4 +573,5 @@ export const FR: Record<string, string> = {
   "「{0}」和已有的「{1}」很像，是不是想写「{2}」？": "« {0} » ressemble à « {1} » qui existe déjà : vouliez-vous écrire « {2} » ?",
   "已学：第{0}周": "appris : semaine {0}",
   "改成「{0}」": "Remplacer par « {0} »",
+  "表格 E 列有 {0} 个故事，会填入 {1} 个（App 里已经有自己故事的 {2} 个不改）": "La colonne E du tableau a {0} histoires, {1} seront ajoutées ({2} chengyu qui ont déjà une histoire dans l'application ne sont pas modifiés)",
 };

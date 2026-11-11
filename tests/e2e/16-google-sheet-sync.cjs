@@ -299,20 +299,21 @@ const auditOk = (log, dropped = []) => log.writes.filter((w) => w.tab && w.tab !
   // ---------- the 成语 tab: A = idiom (locked by the user), B = tick box, C = count made by the sheet. The script only TICKS B for idioms the app has given a week.
   const LIB = ['对牛弹琴', '指鹿为马', '井底之蛙', '刻舟求剑', '守株待兔', '尊老爱幼', '知错就改', '夜郎自大'];
   const idiomTab = () => [['对牛弹琴', true, 24], ['指鹿为马', false, 24], ['井底之蛙', false, 24], ['刻舟求剑', false, 24], ['守株待兔', false, 24], ['尊老爱幼', true, 24], ['知错就改', false, 24], ['夜郎自大', false, 24]];
-  const IDIOMS = { weeks: [{ start: '2026-11-08', items: ['对牛弹琴', '井底之蛙', '刻舟求剑'] }, { start: '2026-11-15', items: ['夜郎自大', '不在表格里的成语'] }], pool: LIB, stories: { 对牛弹琴: '故事' } };
+  const IDIOMS = { weeks: [{ start: '2026-11-08', items: ['对牛弹琴', '井底之蛙', '刻舟求剑'] }, { start: '2026-11-15', items: ['夜郎自大', '不在表格里的成语'] }], pool: LIB, stories: { 对牛弹琴: '故事', 不在表格里的成语: '新故事', 井底之蛙: 'App里改过的故事' } };
   const ib = makeEnv({ files: { ...FILES, 'idioms.json': IDIOMS }, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [], 成语: idiomTab() } });
   const idiomBefore = JSON.stringify(ib.sheets.get('成语').grid);
   ib.run('syncAuto');
   const iw = ib.log.writes.filter((w) => w.tab === '成语');
   const igrid = ib.sheets.get('成语').grid;
-  const tickW = iw.filter((w) => w.row <= 8 && w.col === 2), weekW = iw.filter((w) => w.row <= 8 && w.col === 4), newW = iw.filter((w) => w.row > 8);
+  const tickW = iw.filter((w) => w.row <= 8 && w.col === 2), weekW = iw.filter((w) => w.row <= 8 && w.col === 4), storyW = iw.filter((w) => w.row <= 8 && w.col === 5), newW = iw.filter((w) => w.row > 8);
   ok(tickW.length === 3 && tickW.every((w) => w.value === true && w.before === false) && tickW.map((w) => w.row).sort().join() === '3,4,8', 'the idioms the app gave a week get their box in column B TICKED (rows 3, 4 and 8)');
   ok(weekW.length === 4 && weekW.map((w) => w.row + ':' + w.value).sort().join() === '1:第3周-2026-11-08,3:第3周-2026-11-08,4:第3周-2026-11-08,8:第4周-2026-11-15' && weekW.every((w) => w.before === ''), 'the week they were learned in is written in column D, in the same form as the children\'s tabs ("第3周-2026-11-08", counted from the first week of the app)');
-  ok(newW.length === 3 && newW.every((w) => w.row === 9) && newW.find((w) => w.col === 1).value === '不在表格里的成语' && newW.find((w) => w.col === 1).before === '' && newW.find((w) => w.col === 2).value === true && newW.find((w) => w.col === 4).value === '第4周-2026-11-15' && ib.log.boxes.length === 1 && ib.log.boxes[0].join() === '成语,9,2', 'a new idiom of the app (typed by hand) is ADDED below the last idiom of column A (row 9) with a tick box in B, ticked, and its week in D; nothing else is written');
+  ok(storyW.length === 2 && storyW.map((w) => w.row + ':' + w.value).sort().join() === '1:故事,3:App里改过的故事' && storyW.every((w) => w.before === ''), 'the stories of the app are written into column E, only where E is empty (rows 1 and 3)');
+  ok(newW.length === 4 && newW.every((w) => w.row === 9) && newW.find((w) => w.col === 5).value === '新故事' && newW.find((w) => w.col === 1).value === '不在表格里的成语' && newW.find((w) => w.col === 1).before === '' && newW.find((w) => w.col === 2).value === true && newW.find((w) => w.col === 4).value === '第4周-2026-11-15' && ib.log.boxes.length === 1 && ib.log.boxes[0].join() === '成语,9,2', 'a new idiom of the app (typed by hand) is ADDED below the last idiom of column A (row 9) with a tick box in B, ticked, and its week in D; nothing else is written');
   ok(igrid.slice(0, 8).every((r, i) => r[0] === JSON.parse(idiomBefore)[i][0] && r[2] === 24) && igrid[8][2] === undefined, 'the existing idioms of column A and the counts in column C are never touched (the new row leaves C to the sheet)');
   ok(igrid[0][1] === true && igrid[5][1] === true && igrid[1][1] === false && igrid[4][1] === false && igrid[6][1] === false, 'ticks that were already there stay, boxes of idioms without a week stay empty, nothing is ever un-ticked');
   const idSt = ib.sheets.get('同步状态').grid.flat().join('|');
-  ok(/新打勾 3 个/.test(idSt) && /D 列写入学习的周 4 个/.test(idSt) && /新加到表格 A 列 1 个（不在表格里的成语）/.test(idSt), 'the status tab says how many were ticked and which new idioms were added: ' + (idSt.match(/成语：[^|]*/) || [''])[0]);
+  ok(/新打勾 3 个/.test(idSt) && /D 列写入学习的周 4 个/.test(idSt) && /E 列写入故事 3 个/.test(idSt) && /新加到表格 A 列 1 个（不在表格里的成语）/.test(idSt), 'the status tab says how many were ticked and which new idioms were added: ' + (idSt.match(/成语：[^|]*/) || [''])[0]);
   ib.log.writes.length = 0; ib.run('syncAuto');
   ok(ib.log.writes.filter((w) => w.tab === '成语').length === 0, 'running it again writes nothing more (idempotent)');
   // column D: only an empty cell, or an old week label with another week, is written; anything the user wrote there stays
@@ -323,6 +324,13 @@ const auditOk = (log, dropped = []) => log.writes.filter((w) => w.tab && w.tab !
   const dWrites = dd.log.writes.filter((w) => w.tab === '成语' && w.col === 4);
   ok(dWrites.length === 1 && dWrites[0].row === 4 && dWrites[0].before === '第1周-2026-10-25' && dWrites[0].value === '第3周-2026-11-08', 'column D: something the user wrote (我的备注) is not touched, a cell that already has the right week is not written again, an old week label with another week is corrected (row 4)');
   ok(dd.sheets.get('成语').grid[0][3] === '我的备注' && /另有 1 个 D 格里是你自己写的内容，没有动/.test(dd.sheets.get('同步状态').grid.flat().join('|')), 'and the status tab says that one D cell with your own text was left alone');
+  // column E: a story already in the sheet (the user's own or an edited one) is never overwritten, an empty cell is filled
+  const eTab = idiomTab().map((r) => r.slice());
+  eTab[0][4] = '我在表格里改过的故事';
+  const ee = makeEnv({ files: { ...FILES, 'idioms.json': { weeks: [], pool: LIB, stories: { 对牛弹琴: 'App里的版本', 指鹿为马: '指鹿为马的故事' } } }, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [], 成语: eTab } });
+  ee.run('syncAuto');
+  const eW = ee.log.writes.filter((w) => w.tab === '成语' && w.col === 5);
+  ok(eW.length === 1 && eW[0].row === 2 && eW[0].value === '指鹿为马的故事' && ee.sheets.get('成语').grid[0][4] === '我在表格里改过的故事', 'column E: a story already there (here edited in the sheet) is never overwritten; only the empty cell of 指鹿为马 gets its story');
   dd.log.writes.length = 0; dd.run('syncAuto');
   ok(dd.log.writes.filter((w) => w.tab === '成语').length === 0, 'a second sync writes nothing in the 成语 tab');
   const noTab = makeEnv({ files: { ...FILES, 'idioms.json': IDIOMS }, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [] } });

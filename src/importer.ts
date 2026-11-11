@@ -5,7 +5,8 @@
  *   A = "第1周-2026-10-25" (the week and its first day)   B, C, D ... = the characters of that week   (L = running total: ignored)
  *   a tab called 成语 holds the idioms in the same shape (A = the week, B, C ... = one idiom per cell), OR (no dates at all) the whole library:
  *   A = one idiom per row, B = a tick box (ticked = used with the children already), C = a count made by the sheet (ignored),
- *   D = the week it was given ("第4周-2026-11-15", written by the sync script; empty the first time)
+ *   D = the week it was given ("第4周-2026-11-15", written by the sync script; empty the first time),
+ *   E = the story of the idiom (typed by the user or written for him; the app keeps its own story when it has one)
  */
 import * as M from "./model";
 import type { Cell, SheetData } from "./xlsx";
@@ -33,11 +34,11 @@ export function isPoolSheet(rows: Cell[][]): boolean {
   if (rows.some((r) => dateOf(r[0]))) return false;
   return rows.filter((r) => typeof r[0] === "string" && /[\u4e00-\u9fff]{2,}/.test(r[0])).length >= 3;
 }
-export interface PoolRows { items: string[]; checked: string[]; weekOf: Record<string, string>; filled: number; ignored: number[] }   // filled = rows with something in column A; ignored = row numbers that were not taken (doubles, headings, not an idiom)
+export interface PoolRows { items: string[]; checked: string[]; weekOf: Record<string, string>; stories: Record<string, string>; filled: number; ignored: number[] }   // filled = rows with something in column A; ignored = row numbers that were not taken (doubles, headings, not an idiom)
 const TICKED = /^(true|1|yes|y|是|已用|✓|✔|√)$/i;   // (what a ticked box becomes when the table was copied as text)
 /** the library of a 成语 tab: every idiom of column A in order, and the ones whose box in column B is ticked */
 export function parsePool(rows: Cell[][]): PoolRows {
-  const items: string[] = [], checked: string[] = [], ignored: number[] = [], weekOf: Record<string, string> = {};
+  const items: string[] = [], checked: string[] = [], ignored: number[] = [], weekOf: Record<string, string> = {}, stories: Record<string, string> = {};
   let filled = 0;
   rows.forEach((r, i) => {
     const raw = r[0] === null || r[0] === undefined ? "" : String(r[0]).trim();
@@ -50,10 +51,12 @@ export function parsePool(rows: Cell[][]): PoolRows {
     const week = dateOf(r[3]);
     if (b === true || (typeof b === "number" && b === 1) || (typeof b === "string" && TICKED.test(b.trim())) || week) checked.push(a);   // (a week in column D means it was used, even if the box is empty)
     if (week) weekOf[a] = M.sundayOf(week);
+    const story = typeof r[4] === "string" ? r[4].trim() : "";
+    if (story) stories[a] = story;
   });
-  return { items, checked, weekOf, filled, ignored };
+  return { items, checked, weekOf, stories, filled, ignored };
 }
-export interface PoolPlan { total: number; checked: number; weeks: string[]; assigned: number; leftover: number; fresh: number; unticked: number; removed: number; filled: number; ignored: number[]; fromSheetWeeks: number }
+export interface PoolPlan { total: number; checked: number; weeks: string[]; assigned: number; leftover: number; fresh: number; unticked: number; removed: number; filled: number; ignored: number[]; fromSheetWeeks: number; storiesInSheet: number; storiesFilled: number; storiesKept: number }
 /**
  * Importing the library RESETS the weeks of idioms: the old arrangement is wiped and rebuilt from the sheet, which wins. An idiom with a week in column D goes to
  * exactly that week (this is how the weeks written by the sync script come back); the other ticked ones are given weeks in the order of the sheet, `per` a week,
@@ -74,8 +77,15 @@ export function applyPool(all: M.IdiomsFile, rows: PoolRows, weeks: string[]): {
   const before = new Map(all.weeks.flatMap((w) => w.items.map((x) => [x, w.start] as const)));
   const after = new Map(r.data.weeks.flatMap((w) => w.items.map((x) => [x, w.start] as const)));
   const removed = [...before].filter(([x, w]) => after.get(x) !== w).length;
+  // stories: the sheet's story fills an idiom that has none in the app; a story the app already has (written or edited in the app) is never replaced
+  const stories = { ...(all.stories ?? {}) };
+  let storiesFilled = 0, storiesKept = 0;
+  for (const [x, text] of Object.entries(rows.stories)) {
+    if (!stories[x]?.trim()) { stories[x] = text; storiesFilled++; } else if (stories[x] !== text) storiesKept++;
+  }
+  if (storiesFilled) r.data = { ...r.data, stories };
   const placed = new Set(after.keys());
-  return { data: r.data, plan: { total: rows.items.length, checked: rows.checked.length, weeks, assigned: r.assigned, leftover: r.leftover.length, fresh, unticked: pool.filter((x) => !placed.has(x)).length, removed, filled: rows.filled, ignored: rows.ignored, fromSheetWeeks } };
+  return { data: r.data, plan: { total: rows.items.length, checked: rows.checked.length, weeks, assigned: r.assigned, leftover: r.leftover.length, fresh, unticked: pool.filter((x) => !placed.has(x)).length, removed, filled: rows.filled, ignored: rows.ignored, fromSheetWeeks, storiesInSheet: Object.keys(rows.stories).length, storiesFilled, storiesKept } };
 }
 
 export function parseSheet(rows: Cell[][], kind: Kind): Parsed {
@@ -146,7 +156,7 @@ export function plan(sheets: SheetData[], kids: M.KidsFile, kidData: (id: string
     if (kind === "idioms" && isPoolSheet(s.rows)) {
       const rows = parsePool(s.rows);
       const r = applyPool(idioms, rows, poolWeeks);
-      return { name: s.name, kind, parsed: { weeks: [], skippedRows: [] }, exists: true, added: JSON.stringify(r.data) === JSON.stringify(idioms) ? 0 : Math.max(1, r.plan.fresh + r.plan.assigned + r.plan.fromSheetWeeks + r.plan.removed), skipped: 0, present: rows.items.length - r.plan.fresh, total: rows.items.length, pool: r.plan };
+      return { name: s.name, kind, parsed: { weeks: [], skippedRows: [] }, exists: true, added: JSON.stringify(r.data) === JSON.stringify(idioms) ? 0 : Math.max(1, r.plan.fresh + r.plan.assigned + r.plan.fromSheetWeeks + r.plan.removed + r.plan.storiesFilled), skipped: 0, present: rows.items.length - r.plan.fresh, total: rows.items.length, pool: r.plan };
     }
     const parsed = parseSheet(s.rows, kind);
     const total = parsed.weeks.reduce((n, w) => n + w.items.length, 0);

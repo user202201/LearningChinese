@@ -12,7 +12,7 @@ const IDIOMS = [...'甲乙丙丁戊己庚辛壬癸'].flatMap((a) => [...'一二�
 const TICKED = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 21, 22, 24, 26, 28, 30, 31, 33];       // 24 rows
 const xlsx = (file, rows) => {
   const X = (s) => strToU8(`<?xml version="1.0" encoding="UTF-8"?>${s}`);
-  const sheet = rows.map((r, i) => `<row r="${i + 1}"><c r="A${i + 1}" t="inlineStr"><is><t>${r[0]}</t></is></c><c r="B${i + 1}" t="b"><v>${r[1] ? 1 : 0}</v></c><c r="C${i + 1}"><v>24</v></c>${r[2] ? `<c r="D${i + 1}" t="inlineStr"><is><t>${r[2]}</t></is></c>` : ''}</row>`).join('');
+  const sheet = rows.map((r, i) => `<row r="${i + 1}"><c r="A${i + 1}" t="inlineStr"><is><t>${r[0]}</t></is></c><c r="B${i + 1}" t="b"><v>${r[1] ? 1 : 0}</v></c><c r="C${i + 1}"><v>24</v></c>${r[2] ? `<c r="D${i + 1}" t="inlineStr"><is><t>${r[2]}</t></is></c>` : ''}${r[3] ? `<c r="E${i + 1}" t="inlineStr"><is><t>${r[3]}</t></is></c>` : ''}</row>`).join('');
   fs.writeFileSync(file, Buffer.from(zipSync({
     '[Content_Types].xml': X('<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>'),
     'xl/workbook.xml': X('<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="成语" sheetId="1" r:id="rId1"/></sheets></workbook>'),
@@ -127,6 +127,30 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
     ok(txt.includes('表格 D 列写了周的 24 个成语，回到表格里写的那一周') && txt.includes('现有周里的') && txt.includes('个成语会被冲掉，按表格重新安排'), 'the second import tells that 24 idioms have their week in column D and that the weeks now are arranged again from the sheet: ' + txt.replace(/\s+/g, ' ').slice(0, 260));
     ok(JSON.stringify(again) === JSON.stringify(want) && first.join() !== again.map((x) => x.split(',')[0]).join(), 'the four weeks are exactly what column D says (here the reverse of the sheet order), not the order of the rows: ' + again.map((x) => x.slice(0, 16)).join(' | '));
     await t5.browser.close();
+  }
+
+  // ---------- stories in column E of the sheet: imported with the library, filled only where the app has no story (what the app has - written or edited there - wins)
+  {
+    xlsx(OUT + 'idiom-pool-stories.xlsx', IDIOMS.map((x, i) => [x, TICKED.includes(i), null, i < 10 ? `表格里的故事${i}` : null]));
+    const t6 = await start(new Map(), { local: true, today: '2026-11-10', viewport: { width: 820, height: 1000 } });
+    await addKid(t6.page, 'Dory');
+    await t6.page.evaluate((x) => localStorage.setItem('learn.local.idioms.json', JSON.stringify({ weeks: [], pool: [], stories: { [x]: 'App 里自己写的故事' } })), IDIOMS[0]);
+    await t6.page.evaluate(() => (location.hash = '#/settings')); await t6.page.waitForSelector('#import-btn');
+    await t6.page.click('#import-btn'); await t6.page.setInputFiles('#import-file', OUT + 'idiom-pool-stories.xlsx'); await t6.page.waitForSelector('#import-go');
+    const st = (await t6.page.textContent('.entry')).replace(/\u2011/g, '-');
+    ok(st.includes('表格 E 列有 10 个故事，会填入 9 个（App 里已经有自己故事的 1 个不改）'), 'the preview says that column E has 10 stories, 9 will be filled in and 1 idiom that already has its own story in the app is not changed: ' + (st.match(/表格 E 列[^）]*）/) || [''])[0]);
+    await t6.page.click('#import-go'); await t6.page.waitForSelector('#toasts .toast:has-text("已导入")');
+    const sv = await t6.page.evaluate(() => JSON.parse(localStorage.getItem('learn.local.idioms.json')));
+    ok(Object.keys(sv.stories).length === 10 && sv.stories[IDIOMS[0]] === 'App 里自己写的故事' && sv.stories[IDIOMS[5]] === '表格里的故事5' && !sv.stories[IDIOMS[10]], 'saved: the sheet\'s stories are in the app (9 new), the one the app already had stays as it was, idioms without a story in the sheet get none');
+    // and the story can be edited in the app afterwards (the user's version wins from then on)
+    await t6.page.evaluate((x) => (location.hash = '#/idiom/' + encodeURIComponent(x)), IDIOMS[5]); await t6.page.waitForSelector('#idiom-story');
+    ok((await t6.page.textContent('#idiom-story')) === '表格里的故事5', 'the imported story is shown on the story page');
+    await t6.page.click('#story-edit'); await t6.page.fill('dialog textarea', '我改过的故事'); await t6.page.click('#story-save'); await t6.page.waitForSelector('#toasts .toast:has-text("已保存故事")');
+    await t6.page.evaluate(() => (location.hash = '#/settings')); await t6.page.waitForSelector('#import-btn');
+    await t6.page.click('#import-btn'); await t6.page.setInputFiles('#import-file', OUT + 'idiom-pool-stories.xlsx'); await t6.page.waitForSelector('.entry');
+    const st2 = (await t6.page.textContent('.entry')).replace(/\u2011/g, '-');
+    ok(st2.includes('会填入 0 个（App 里已经有自己故事的 2 个不改）'), 'importing the same sheet again fills nothing and never replaces the stories that differ from the sheet (the one the app had and the one just edited: 2): ' + (st2.match(/表格 E 列[^）]*）/) || [''])[0]);
+    await t6.browser.close();
   }
 
   // ---------- the real flow: three weeks of characters, import the sheet, preview, import
