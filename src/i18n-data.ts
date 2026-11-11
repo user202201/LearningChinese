@@ -268,6 +268,13 @@ export const EN: Record<string, string> = {
   "表格 D 列写了周的 {0} 个成语，回到表格里写的那一周": "{0} idioms have a week in column D of the sheet: they go back to that week",
   "没写周的已勾选成语按表格顺序分配到 {0} 周，每周 {1} 个（{2}）": "The ticked idioms without a week go to {0} weeks in the order of the sheet, {1} a week ({2})",
   "现有周里的 {0} 个成语会被冲掉，按表格重新安排（以表格为准）": "{0} idioms in the current weeks will be washed away and arranged again from the sheet (the sheet wins)",
+  "打印故事": "Print stories",
+  "故事打印 · 第{0}周": "Stories to print · week {0}",
+  "每个故事用 {0} 号字，一页 3 个，一张 A4 正反面印完一周的 {1} 个；每个故事最多约 {2} 个字（超过会自动缩小，最小 {3} 号）。": "{0} pt type, 3 stories a page: one A4 sheet printed on both sides holds the {1} of the week; a story can have about {2} characters (a longer one is set smaller, down to {3} pt).",
+  "还没有故事：{0}": "No story yet: {0}",
+  "字数较多，已缩小字号：{0}": "Long, set in a smaller type: {0}",
+  "太长，打印会被截断，请缩短：{0}": "Too long, it would be cut off when printed, please shorten: {0}",
+  "这一周还没有成语。": "No idioms this week yet.",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -538,4 +545,11 @@ export const FR: Record<string, string> = {
   "表格 D 列写了周的 {0} 个成语，回到表格里写的那一周": "{0} chengyu ont une semaine dans la colonne D du tableau : ils retournent à cette semaine",
   "没写周的已勾选成语按表格顺序分配到 {0} 周，每周 {1} 个（{2}）": "Les chengyu cochés sans semaine vont dans {0} semaines, dans l'ordre du tableau, {1} par semaine ({2})",
   "现有周里的 {0} 个成语会被冲掉，按表格重新安排（以表格为准）": "{0} chengyu des semaines actuelles seront effacés et réarrangés d'après le tableau (le tableau fait foi)",
+  "打印故事": "Imprimer les histoires",
+  "故事打印 · 第{0}周": "Histoires à imprimer · semaine {0}",
+  "每个故事用 {0} 号字，一页 3 个，一张 A4 正反面印完一周的 {1} 个；每个故事最多约 {2} 个字（超过会自动缩小，最小 {3} 号）。": "Corps {0}, 3 histoires par page : une feuille A4 recto verso contient les {1} de la semaine ; une histoire peut avoir environ {2} caractères (une plus longue est composée plus petit, jusqu'au corps {3}).",
+  "还没有故事：{0}": "Pas encore d'histoire : {0}",
+  "字数较多，已缩小字号：{0}": "Long, composé plus petit : {0}",
+  "太长，打印会被截断，请缩短：{0}": "Trop long, il serait coupé à l'impression, merci de raccourcir : {0}",
+  "这一周还没有成语。": "Pas encore de chengyu cette semaine.",
 };

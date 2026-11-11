@@ -1,4 +1,5 @@
 import { buildSheet } from "./sheet";
+import { buildStoryPages, fitStories, capacity, STORY_PT, STORY_MIN_PT } from "./storysheet";
 import "./style.css";
 import QRCode from "qrcode";
 import * as api from "./api";
@@ -412,6 +413,44 @@ async function renderSheet(id: string) {
     chars.length ? h("div", { class: "idiom-foot sheet-foot" }, h("button", { class: "primary wide", id: "sheet-print", onclick: () => window.print() }, "打印 / 保存为 PDF")) : null));
 }
 
+let storyWeek = "";   // the week whose stories are printed
+async function renderStories() {
+  const my = epoch;
+  showLoading();
+  try {
+    await Promise.all([loadShared(), loadPinyin()]);
+  } catch (e) {
+    return my === epoch ? showError(e, () => void renderStories()) : undefined;
+  }
+  if (my !== epoch) return;
+  const start = storyWeek || idiomWeek || M.sundayOf(M.todayLocal());
+  const items = (idioms.weeks.find((w) => w.start === start)?.items ?? []).map((idiom) => ({ idiom, story: idioms.stories?.[idiom] ?? "" }));
+  const no = M.weekNo(start, kidsFile.startWeek);
+  const paper = await buildStoryPages(items);
+  const note = h("div", { class: "muted small center story-note", id: "story-note" });
+  const scale = h("div", { class: "story-scale" }, paper);
+  show(h("div", { class: "page sheet-page", style: idiomColor ? `--kid:${idiomColor}` : "" },
+    h("header", { class: "top plain" }, backBtn("#/idioms"), h("h1", {}, `故事打印 · 第${no}周`), h("span", { class: "slot" })),
+    h("main", { class: "scroll sheet-scroll" }, items.length ? h("div", { class: "narrow story-wrap" }, note, scale) : h("p", { class: "empty" }, "这一周还没有成语。")),
+    items.length ? h("div", { class: "idiom-foot sheet-foot" }, h("button", { class: "primary wide", id: "story-print", onclick: () => window.print() }, "打印 / 保存为 PDF")) : null));
+  if (!items.length) return;
+  // on screen the page is shown as wide as the screen allows (the printout always uses real mm / pt)
+  const fit = () => { const w = scale.clientWidth; const pageW = paper.querySelector<HTMLElement>(".sp")!.offsetWidth; (paper.style as CSSStyleDeclaration & { zoom: string }).zoom = String(Math.min(1.6, w / pageW)); };
+  fit();
+  window.addEventListener("resize", fit);
+  await document.fonts?.ready;
+  const res = fitStories(paper);
+  const cap = Math.round(capacity(paper) * 0.88);   // (what fits counts the punctuation too: about an eighth of a story)
+  const lines: string[] = [`每个故事用 ${STORY_PT} 号字，一页 3 个，一张 A4 正反面印完一周的 ${items.length} 个；每个故事最多约 ${cap} 个字（超过会自动缩小，最小 ${STORY_MIN_PT} 号）。`];
+  const empty = res.filter((r) => !r.chars).map((r) => r.idiom);
+  const shrunk = res.filter((r) => r.chars && r.pt < STORY_PT && !r.over).map((r) => r.idiom);
+  const over = res.filter((r) => r.over).map((r) => r.idiom);
+  note.replaceChildren(h("div", {}, lines[0]));
+  if (empty.length) note.append(h("div", {}, `还没有故事：${empty.join("、")}`));
+  if (shrunk.length) note.append(h("div", {}, `字数较多，已缩小字号：${shrunk.join("、")}`));
+  if (over.length) note.append(h("div", { class: "warn" }, `太长，打印会被截断，请缩短：${over.join("、")}`));
+}
+
 async function renderIdioms() {
   const my = epoch;
   showLoading();
@@ -435,6 +474,7 @@ async function renderIdioms() {
     ...items.flatMap((w) => [only ? null : h("h3", { class: "mini-h idiom-week" }, `第${M.weekNo(w.start, kidsFile.startWeek ?? w.start)}周`), ...w.items.map(row)]));
   const addTip = only ? "添加这一周的成语" : "添加成语";
   const head = h("div", { class: "sec-row" }, h("h2", { class: "sec" }, `成语（${count}）`),
+    only && count > 0 ? h("button", { class: "sheet-btn", id: "story-print-btn", onclick: () => { storyWeek = idiomWeek; location.hash = "#/stories"; } }, "打印故事") : null,
     count > 0 && (!only || count < M.IDIOMS_PER_WEEK) ? h("button", { class: "plus", id: "idiom-add", title: addTip, "aria-label": addTip, onclick: () => void addIdiomsDialog() }, "＋") : null);
   const empty = h("div", { class: "add-empty", id: "idiom-empty" }, h("button", { class: "add-big", id: "idiom-add", title: addTip, "aria-label": addTip, onclick: () => void addIdiomsDialog() }, "＋"),
     h("p", {}, only ? "点 ＋ 添加这一周的成语" : "点 ＋ 添加成语"));
@@ -1261,6 +1301,7 @@ async function route() {
   const sheet = /^#\/sheet\/([\w-]+)$/.exec(hash);
   if (sheet) return void renderSheet(sheet[1]);
   if (hash === "#/idioms") return void renderIdioms();
+  if (hash === "#/stories") return void renderStories();
   const idiom = /^#\/idiom\/(.+)$/.exec(hash);
   if (idiom) return void renderIdiom(decodeURIComponent(idiom[1]));
   if (hash === "#/settings") return void renderSettings();
