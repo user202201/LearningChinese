@@ -414,6 +414,9 @@ async function renderSheet(id: string) {
     chars.length ? h("div", { class: "idiom-foot sheet-foot" }, h("button", { class: "primary wide", id: "sheet-print", onclick: () => window.print() }, "打印 / 保存为 PDF")) : null));
 }
 
+/** a small pencil drawn by hand (not a text character, which every device draws differently) */
+const pencilSvg = () => { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("aria-hidden", "true"); s.innerHTML = '<path d="M4 20l1.2-4.8L15.4 5 19 8.6 8.8 18.8z" fill="currentColor"/><path d="M13.6 6.8l3.6 3.6" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>'; return s; };
+
 let storyWeek = "";   // the week whose stories are printed
 let storyOrder: string[] = [];   // the idioms of the list a story was opened from: left / right on the story page go through them
 async function renderStories() {
@@ -575,14 +578,15 @@ async function renderIdiom(name: string) {
     epoch++;
     void renderIdiom(order[to]);
   };
+  // editing is for the grown-up, not for the child who reads: a small pencil in the corner that opens the editor only with a DOUBLE tap
+  const pencil = doubleTap(h("button", { class: "story-edit-icon", id: "story-edit", title: "双击编辑故事", "aria-label": "双击编辑故事" }, pencilSvg()), () => void editStory(name, story));
   const page = h("div", { class: "page", style: idiomColor ? `--kid:${idiomColor}` : "" },
-    topBar("成语故事", backBtn("#/idioms"), order.length > 1 ? h("span", { class: "story-pos", id: "story-pos" }, `${at + 1} / ${order.length}`) : undefined),
+    topBar("成语故事", backBtn("#/idioms"), h("span", { class: "story-right" }, order.length > 1 ? h("span", { class: "story-pos", id: "story-pos" }, `${at + 1} / ${order.length}`) : null, pencil)),
     h("main", { class: "scroll" }, h("div", { class: "narrow" },
       row,
       story
         ? h("p", { class: "story user", id: "idiom-story" }, story)
-        : h("p", { class: "empty", id: "idiom-nostory" }, "还没有故事。点“编辑故事”写一个。"),
-      h("button", { class: "wide", id: "story-edit", onclick: () => void editStory(name, story) }, "编辑故事"))));
+        : h("p", { class: "empty", id: "idiom-nostory" }, "还没有故事。双击右上角的小铅笔，写一个。"))));
   // a tap on the left / right half of the screen, or a swipe, goes to the previous / next story (buttons keep their own job)
   let down: { x: number; y: number } | null = null;
   page.addEventListener("pointerdown", (e) => { down = (e.target as Element).closest("button, a, input, textarea") ? null : { x: e.clientX, y: e.clientY }; });

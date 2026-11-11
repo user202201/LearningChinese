@@ -62,7 +62,17 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   const sp = await page.evaluate(() => ({ cells: [...document.querySelectorAll('#idiom-chars .tzg .ch')].map((e) => e.textContent).join(''), py: [...document.querySelectorAll('#idiom-chars .tzg .py')].map((e) => e.textContent).join(' '), vis: [...document.querySelectorAll('#idiom-chars .tzg .py')].every((e) => getComputedStyle(e).visibility === 'visible'), over: document.documentElement.scrollWidth > innerWidth }));
   ok(sp.cells === '画蛇添足' && sp.vis && sp.py === 'huà shé tiān zú' && !sp.over, 'the story page shows the idiom in 田字格 cells with its pinyin: ' + sp.py);
   ok(await page.locator('#idiom-nostory').count() === 1, 'no story yet: it says so');
-  await page.click('#story-edit');
+  const ic = await page.evaluate(() => { const b = document.querySelector('#story-edit').getBoundingClientRect(), s = b.width, cs = getComputedStyle(document.querySelector('#story-edit')); return { w: Math.round(b.width), h: Math.round(b.height), right: Math.round(innerWidth - b.right), top: Math.round(b.top), op: parseFloat(cs.opacity), bg: cs.backgroundColor, text: document.querySelector('#story-edit').textContent.trim(), svg: !!document.querySelector('#story-edit svg'), big: !!document.querySelector('button.wide#story-edit, .narrow button.wide') }; });
+  ok(ic.svg && ic.text === '' && ic.w <= 44 && ic.h <= 44 && ic.right <= 24 && ic.top <= 40 && ic.op <= 0.6 && ic.bg === 'rgba(0, 0, 0, 0)' && !ic.big, 'the editor is opened by a small, faint pencil icon in the top right corner (' + ic.w + 'x' + ic.h + ' px, ' + ic.right + ' px from the right edge), not by a big button');
+  await page.click('#story-edit'); await page.waitForTimeout(700);
+  ok(await page.locator('dialog.center').count() === 0, 'a single tap on it does nothing (a child can not open the editor by accident)');
+  await page.click('#story-edit'); await page.waitForTimeout(700); await page.click('#story-edit'); await page.waitForTimeout(700);
+  ok(await page.locator('dialog.center').count() === 0, 'two slow taps (more than half a second apart) do not open it either');
+  await page.focus('#story-edit'); await page.keyboard.press('Enter'); await page.waitForSelector('dialog.center');
+  ok(await page.locator('dialog.center').count() === 1, 'with a keyboard Enter opens it (no mouse needed)');
+  await page.click('dialog.center button:has-text("取消")'); await page.waitForSelector('dialog.center', { state: 'detached' });
+  ok((await page.textContent('#idiom-nostory')).includes('双击右上角的小铅笔'), 'the empty-story text says how: double-tap the pencil');
+  await page.dblclick('#story-edit');
   ok((await page.textContent('#story-count')) === '0 字（不含标点）', 'the story window shows how many characters are written, not counting punctuation: 0 at the start');
   await page.fill('dialog textarea', '从前有个人画蛇。\n他给蛇添了脚！“好”，');
   ok((await page.textContent('#story-count')) === '14 字（不含标点）', 'it counts as you type: 7 + 6 + 1 = 14 (the 。 ！ “ ” ， and the line break are not counted)');
@@ -73,7 +83,7 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   ok((await page.textContent('#idiom-story')) === '从前有个人画蛇。\n他给蛇添了脚。' && (await store(page, 'idioms.json')).stories['画蛇添足'] === '从前有个人画蛇。\n他给蛇添了脚。', 'the story is written, shown (line breaks kept) and saved');
   ok(await page.locator('#toasts .toast:has-text("已保存故事")').count() === 1, 'with a message');
   await page.screenshot({ path: OUT + 'idiom-story.png' });
-  await page.click('#story-edit');
+  await page.dblclick('#story-edit');
   ok((await page.textContent('#story-count')) === '13 字（不含标点）', 'editing an existing story starts with its count (13)');
   await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog', { state: 'detached' });
   ok((await page.textContent('#idiom-story')).startsWith('从前'), 'cancelling the story window changes nothing');
@@ -109,7 +119,7 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
     ok((await noChinese(page)).length === 0 && !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)), loc + ': the list has no Chinese UI text and fits the phone ' + JSON.stringify(await noChinese(page)));
     await page.click('#idiom-add'); await page.fill('dialog textarea', '一心一意'); const dn = (await page.textContent('#idiom-check')).replace('一心一意', ''); ok(!/[\u4e00-\u9fff]/.test(dn) && /learned|appris/.test(dn) && await page.locator('#idiom-save').isDisabled(), loc + ': the "already learned" warning is translated: ' + dn); await page.fill('dialog textarea', '新来的成语'); const dn2 = (await page.textContent('#idiom-check')).replace('新来的成语', ''); ok(!/[\u4e00-\u9fff]/.test(dn2) && /library|bibliothèque/i.test(dn2), loc + ': the library / new line is translated: ' + dn2); await page.fill('dialog textarea', ''); ok((await noChinese(page)).length === 0, loc + ': the add window is translated ' + JSON.stringify(await noChinese(page))); await page.click('dialog button >> nth=0'); await page.waitForSelector('dialog', { state: 'detached' });
     await page.click('.idiom-card[data-idiom=画蛇添足]'); await page.waitForSelector('#idiom-story');
-    await page.click('#story-edit'); await page.fill('dialog textarea', '从前，有个人。'); ok((await page.textContent('#story-count')) === (loc === 'en' ? '5 characters (punctuation not counted)' : '5 caractères (sans la ponctuation)') && (await noChinese(page)).length === 0, loc + ': the count line is translated: ' + await page.textContent('#story-count')); await page.click('dialog button >> nth=0'); await page.waitForSelector('dialog', { state: 'detached' });
+    await page.dblclick('#story-edit'); await page.fill('dialog textarea', '从前，有个人。'); ok((await page.textContent('#story-count')) === (loc === 'en' ? '5 characters (punctuation not counted)' : '5 caractères (sans la ponctuation)') && (await noChinese(page)).length === 0, loc + ': the count line is translated: ' + await page.textContent('#story-count')); await page.click('dialog button >> nth=0'); await page.waitForSelector('dialog', { state: 'detached' });
     ok((await noChinese(page)).length === 0 && !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)), loc + ': the story page is translated and fits ' + JSON.stringify(await noChinese(page)));
     await page.screenshot({ path: OUT + `idiom-story-${loc}.png` });
   }
@@ -138,7 +148,7 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   ok(await shownIdiom() === week3[1], 'swiping right goes back');
   await swipe(30); await page.waitForTimeout(150);
   ok(await pos() === '2 / 3', 'a short move does not change the story');
-  await page.click('#story-edit'); await page.waitForSelector('dialog.center'); await page.click('dialog.center h2'); await page.waitForTimeout(200);
+  await page.dblclick('#story-edit'); await page.waitForSelector('dialog.center'); await page.click('dialog.center h2'); await page.waitForTimeout(200);
   ok(await pos() === '2 / 3' && await page.locator('dialog.center').count() === 1, 'the edit button opens the editor; a tap inside it does not change the story');
   await page.click('dialog.center button:has-text("取消")'); await page.waitForSelector('dialog.center', { state: 'detached' });
   await page.click('button.back'); await page.waitForSelector('.idiom-card');

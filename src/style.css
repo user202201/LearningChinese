@@ -468,3 +468,7 @@ a.link { color: var(--accent-dark); font-weight: 700; }
 .idiom-pool { margin: 2px 4px 0; text-align: left; }
 .similar { margin-top: 6px; font-size: 14px; font-weight: 700; } .similar button.mini { margin-left: 8px; }
 .story-pos { min-width: 44px; text-align: right; font-weight: 800; font-size: 15px; color: var(--muted); }
+.story-right { display: flex; align-items: center; justify-content: flex-end; gap: 2px; min-width: 44px; }
+button.story-edit-icon { width: 40px; height: 40px; min-height: 40px; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: none; color: var(--muted); opacity: .45; display: grid; place-items: center; }
+button.story-edit-icon svg { width: 20px; height: 20px; }
+button.story-edit-icon:active { transform: none; box-shadow: none; opacity: .8; }

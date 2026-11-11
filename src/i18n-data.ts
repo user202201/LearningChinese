@@ -286,6 +286,8 @@ export const EN: Record<string, string> = {
   "已学：第{0}周": "learned: week {0}",
   "改成「{0}」": "Change to “{0}”",
   "表格 E 列有 {0} 个故事，会填入 {1} 个（App 里已经有自己故事的 {2} 个不改）": "Column E of the sheet has {0} stories, {1} will be filled in ({2} idioms that already have a story in the app are not changed)",
+  "还没有故事。双击右上角的小铅笔，写一个。": "No story yet. Double-tap the small pencil in the top right corner to write one.",
+  "双击编辑故事": "Double-tap to edit the story",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -574,4 +576,6 @@ export const FR: Record<string, string> = {
   "已学：第{0}周": "appris : semaine {0}",
   "改成「{0}」": "Remplacer par « {0} »",
   "表格 E 列有 {0} 个故事，会填入 {1} 个（App 里已经有自己故事的 {2} 个不改）": "La colonne E du tableau a {0} histoires, {1} seront ajoutées ({2} chengyu qui ont déjà une histoire dans l'application ne sont pas modifiés)",
+  "还没有故事。双击右上角的小铅笔，写一个。": "Pas encore d'histoire. Touchez deux fois le petit crayon en haut à droite pour en écrire une.",
+  "双击编辑故事": "Touchez deux fois pour modifier l'histoire",
 };

@@ -145,7 +145,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
     // and the story can be edited in the app afterwards (the user's version wins from then on)
     await t6.page.evaluate((x) => (location.hash = '#/idiom/' + encodeURIComponent(x)), IDIOMS[5]); await t6.page.waitForSelector('#idiom-story');
     ok((await t6.page.textContent('#idiom-story')) === '表格里的故事5', 'the imported story is shown on the story page');
-    await t6.page.click('#story-edit'); await t6.page.fill('dialog textarea', '我改过的故事'); await t6.page.click('#story-save'); await t6.page.waitForSelector('#toasts .toast:has-text("已保存故事")');
+    await t6.page.dblclick('#story-edit'); await t6.page.fill('dialog textarea', '我改过的故事'); await t6.page.click('#story-save'); await t6.page.waitForSelector('#toasts .toast:has-text("已保存故事")');
     await t6.page.evaluate(() => (location.hash = '#/settings')); await t6.page.waitForSelector('#import-btn');
     await t6.page.click('#import-btn'); await t6.page.setInputFiles('#import-file', OUT + 'idiom-pool-stories.xlsx'); await t6.page.waitForSelector('.entry');
     const st2 = (await t6.page.textContent('.entry')).replace(/\u2011/g, '-');
