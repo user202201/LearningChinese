@@ -3,7 +3,8 @@
  *
  *   one tab per child (the tab's name is the child's name), one row per week:
  *   A = "第1周-2026-10-25" (the week and its first day)   B, C, D ... = the characters of that week   (L = running total: ignored)
- *   a tab called 成语 holds the idioms in the same shape (A = the week, B, C ... = one idiom per cell)
+ *   a tab called 成语 holds the idioms in the same shape (A = the week, B, C ... = one idiom per cell), OR (no dates at all) the whole library:
+ *   A = one idiom per row, B = a tick box (ticked = used with the children already), C = a count made by the sheet (ignored)
  */
 import * as M from "./model";
 import type { Cell, SheetData } from "./xlsx";
@@ -24,6 +25,36 @@ export function dateOf(c: Cell | undefined): string | null {
   if (!m) return null;
   const s = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
   return M.iso(M.parseDay(s)) === s ? s : null;
+}
+
+/** a 成语 tab without any week label in column A is the library (one idiom per row) */
+export function isPoolSheet(rows: Cell[][]): boolean {
+  if (rows.some((r) => dateOf(r[0]))) return false;
+  return rows.filter((r) => typeof r[0] === "string" && /[\u4e00-\u9fff]{2,}/.test(r[0])).length >= 3;
+}
+export interface PoolRows { items: string[]; checked: string[] }
+const TICKED = /^(true|1|yes|y|是|已用|✓|✔|√)$/i;   // (what a ticked box becomes when the table was copied as text)
+/** the library of a 成语 tab: every idiom of column A in order, and the ones whose box in column B is ticked */
+export function parsePool(rows: Cell[][]): PoolRows {
+  const items: string[] = [], checked: string[] = [];
+  for (const r of rows) {
+    const a = typeof r[0] === "string" ? r[0].replace(/\s+/g, "") : "";
+    if (!/[\u4e00-\u9fff]{2,}/.test(a) || /^(成语|idioms?)$/i.test(a) || items.includes(a)) continue;
+    items.push(a);
+    const b = r[1];
+    if (b === true || (typeof b === "number" && b === 1) || (typeof b === "string" && TICKED.test(b.trim()))) checked.push(a);
+  }
+  return { items, checked };
+}
+export interface PoolPlan { total: number; checked: number; weeks: string[]; assigned: number; leftover: number; fresh: number; unticked: number }
+/** adds the library and gives the ticked idioms their weeks (in the order of the sheet, `per` a week) */
+export function applyPool(all: M.IdiomsFile, rows: PoolRows, weeks: string[]): { data: M.IdiomsFile; plan: PoolPlan } {
+  const pool = [...(all.pool ?? [])];
+  let fresh = 0;
+  for (const x of rows.items) if (!pool.includes(x)) { pool.push(x); fresh++; }
+  const r = M.assignToWeeks({ ...all, pool }, rows.checked, weeks);
+  const placed = M.usedIdioms(r.data);
+  return { data: r.data, plan: { total: rows.items.length, checked: rows.checked.length, weeks, assigned: r.assigned, leftover: r.leftover.length, fresh, unticked: pool.filter((x) => !placed.has(x)).length } };
 }
 
 export function parseSheet(rows: Cell[][], kind: Kind): Parsed {
@@ -86,10 +117,16 @@ export interface Entry {
   skipped: number;
   present: number;
   total: number;
+  pool?: PoolPlan;   // a library tab (see isPoolSheet): what importing it does
 }
-export function plan(sheets: SheetData[], kids: M.KidsFile, kidData: (id: string) => M.KidData, idioms: M.IdiomsFile): Entry[] {
+export function plan(sheets: SheetData[], kids: M.KidsFile, kidData: (id: string) => M.KidData, idioms: M.IdiomsFile, poolWeeks: string[] = []): Entry[] {
   return sheets.map((s) => {
     const kind = sheetKind(s.name);
+    if (kind === "idioms" && isPoolSheet(s.rows)) {
+      const rows = parsePool(s.rows);
+      const r = applyPool(idioms, rows, poolWeeks);
+      return { name: s.name, kind, parsed: { weeks: [], skippedRows: [] }, exists: true, added: r.plan.fresh + r.plan.assigned, skipped: 0, present: rows.items.length - r.plan.fresh, total: rows.items.length, pool: r.plan };
+    }
     const parsed = parseSheet(s.rows, kind);
     const total = parsed.weeks.reduce((n, w) => n + w.items.length, 0);
     if (kind === "idioms") {

@@ -4,7 +4,7 @@
  */
 import { strFromU8, unzipSync } from "fflate";
 
-export type Cell = string | number | null;
+export type Cell = string | number | boolean | null;
 export interface SheetData { name: string; rows: Cell[][] }
 
 const NS_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -59,9 +59,10 @@ export function readWorkbook(buf: ArrayBuffer): SheetData[] {
         if (t === "s") val = v === null ? null : shared[Number(v)] ?? null;
         else if (t === "inlineStr") val = textOf(c);
         else if (t === "str") val = v;
-        else if (t === "b" || t === "e") val = null;
+        else if (t === "b") val = v === "1";   // a checkbox (Google Sheets) or a TRUE / FALSE cell
+        else if (t === "e") val = null;
         else if (v !== null && v !== "") val = Number.isNaN(Number(v)) ? v : Number(v);
-        if (val === null || val === "") continue;
+        if (val === null || val === "") continue;   // (false is kept: an unticked box)
         (rows[rowNo] ??= [])[colNo] = val;
       }
     }

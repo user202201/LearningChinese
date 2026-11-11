@@ -128,7 +128,7 @@ const auditOk = (log, dropped = []) => log.writes.filter((w) => w.tab && w.tab !
   ok([...e.sheets.keys()].join() === 'Dory,Leo,Antoine,同步状态', 'the status tab is created at the far RIGHT, after all the children\'s tabs (not next to the active one): ' + [...e.sheets.keys()].join(' | '));
   const st = e.sheets.get('同步状态');
   ok(st.cell(2, 2) === '成功' && st.cell(3, 2).includes('新填入') && /Dory：新填入 6 个字，已有 30 个/.test(st.cell(4, 2)), 'the status tab: time, "success", and per child how many were added / already there (Dory: 6 / 30)');
-  ok(e.log.fetches.length === 4 && e.log.fetches.every((f) => f.method === 'get'), 'GitHub is asked 4 times, only to READ');
+  ok(e.log.fetches.length === 5 && e.log.fetches.every((f) => f.method === 'get'), 'GitHub is asked 5 times (kids, three children, idioms), only to READ');
 
   e.run('syncAuto');
   ok([...e.sheets.keys()].join() === 'Dory,Leo,Antoine,同步状态', 'a later sync does not move any tab');
@@ -283,6 +283,31 @@ const auditOk = (log, dropped = []) => log.writes.filter((w) => w.tab && w.tab !
   const once = makeEnv({ files: FILES });
   const oncePatched = SCRIPT.replace("var SYNC_DAYS = ['SATURDAY', 'SUNDAY'];", "var SYNC_DAYS = ['SUNDAY'];");
   ok(oncePatched !== SCRIPT, '(the setting SYNC_DAYS can be changed in the script)');
+
+  // ---------- the 成语 tab: A = idiom (locked by the user), B = tick box, C = count made by the sheet. The script only TICKS B for idioms the app has given a week.
+  const LIB = ['对牛弹琴', '指鹿为马', '井底之蛙', '刻舟求剑', '守株待兔', '尊老爱幼', '知错就改', '夜郎自大'];
+  const idiomTab = () => [['对牛弹琴', true, 24], ['指鹿为马', false, 24], ['井底之蛙', false, 24], ['刻舟求剑', false, 24], ['守株待兔', false, 24], ['尊老爱幼', true, 24], ['知错就改', false, 24], ['夜郎自大', false, 24]];
+  const IDIOMS = { weeks: [{ start: '2026-11-08', items: ['对牛弹琴', '井底之蛙', '刻舟求剑'] }, { start: '2026-11-15', items: ['夜郎自大', '不在表格里的成语'] }], pool: LIB, stories: { 对牛弹琴: '故事' } };
+  const ib = makeEnv({ files: { ...FILES, 'idioms.json': IDIOMS }, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [], 成语: idiomTab() } });
+  const idiomBefore = JSON.stringify(ib.sheets.get('成语').grid);
+  ib.run('syncAuto');
+  const iw = ib.log.writes.filter((w) => w.tab === '成语');
+  const igrid = ib.sheets.get('成语').grid;
+  ok(iw.length === 3 && iw.every((w) => w.col === 2 && w.value === true && w.before === false) && iw.map((w) => w.row).sort().join() === '3,4,8', 'the idioms the app gave a week get their box in column B TICKED (rows 3, 4 and 8); nothing else in the tab is written');
+  ok(igrid.every((r, i) => r[0] === JSON.parse(idiomBefore)[i][0] && r[2] === 24), 'column A (the locked idioms) and column C (the count) are never touched');
+  ok(igrid[0][1] === true && igrid[5][1] === true && igrid[1][1] === false && igrid[4][1] === false && igrid[6][1] === false, 'ticks that were already there stay, boxes of idioms without a week stay empty, nothing is ever un-ticked');
+  const idSt = ib.sheets.get('同步状态').grid.flat().join('|');
+  ok(/新打勾 3 个/.test(idSt) && /不在表格里的成语/.test(idSt), 'the status tab says how many were ticked and names an idiom of the app that the sheet does not have: ' + (idSt.match(/成语：[^|]*/) || [''])[0]);
+  ib.log.writes.length = 0; ib.run('syncAuto');
+  ok(ib.log.writes.filter((w) => w.tab === '成语').length === 0, 'running it again writes nothing more (idempotent)');
+  const noTab = makeEnv({ files: { ...FILES, 'idioms.json': IDIOMS }, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [] } });
+  noTab.run('syncAuto');
+  ok(/成语：表格里没有叫“成语”的标签页/.test(noTab.sheets.get('同步状态').grid.flat().join('|')) && noTab.sheets.get('同步状态').grid.flat().includes('成功'), 'no 成语 tab in the sheet: skipped with a note, the rest of the sync still succeeds');
+  const noFile = makeEnv({ files: FILES, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [], 成语: idiomTab() } });
+  const nfBefore = JSON.stringify(noFile.sheets.get('成语').grid);
+  noFile.run('syncAuto');
+  ok(JSON.stringify(noFile.sheets.get('成语').grid) === nfBefore, 'no idioms.json in the data repository yet: the tab is left exactly as it is');
+  ok(/idiomTicks_/.test(SCRIPT) && !/setValue\(false\)|setValue\(''\).*idiom/i.test(SCRIPT.slice(SCRIPT.indexOf('function syncIdioms_'), SCRIPT.indexOf('function syncIdioms_') + 1600)), 'the script text: the idiom part only ever writes true');
 
   // ---------- the script text, the menu, the guide
   ok(!/\.clear\(|deleteRow|deleteColumn|deleteSheet|removeSheet|setFormula|setBackground|setNumberFormat|setFontColor/.test(SCRIPT) && (SCRIPT.match(/clearContent\(\)/g) || []).length === 1 && (SCRIPT.match(/setValues\(/g) || []).length === 1, 'the script text: nothing that deletes or reformats; clearContent / setValues appear once each, only for the status tab');

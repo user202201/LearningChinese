@@ -133,6 +133,22 @@ async function loadShared() {
     api.readJson<M.KidsFile>("kids.json").then((x) => x ?? M.EMPTY_KIDS),
     api.readJson<M.IdiomsFile>("idioms.json").then((x) => x ?? M.EMPTY_IDIOMS),
   ]);
+  await autoPickIdioms();
+}
+
+/**
+ * Every week the idioms of NEXT week are picked at random from the library (the idioms that have no week yet): done when the app opens, as soon as next week
+ * has fewer than six. It is a read-modify-write, so two devices opening at the same moment do not pick twice.
+ */
+async function autoPickIdioms() {
+  if (!idioms.pool?.length) return;
+  const next = M.addDays(M.sundayOf(M.todayLocal()), 7);
+  if ((idioms.weeks.find((w) => w.start === next)?.items.length ?? 0) >= M.IDIOMS_PER_WEEK || !M.unusedIdioms(idioms).length) return;
+  try {
+    let added = 0;
+    idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => { const r = M.fillWeek(cur, next); added = r.added.length; return r.data; }, "pick idioms for next week");
+    if (added) toast(`已为下一周随机选好 ${added} 个成语`);
+  } catch { /* offline or no access right now: it is tried again the next time */ }
 }
 const loadKid = async (id: string) => {
   const d = (await api.readJson<M.KidData>(`kids/${id}.json`)) ?? M.EMPTY_KID;
@@ -312,8 +328,7 @@ async function renderKid(id: string, tab: "week" | "learned" | "game") {
 
 /** characters a week is meant to have: with this many the + is not offered any more */
 const WEEKLY = 10;
-/** idioms a week is meant to have: with this many the + is not offered any more */
-const IDIOMS_PER_WEEK = 6;
+
 
 type Tab3 = "week" | "learned" | "game";
 
@@ -420,7 +435,7 @@ async function renderIdioms() {
     ...items.flatMap((w) => [only ? null : h("h3", { class: "mini-h idiom-week" }, `第${M.weekNo(w.start, kidsFile.startWeek ?? w.start)}周`), ...w.items.map(row)]));
   const addTip = only ? "添加这一周的成语" : "添加成语";
   const head = h("div", { class: "sec-row" }, h("h2", { class: "sec" }, `成语（${count}）`),
-    count > 0 && (!only || count < IDIOMS_PER_WEEK) ? h("button", { class: "plus", id: "idiom-add", title: addTip, "aria-label": addTip, onclick: () => void addIdiomsDialog() }, "＋") : null);
+    count > 0 && (!only || count < M.IDIOMS_PER_WEEK) ? h("button", { class: "plus", id: "idiom-add", title: addTip, "aria-label": addTip, onclick: () => void addIdiomsDialog() }, "＋") : null);
   const empty = h("div", { class: "add-empty", id: "idiom-empty" }, h("button", { class: "add-big", id: "idiom-add", title: addTip, "aria-label": addTip, onclick: () => void addIdiomsDialog() }, "＋"),
     h("p", {}, only ? "点 ＋ 添加这一周的成语" : "点 ＋ 添加成语"));
   // the same big button as on the week page; it stays at the bottom of the screen: only the idioms in the middle scroll
@@ -951,8 +966,14 @@ function previewImport(entries: I.Entry[]): Promise<I.Entry[]> {
     const rows = entries.map((e, i) => {
       const n = e.parsed.weeks.length;
       const lines: (HTMLElement | null)[] = [];
-      if (!n) lines.push(h("div", { class: "warn" }, "没有认出内容。第一列要写成“第1周-2026-10-25”，后面是汉字。"));
-      else {
+      if (e.pool) {
+        const q = e.pool;
+        lines.push(h("div", {}, `成语库：${q.total} 个成语，其中 ${q.checked} 个已勾选`));
+        if (q.assigned) lines.push(h("div", {}, `已勾选的按表格顺序分配到 ${q.weeks.length} 周，每周 ${M.IDIOMS_PER_WEEK} 个（${q.weeks.map((w) => w.slice(5).replace("-", "\u2011")).join("、")}）`));
+        if (q.leftover) lines.push(h("div", { class: "warn" }, `还有 ${q.leftover} 个已勾选的放不下，留在成语库里`));
+        lines.push(h("div", { class: "muted" }, `还没有分配到周的 ${q.unticked} 个留在成语库里，以后每周自动随机选 ${M.IDIOMS_PER_WEEK} 个放进下一周`));
+      } else if (!n) lines.push(h("div", { class: "warn" }, "没有认出内容。第一列要写成“第1周-2026-10-25”，后面是汉字。"));
+      else if (!e.pool) {
         lines.push(h("div", {}, e.kind === "idioms" ? `${n} 周，${e.total} 个成语，其中新的 ${e.added} 个` : `${n} 周，${e.total} 个汉字，其中新的 ${e.added} 个`));
         if (e.skipped) lines.push(h("div", { class: "warn" }, `已入库，会跳过：${e.skipped} 个（同一个字出现在多周时，只留最早的一周）`));
         if (e.present && !e.added && !e.skipped) lines.push(h("div", { class: "muted" }, "都已经有了"));
@@ -973,7 +994,13 @@ async function importFlow() {
   const sheets = await pickSheets();
   if (!sheets) return; // cancelled: no message
   if (!sheets.length) return void toast("这个文件里没有表格内容");
-  const entries = I.plan(sheets, kidsFile, (id) => kidCache.get(id) ?? M.EMPTY_KID, idioms);
+  // the library's ticked idioms go to the weeks that have started (every week with characters, up to this week) and to NEXT week (prepared in advance)
+  await Promise.all(kidsFile.kids.filter((k) => !kidCache.has(k.id)).map((k) => loadKid(k.id).catch(() => M.EMPTY_KID)));
+  const thisWeek = M.sundayOf(M.todayLocal());
+  const started = new Set<string>([...kidsFile.kids.flatMap((k) => (kidCache.get(k.id)?.weeks ?? []).filter((w) => w.chars.length).map((w) => w.start)), ...idioms.weeks.map((w) => w.start)].filter((x) => x <= thisWeek));
+  if (!started.size) started.add(thisWeek);
+  const poolWeeks = [...started].sort().concat(M.addDays(thisWeek, 7));
+  const entries = I.plan(sheets, kidsFile, (id) => kidCache.get(id) ?? M.EMPTY_KID, idioms, poolWeeks);
   const chosen = await previewImport(entries);
   if (!chosen.length) return; // cancelled, or nothing new: no "done" message
   const done = toast("正在导入…", 0, true);
@@ -1002,6 +1029,15 @@ async function importFlow() {
           return r.data;
         }, `import: ${id}`));
         chars += added; skipped += skip;
+      } else if (e.pool) {
+        const rows = I.parsePool(sheets.find((x) => x.name === e.name)!.rows);
+        let added = 0;
+        idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => {
+          const r = I.applyPool(cur, rows, poolWeeks);
+          added = r.plan.assigned;
+          return r.data;
+        }, "import: idiom library");
+        idiomsAdded += added;
       } else {
         let added = 0, skip = 0;
         idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => {

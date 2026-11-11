@@ -16,6 +16,9 @@
  *   - 保险：读不到这个孩子的数据时不删；一次要删的字超过 30 个时不删，并在“同步状态”里提醒你。
  * 找行的办法：看这个孩子标签页 A 列里已经有的“第N周-日期”（例如 第3周-2026-11-08），
  *   按日期对上 App 里的周；A 列还是空的下一周，就按“每周一行”顺着往下推。
+ * 成语标签页（A 列 = 成语，B 列 = 打勾的格子，C 列 = 你表格自己算的数量）：
+ *   App 每周从成语库里给下一周随机选 6 个成语；同步时，脚本把“App 里已经分配到某一周的成语”在 B 列对应的格子【打上勾】。
+ *   只会【打勾】，不会取消已有的勾；只写 B 列的格子，A 列（你锁定的成语）和 C 列（计算）一律不碰。
  * 只读：脚本只读取 GitHub，不会改动 App 里的任何数据。
  *
  * 自动同步：默认每周六、周日晚上 8 点左右各一次（一周最多两次）；随时可以点菜单“立即同步”。
@@ -23,6 +26,7 @@
  */
 
 var STATUS_TAB = '同步状态';
+var IDIOM_TAB = '成语';         // 成语标签页的名字（A 列成语，B 列打勾）
 var FIRST_CHAR_COL = 2;        // B 列
 var CHAR_COLS = 10;            // B ～ K：每周 10 个字
 var SYNC_DAYS = ['SATURDAY', 'SUNDAY'];   // 自动同步在每周的哪几天（MONDAY 星期一 … SUNDAY 星期日）；只想每周一次就留一个，例如 ['SUNDAY']
@@ -237,6 +241,39 @@ function syncKid_(sheet, kidData, fallbackFirst, record, maxDeletes) {
   return out;
 }
 
+/**
+ * 成语标签页：哪些行的 B 列要打勾。aValues = A 列（成语），bValues = B 列（true / false），used = {成语: true}（App 里已经分配到周的成语）。
+ * 返回 { ticks: [行号…], already: 已经打了勾的个数, missing: [App 里有、表格 A 列里找不到的成语] }；只会要求【打勾】，不会取消。
+ */
+function idiomTicks_(aValues, bValues, used) {
+  var out = { ticks: [], already: 0, missing: [] }, seen = {};
+  for (var i = 0; i < aValues.length; i++) {
+    var a = String(aValues[i] === undefined || aValues[i] === null ? '' : aValues[i]).replace(/\s+/g, '');
+    if (!a) continue;
+    seen[a] = true;
+    if (!used[a]) continue;
+    var b = bValues[i];
+    if (b === true || String(b).toUpperCase() === 'TRUE') out.already++; else out.ticks.push(i + 1);
+  }
+  Object.keys(used).forEach(function (k) { if (!seen[k]) out.missing.push(k); });
+  return out;
+}
+/** 把 App 里已经分配到周的成语，在成语标签页 B 列的格子打上勾（一格一格写，只写 B 列）。返回一行说明 */
+function syncIdioms_(ss, idiomsFile) {
+  var sheet = findTab_(ss, IDIOM_TAB);
+  if (!sheet) return '成语：表格里没有叫“' + IDIOM_TAB + '”的标签页，已跳过';
+  if (!idiomsFile) return '成语：App 里还没有成语数据，已跳过';
+  var used = {}, n = 0;
+  (idiomsFile.weeks || []).forEach(function (w) { (w.items || []).forEach(function (x) { if (!used[x]) { used[x] = true; n++; } }); });
+  var last = sheet.getLastRow();
+  if (last < 1) return '成语：标签页是空的，已跳过';
+  var a = sheet.getRange(1, 1, last, 1).getDisplayValues().map(function (r) { return r[0]; });
+  var b = sheet.getRange(1, 2, last, 1).getValues().map(function (r) { return r[0]; });
+  var r = idiomTicks_(a, b, used);
+  r.ticks.forEach(function (row) { sheet.getRange(row, 2).setValue(true); });
+  return '成语：App 里分配了 ' + n + ' 个，新打勾 ' + r.ticks.length + ' 个，原来就有勾 ' + r.already + ' 个' + (r.missing.length ? '；表格 A 列里找不到：' + r.missing.slice(0, 10).join('、') + (r.missing.length > 10 ? ' 等 ' + r.missing.length + ' 个' : '') : '');
+}
+
 /** 脚本属性里这个孩子“上次同步时 App 有哪些字”的记录 */
 function readRecord_(props, kidId) {
   var all = props.getProperties(), p = RECORD_PREFIX + kidId + '|', out = {};
@@ -286,6 +323,11 @@ function doSync_() {
     deletedAll += r.deleted;
     lines.push(k.name + '：新填入 ' + r.added + ' 个字，已有 ' + r.present + ' 个' + (r.deleted ? '，清除 ' + r.deleted + ' 个（App 里已删除）' : '') + (r.notes.length ? '；注意：' + r.notes.join('；') : ''));
   });
+  try {
+    lines.push(syncIdioms_(ss, ghGet_(cfg, 'idioms.json')));
+  } catch (e) {
+    lines.push('成语：没有同步成功（' + e.message + '）');
+  }
   var message = '新填入 ' + addedAll + ' 个字' + (deletedAll ? '，清除 ' + deletedAll + ' 个字' : '') + '（' + kids.length + ' 个孩子）';
   writeStatus_(ss, true, message, lines);
   return message + '\n' + lines.join('\n');

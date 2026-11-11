@@ -253,6 +253,11 @@ export const EN: Record<string, string> = {
   "查看许可证": "View the license",
   "致谢": "Credits",
   "{0} 字（不含标点）": "{0} characters (punctuation not counted)",
+  "成语库：{0} 个成语，其中 {1} 个已勾选": "Idiom library: {0} idioms, {1} of them ticked",
+  "已勾选的按表格顺序分配到 {0} 周，每周 {1} 个（{2}）": "The ticked ones go to {0} weeks in the order of the sheet, {1} a week ({2})",
+  "还有 {0} 个已勾选的放不下，留在成语库里": "{0} more ticked ones do not fit and stay in the library",
+  "还没有分配到周的 {0} 个留在成语库里，以后每周自动随机选 {1} 个放进下一周": "{0} idioms without a week stay in the library; every week {1} of them are picked at random for next week",
+  "已为下一周随机选好 {0} 个成语": "{0} idioms picked at random for next week",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -508,4 +513,9 @@ export const FR: Record<string, string> = {
   "查看许可证": "Voir la licence",
   "致谢": "Remerciements",
   "{0} 字（不含标点）": "{0} caractères (sans la ponctuation)",
+  "成语库：{0} 个成语，其中 {1} 个已勾选": "Bibliothèque de chengyu : {0} chengyu, dont {1} cochés",
+  "已勾选的按表格顺序分配到 {0} 周，每周 {1} 个（{2}）": "Les cochés vont dans {0} semaines, dans l'ordre du tableau, {1} par semaine ({2})",
+  "还有 {0} 个已勾选的放不下，留在成语库里": "{0} autres cochés ne rentrent pas et restent dans la bibliothèque",
+  "还没有分配到周的 {0} 个留在成语库里，以后每周自动随机选 {1} 个放进下一周": "{0} chengyu sans semaine restent dans la bibliothèque ; chaque semaine {1} d'entre eux sont tirés au sort pour la semaine suivante",
+  "已为下一周随机选好 {0} 个成语": "{0} chengyu tirés au sort pour la semaine suivante",
 };

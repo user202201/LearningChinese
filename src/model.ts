@@ -11,8 +11,10 @@ export interface KidsFile { kids: Kid[]; startWeek?: string }
 export interface Week { start: string; chars: string[] }
 export interface KidData { weeks: Week[] }
 export interface IdiomWeek { start: string; items: string[] }
-/** weeks: the idioms by week, the same for every child; stories: the story of an idiom, typed by the adult (optional) */
-export interface IdiomsFile { weeks: IdiomWeek[]; stories?: Record<string, string> }
+/** weeks: the idioms by week, the same for every child; pool: the whole library of idioms (in the order of the sheet it came from) the weekly ones are picked from; stories: the story of an idiom, typed by the adult (optional) */
+export interface IdiomsFile { weeks: IdiomWeek[]; stories?: Record<string, string>; pool?: string[] }
+/** idioms a week is meant to have */
+export const IDIOMS_PER_WEEK = 6;
 
 export const EMPTY_KIDS: KidsFile = { kids: [] };
 export const EMPTY_KID: KidData = { weeks: [] };
@@ -117,6 +119,40 @@ export function addIdioms(all: IdiomsFile, start: string, items: string[]): { da
   weeks.sort((a, b) => a.start.localeCompare(b.start));
   return { data: { ...all, weeks }, added: fresh.length };
 }
+/** every idiom that has a week */
+export const usedIdioms = (all: IdiomsFile): Set<string> => new Set(all.weeks.flatMap((w) => w.items));
+/** the library idioms that have no week yet (in library order) */
+export function unusedIdioms(all: IdiomsFile): string[] {
+  const used = usedIdioms(all);
+  return (all.pool ?? []).filter((x) => !used.has(x));
+}
+function shuffled<T>(list: readonly T[], rnd: () => number): T[] {
+  const a = list.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+/** tops the week up to `count` idioms with random ones from the library that have no week yet (nothing when it is full or the library is used up) */
+export function fillWeek(all: IdiomsFile, start: string, count = IDIOMS_PER_WEEK, rnd: () => number = Math.random): { data: IdiomsFile; added: string[] } {
+  const have = all.weeks.find((w) => w.start === start)?.items.length ?? 0;
+  const pick = shuffled(unusedIdioms(all), rnd).slice(0, Math.max(0, count - have));
+  if (!pick.length) return { data: all, added: [] };
+  return { data: addIdioms(all, start, pick).data, added: pick };
+}
+/** puts idioms into the weeks in order, `per` for each week (weeks that already have some are topped up); what does not fit is returned in `leftover` */
+export function assignToWeeks(all: IdiomsFile, idioms: string[], weeks: string[], per = IDIOMS_PER_WEEK): { data: IdiomsFile; assigned: number; leftover: string[] } {
+  const used = usedIdioms(all);
+  const todo = idioms.filter((x, i) => !used.has(x) && idioms.indexOf(x) === i);
+  let data = all, assigned = 0;
+  for (const start of weeks) {
+    const room = per - (data.weeks.find((w) => w.start === start)?.items.length ?? 0);
+    if (room <= 0 || !todo.length) continue;
+    const take = todo.splice(0, room);
+    data = addIdioms(data, start, take).data;
+    assigned += take.length;
+  }
+  return { data, assigned, leftover: todo };
+}
+
 /** how many characters a text has, not counting punctuation, spaces and line breaks (letters and digits count; each Chinese character counts as one) */
 export const countChars = (text: string): number => (text.match(/[\p{L}\p{N}]/gu) ?? []).length;
 /** the story of an idiom (an empty text removes it) */

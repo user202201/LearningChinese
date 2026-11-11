@@ -16,6 +16,7 @@ Browser tests (Playwright + Chromium, touch-sized windows) against the app runni
 | 19-light-only | no dark mode: the page declares "only light" (meta + CSS), there is no dark rule, a phone in dark mode shows exactly the same screens (real "auto dark" of a phone browser can not be reproduced here) |
 | 20-idioms | the shared idiom list and story page: button on the week page, adding, story editing, shared by every child, back, centred, English / French |
 | 21-practice-sheet | the practice sheet: stroke counts and order, pinyin, cell rows, one A4 page as a real PDF, nothing fetched from outside, license notice, rare characters, English / French on a 320 px phone |
+| 22-idiom-pool | the idiom library: import of the 成语 tab with tick boxes, ticked ones given weeks (6 a week), the rest kept, weekly random pick for next week, English / French |
 | 17-sync-card | Settings card: copy the script (exactly the file), box when the clipboard is refused, link to the guide, translations |
 | 15-app-icon | the app icon: sizes, no transparency (iOS), fills the square, safe area, in sync with assets/icon/icon.svg, links + manifest |
 | 14-picture-and-colour | tap the picture at the top of a child page: picture + colour window, live preview, Done / Cancel, the colour changes the whole look, contrast, fits a small phone |
