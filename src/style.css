@@ -425,8 +425,8 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 .sheet-top { display: flex; justify-content: space-between; font-size: 3.2cqw; font-weight: 700; color: var(--kid); padding: 0 .5cqw .8cqw; }
 .zb { border: 1px solid var(--kid); margin-bottom: .7cqw; break-inside: avoid; page-break-inside: avoid; }
 .zb-head { display: flex; align-items: center; gap: 2.4cqw; padding: .2cqw 1.4cqw; border-bottom: 1px solid var(--kid); min-height: 3.4cqw; }
-.zb-py { font-size: 2.6cqw; font-weight: 400; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; min-width: 9cqw; }
-.zb-n { font-size: 2.3cqw; font-weight: 400; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; }   /* thin lettering for the pinyin and the stroke count */
+.zb-py { font-size: 2.1cqw; font-weight: 300; letter-spacing: .02em; color: #3d3340; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; min-width: 8cqw; }
+.zb-n { font-size: 1.9cqw; font-weight: 300; color: #3d3340; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; }   /* thin lettering for the pinyin and the stroke count */
 .zb-steps { display: flex; flex-wrap: wrap; gap: .2cqw; align-items: center; }
 .zb-steps svg { width: 3cqw; height: 3cqw; }
 .zb-row { display: grid; grid-template-columns: repeat(12, 1fr); }

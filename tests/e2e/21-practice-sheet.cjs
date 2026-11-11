@@ -34,8 +34,8 @@ const PINYIN = { 生: 'shēng', 字: 'zì', 帖: 'tiē', 支: 'zhī', 持: 'chí
   ok(blocks.every((b) => b.steps.length === COUNTS[b.ch] && b.steps.every((s, i) => s.length === i + 1)), 'the strokes one by one in writing order: picture i has i strokes (the first has 1, the last all of them)');
   ok(blocks.every((b) => b.steps.every((s) => s.slice(0, -1).every((f) => f === '#2d2230') && s.at(-1) === 'var(--kid)')), 'the newest stroke of each picture is in the colour, the earlier ones in black');
   ok(blocks.every((b) => b.cells.length === 12 && b.cells[0] === 'M' + COUNTS[b.ch] && [1, 3, 5].every((i) => b.cells[i] === 'T' + COUNTS[b.ch]) && [2, 4, 6, 7, 8, 9, 10, 11].every((i) => b.cells[i] === '.0') && b.tops === 1 && b.sq), 'a row of 12 square cells: the character, traced copies at 2, 4, 6 and empty cells to write in');
-  const thin = await page.evaluate(() => ['.zb-py', '.zb-n'].map((s) => { const c = getComputedStyle(document.querySelector('#sheet ' + s)); return [s, c.fontWeight, c.fontFamily.split(',')[0]]; }));
-  ok(thin.every(([, w]) => Number(w) <= 400), 'the pinyin and the stroke count are in thin lettering (weight 400, not bold): ' + thin.map((x) => x.join(' ')).join(', '));
+  const thin = await page.evaluate(() => ['.zb-py', '.zb-n'].map((s) => { const e = document.querySelector('#sheet ' + s), c = getComputedStyle(e); return [s, c.fontWeight, Math.round(parseFloat(c.fontSize) / (document.querySelector('#sheet').getBoundingClientRect().width / 100) * 10) / 10]; }));
+  ok(thin.every(([, w, s]) => Number(w) <= 300 && s <= 2.2), 'the pinyin and the stroke count are small and in the lightest weight (300; name, weight, size in % of the sheet width): ' + thin.map((x) => x.join(' ')).join(', '));
   const sh = await page.evaluate(() => { const r = document.querySelector('#sheet').getBoundingClientRect(); return { w: Math.round(r.width), over: document.documentElement.scrollWidth > innerWidth, left: r.left - (innerWidth - r.right) }; });
   ok(!sh.over && Math.abs(sh.left) <= 1, 'the sheet is centred and fits the screen (' + sh.w + ' px)');
   await page.screenshot({ path: OUT + 'sheet-screen.png', fullPage: false });
