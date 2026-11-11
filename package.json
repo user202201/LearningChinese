@@ -15,6 +15,7 @@
   "devDependencies": {
     "@types/node": "^26.6.6",
     "@types/qrcode": "^1.5.6",
+    "hanzi-writer-data": "^2.0.1",
     "playwright": "1.63.0",
     "typescript": "^5.9.3",
     "vite": "^8.3.6"

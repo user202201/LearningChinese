@@ -1,3 +1,4 @@
+import { buildSheet } from "./sheet";
 import "./style.css";
 import QRCode from "qrcode";
 import * as api from "./api";
@@ -352,6 +353,7 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
       bar,
       curWeek === todayWeek ? null : h("button", { class: "link", onclick: () => go(todayWeek) }, "回到本周"),
       h("div", { class: "sec-row" }, h("h2", { class: "sec" }, `汉字（${chars.length}）`),
+        chars.length ? h("button", { class: "sheet-btn", id: "sheet-btn", onclick: () => { sheetWeek = curWeek; location.hash = `#/sheet/${k.id}`; } }, "字帖") : null,
         chars.length && chars.length < WEEKLY ? h("button", { class: "plus", id: "enter", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k) }, "＋") : null),
       chars.length
         ? grid
@@ -364,10 +366,36 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
 }
 
 // ---------- idioms (shared by every child): the list, and the story page of one idiom ----------
+let sheetWeek = "";   // the week the practice sheet is made for
 let idiomFrom = "";   // the child's page the list was opened from (where "back" goes)
 let idiomWeek = "";   // the week that page was showing: the list shows only that week's idioms (and stories) ...
 let idiomAll = false; // ... until "all idioms" is chosen
 let idiomColor = "";  // the colour of the child it was opened from (the idiom pages wear it, like that child's own pages)
+
+async function renderSheet(id: string) {
+  const my = epoch;
+  showLoading();
+  const k = kidsFile.kids.find((x) => x.id === id) ?? (await loadShared(), kidsFile.kids.find((x) => x.id === id));
+  if (!k) return home();
+  let kid: M.KidData;
+  try {
+    kid = await loadKid(id);
+  } catch (e) {
+    return my === epoch ? showError(e, () => void renderSheet(id)) : undefined;
+  }
+  if (my !== epoch) return;
+  const start = sheetWeek || curWeek || M.sundayOf(M.todayLocal());
+  const chars = M.weekOf(kid, start)?.chars ?? [];
+  const no = M.weekNo(start, kidsFile.startWeek);
+  const paper = chars.length ? await buildSheet(chars) : null;
+  if (my !== epoch) return;
+  show(h("div", { class: "page sheet-page", style: `--kid:${k.color}` },
+    h("header", { class: "top plain" }, backBtn(`#/kid/${id}`), h("h1", {}, `字帖 · 第${no}周`), h("span", { class: "slot" })),
+    h("main", { class: "scroll sheet-scroll" },
+      chars.length ? h("p", { class: "muted small center sheet-hint" }, "在打印窗口里选择“另存为 PDF”，就能保存和打印。") : null,
+      paper ?? h("p", { class: "empty" }, "这一周还没有汉字。")),
+    chars.length ? h("div", { class: "idiom-foot sheet-foot" }, h("button", { class: "primary wide", id: "sheet-print", onclick: () => window.print() }, "打印 / 保存为 PDF")) : null));
+}
 
 async function renderIdioms() {
   const my = epoch;
@@ -1091,6 +1119,9 @@ async function renderSettings() {
           h("p", { class: "muted small" }, "打开后，“本周”和“已入库”里每个汉字的右上角会出现红色“−”，点一下就能删除这个汉字。用完请关掉。")),
         h("div", { class: "card" }, h("h3", {}, "倒计时"), secs),
         h("div", { class: "card" }, h("h3", {}, "语言"), lang),
+        // the stroke data of the practice sheets is under the Arphic Public License, which asks for this notice and the license text to travel with the app
+        h("div", { class: "card", id: "credits" }, h("h3", {}, "致谢"), h("p", { class: "muted small" }, "笔顺数据来自 Make Me a Hanzi（Arphic Public License）。"),
+          h("a", { class: "link", id: "license-link", href: `${import.meta.env.BASE_URL}strokes/ARPHICPL.TXT`, target: "_blank", rel: "noopener" }, "查看许可证")),
         h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已入库”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),
         account,
         h("div", { class: "card" }, h("h3", {}, "同步到 Google 表格"),
@@ -1170,6 +1201,8 @@ async function route() {
   if (!/^#\/kid\//.test(hash)) { curWeek = ""; curWeekKid = ""; }
   const kid = /^#\/kid\/([\w-]+)(?:\/(learned|game))?$/.exec(hash);
   if (kid) return renderKid(kid[1], kid[2] === "learned" ? "learned" : kid[2] === "game" ? "game" : "week");
+  const sheet = /^#\/sheet\/([\w-]+)$/.exec(hash);
+  if (sheet) return void renderSheet(sheet[1]);
   if (hash === "#/idioms") return void renderIdioms();
   const idiom = /^#\/idiom\/(.+)$/.exec(hash);
   if (idiom) return void renderIdiom(decodeURIComponent(idiom[1]));

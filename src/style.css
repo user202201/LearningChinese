@@ -334,7 +334,7 @@ a.linkbtn:active { transform: translateY(3px); box-shadow: none; }
 button.secbtn { min-width: 68px; min-height: 44px; padding: 6px 12px; border-radius: 999px; }
 button.secbtn.on { background: var(--kid); color: #fff; border-color: transparent; box-shadow: 0 3px 0 color-mix(in srgb, var(--kid) 70%, #000); }
 .mini-h.center { text-align: center; }
-#game-start, #idioms-btn, #idiom-scope { font-size: 22px; min-height: 64px; border-radius: 22px; background: linear-gradient(180deg, color-mix(in srgb, var(--kid) 82%, #fff), var(--kid)); box-shadow: 0 6px 0 color-mix(in srgb, var(--kid) 70%, #000); }
+#game-start, #idioms-btn, #idiom-scope, #sheet-print { font-size: 22px; min-height: 64px; border-radius: 22px; background: linear-gradient(180deg, color-mix(in srgb, var(--kid) 82%, #fff), var(--kid)); box-shadow: 0 6px 0 color-mix(in srgb, var(--kid) 70%, #000); }
 
 /* the game: a round 田字格 with a ring that runs down, a big tick and a big cross */
 .game { position: fixed; inset: 0; z-index: 35; display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; touch-action: manipulation; animation: pop .25s both;
@@ -416,3 +416,33 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 .idiom-week { margin: 8px 4px 0; text-align: center; }
 .idiom-foot { max-width: 720px; width: 100%; margin: 0 auto; padding: 8px calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 16px) calc(env(safe-area-inset-left) + 16px); }
 .idiom-scroll { padding-bottom: 6px; }
+
+/* practice sheet (字帖) */
+.sec-row .sheet-btn { margin: 12px 0 0 auto; min-height: 40px; padding: 4px 16px; border-radius: 999px; font-weight: 800; color: var(--kid); background: #fff; border: 3px solid var(--kid); box-shadow: 0 3px 0 var(--kid-line); }
+.sec-row .sheet-btn + .plus { margin-left: 10px; }
+.sheet-hint { margin: 0 0 10px; }
+.sheet { container-type: inline-size; width: min(100%, 210mm); margin: 0 auto 18px; padding: 4cqw; background: #fff; box-shadow: var(--shadow); color: #2d2230; box-sizing: border-box; }
+.sheet-top { display: flex; justify-content: space-between; font-size: 3.2cqw; font-weight: 700; color: var(--kid); padding: 0 .5cqw .8cqw; }
+.zb { border: 1px solid var(--kid); margin-bottom: .7cqw; break-inside: avoid; page-break-inside: avoid; }
+.zb-head { display: flex; align-items: center; gap: 2.4cqw; padding: .2cqw 1.4cqw; border-bottom: 1px solid var(--kid); min-height: 3.4cqw; }
+.zb-py { font-size: 2.6cqw; font-weight: 400; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; min-width: 9cqw; }
+.zb-n { font-size: 2.3cqw; font-weight: 400; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; }   /* thin lettering for the pinyin and the stroke count */
+.zb-steps { display: flex; flex-wrap: wrap; gap: .2cqw; align-items: center; }
+.zb-steps svg { width: 3cqw; height: 3cqw; }
+.zb-row { display: grid; grid-template-columns: repeat(12, 1fr); }
+.zc { aspect-ratio: 1; position: relative; border-right: 1px solid var(--kid); display: grid; place-items: center; color: #1b1420;
+  background-image: repeating-linear-gradient(to bottom, var(--kid-line) 0 3px, transparent 3px 6px), repeating-linear-gradient(to right, var(--kid-line) 0 3px, transparent 3px 6px);
+  background-size: 1px 100%, 100% 1px; background-position: center, center; background-repeat: no-repeat; }
+.zc:last-child { border-right: 0; }
+.zc svg { width: 88%; height: 88%; }
+.zc.trace { color: color-mix(in srgb, var(--kid) 28%, #fff); }
+.zc-ch { font-family: var(--kai); font-size: 7cqw; line-height: 1; }
+@page { size: A4; margin: 8mm; }
+@media print {
+  html, body, #app { height: auto !important; overflow: visible !important; background: #fff !important; }
+  .page.sheet-page { height: auto; display: block; }
+  .sheet-page .top, .sheet-foot, .sheet-hint, #toasts, .update-bar { display: none !important; }
+  .sheet-page .scroll { overflow: visible; padding: 0; }
+  .sheet { width: 100%; margin: 0; padding: 0; box-shadow: none; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
