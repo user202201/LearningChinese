@@ -467,3 +467,4 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 a.link { color: var(--accent-dark); font-weight: 700; }
 .idiom-pool { margin: 2px 4px 0; text-align: left; }
 .similar { margin-top: 6px; font-size: 14px; font-weight: 700; } .similar button.mini { margin-left: 8px; }
+.story-pos { min-width: 44px; text-align: right; font-weight: 800; font-size: 15px; color: var(--muted); }

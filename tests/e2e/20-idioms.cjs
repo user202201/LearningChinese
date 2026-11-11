@@ -113,6 +113,47 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
     ok((await noChinese(page)).length === 0 && !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)), loc + ': the story page is translated and fits ' + JSON.stringify(await noChinese(page)));
     await page.screenshot({ path: OUT + `idiom-story-${loc}.png` });
   }
+  // --- left / right on the story page: previous / next story of the list it was opened from (tap on a half of the screen, or swipe)
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('learn.settings.v1') || '{}'); s.lang = 'zh'; localStorage.setItem('learn.settings.v1', JSON.stringify(s)); });
+  await page.evaluate(() => (location.hash = '#/')); await page.reload(); await page.waitForSelector('.kid'); await openKid(page, 'Dory'); await page.click('#idioms-btn'); await page.waitForSelector('.idiom-card');
+  const week3 = await page.$$eval('.idiom-card', (e) => e.map((x) => x.dataset.idiom));
+  const shownIdiom = () => page.$$eval('#idiom-chars .tzg .ch', (e) => e.map((x) => x.textContent).join(''));
+  const pos = () => page.textContent('#story-pos');
+  const swipe = async (dx) => { await page.mouse.move(200, 700); await page.mouse.down(); await page.mouse.move(200 + dx / 2, 703, { steps: 3 }); await page.mouse.move(200 + dx, 706, { steps: 3 }); await page.mouse.up(); };
+  await page.click(`.idiom-card[data-idiom=${week3[0]}]`); await page.waitForSelector('#idiom-chars');
+  ok(await shownIdiom() === week3[0] && await pos() === '1 / 3', 'the story page says where you are in the list: "1 / 3"');
+  await page.mouse.click(350, 500); await page.waitForFunction((n) => document.querySelector('#story-pos').textContent === n, '2 / 3');
+  ok(await shownIdiom() === week3[1], 'a tap on the right half of the screen goes to the next story');
+  await page.mouse.click(40, 500); await page.waitForFunction((n) => document.querySelector('#story-pos').textContent === n, '1 / 3');
+  ok(await shownIdiom() === week3[0], 'a tap on the left half goes back to the previous one');
+  await page.mouse.click(40, 500); await page.waitForTimeout(200);
+  ok(await pos() === '1 / 3' && await shownIdiom() === week3[0], 'before the first story there is nothing: it stays');
+  await swipe(-120); await page.waitForFunction((n) => document.querySelector('#story-pos').textContent === n, '2 / 3');
+  await swipe(-120); await page.waitForFunction((n) => document.querySelector('#story-pos').textContent === n, '3 / 3');
+  ok(await shownIdiom() === week3[2], 'swiping left goes to the next story, twice');
+  await swipe(-120); await page.waitForTimeout(200);
+  ok(await pos() === '3 / 3', 'and after the last story it stays');
+  await swipe(120); await page.waitForFunction((n) => document.querySelector('#story-pos').textContent === n, '2 / 3');
+  ok(await shownIdiom() === week3[1], 'swiping right goes back');
+  await swipe(30); await page.waitForTimeout(150);
+  ok(await pos() === '2 / 3', 'a short move does not change the story');
+  await page.click('#story-edit'); await page.waitForSelector('dialog.center'); await page.click('dialog.center h2'); await page.waitForTimeout(200);
+  ok(await pos() === '2 / 3' && await page.locator('dialog.center').count() === 1, 'the edit button opens the editor; a tap inside it does not change the story');
+  await page.click('dialog.center button:has-text("取消")'); await page.waitForSelector('dialog.center', { state: 'detached' });
+  await page.click('button.back'); await page.waitForSelector('.idiom-card');
+  ok(await page.locator('.idiom-card').count() === 3 && (await page.textContent('h1')) === '成语故事', 'one press of back returns to the list (the stories you went through are not in the way)');
+  // opened from "all idioms": the list is all of them, across the weeks
+  await page.click('#idiom-scope'); await page.waitForFunction(() => document.querySelectorAll('.idiom-card').length === 5);
+  const all5 = await page.$$eval('.idiom-card', (e) => e.map((x) => x.dataset.idiom));
+  await page.click(`.idiom-card[data-idiom=${all5[4]}]`); await page.waitForSelector('#idiom-chars');
+  ok(await pos() === '5 / 5' && await shownIdiom() === all5[4], 'from the list of all idioms the stories of every week follow each other (5 / 5)');
+  await page.mouse.click(40, 500); await page.waitForFunction((n) => document.querySelector('#story-pos').textContent === n, '4 / 5');
+  ok(await shownIdiom() === all5[3], 'and left goes through them in the order of the list');
+  await page.reload(); await page.waitForSelector('#idiom-chars');
+  ok((await pos()).endsWith('/ 2') || (await pos()).endsWith('/ 3') || (await pos()).endsWith('/ 1') || (await page.locator('#story-pos').count()) === 0, 'after a reload the neighbours are the idioms of the same week');
+  await page.setViewportSize({ width: 390, height: 844 });
+
   // --- the story page keeps the whole idiom on ONE line, on the smallest screens too
   for (const [w, h2] of [[320, 568], [360, 640], [390, 844], [844, 390]]) {
     await page.setViewportSize({ width: w, height: h2 });

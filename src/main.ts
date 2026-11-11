@@ -415,6 +415,7 @@ async function renderSheet(id: string) {
 }
 
 let storyWeek = "";   // the week whose stories are printed
+let storyOrder: string[] = [];   // the idioms of the list a story was opened from: left / right on the story page go through them
 async function renderStories() {
   const my = epoch;
   showLoading();
@@ -483,7 +484,7 @@ async function renderIdioms() {
   const count = items.reduce((n, w) => n + w.items.length, 0);
   // one idiom per line, in the same red-framed 田字格 cells (same size) as the recorded characters; tap a line for its story
   const row = (it: string) => {
-    const r = h("div", { class: "idiom-card", role: "button", tabindex: "0", "data-idiom": it, style: `--n:${[...it].length}`, onclick: () => (location.hash = `#/idiom/${encodeURIComponent(it)}`) },
+    const r = h("div", { class: "idiom-card", role: "button", tabindex: "0", "data-idiom": it, style: `--n:${[...it].length}`, onclick: () => { storyOrder = items.flatMap((w) => w.items); location.hash = `#/idiom/${encodeURIComponent(it)}`; } },
       ...[...it].map((c) => cell(c)));
     r.addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), r.click()));
     return r;
@@ -564,14 +565,37 @@ async function renderIdiom(name: string) {
   const story = idioms.stories?.[name] ?? "";
   const chars = [...name];
   const row = h("div", { class: "idiom-chars pinyin-on", id: "idiom-chars", style: `--n:${chars.length}` }, ...chars.map((c) => cell(c)));
-  show(h("div", { class: "page", style: idiomColor ? `--kid:${idiomColor}` : "" },
-    topBar("成语故事", backBtn("#/idioms")),
+  // the neighbours: the idioms of the list the story was opened from (after a reload: the idioms of the same week)
+  const order = storyOrder.includes(name) ? storyOrder : (idioms.weeks.find((w) => w.items.includes(name))?.items ?? [name]);
+  const at = order.indexOf(name);
+  const go = (to: number) => {
+    if (to < 0 || to >= order.length || document.querySelector("dialog[open]")) return;
+    storyOrder = order;
+    history.replaceState(null, "", `#/idiom/${encodeURIComponent(order[to])}`);   // (replaced, so "back" still returns to the list)
+    epoch++;
+    void renderIdiom(order[to]);
+  };
+  const page = h("div", { class: "page", style: idiomColor ? `--kid:${idiomColor}` : "" },
+    topBar("成语故事", backBtn("#/idioms"), order.length > 1 ? h("span", { class: "story-pos", id: "story-pos" }, `${at + 1} / ${order.length}`) : undefined),
     h("main", { class: "scroll" }, h("div", { class: "narrow" },
       row,
       story
         ? h("p", { class: "story user", id: "idiom-story" }, story)
         : h("p", { class: "empty", id: "idiom-nostory" }, "还没有故事。点“编辑故事”写一个。"),
-      h("button", { class: "wide", id: "story-edit", onclick: () => void editStory(name, story) }, "编辑故事")))));
+      h("button", { class: "wide", id: "story-edit", onclick: () => void editStory(name, story) }, "编辑故事"))));
+  // a tap on the left / right half of the screen, or a swipe, goes to the previous / next story (buttons keep their own job)
+  let down: { x: number; y: number } | null = null;
+  page.addEventListener("pointerdown", (e) => { down = (e.target as Element).closest("button, a, input, textarea") ? null : { x: e.clientX, y: e.clientY }; });
+  page.addEventListener("pointerup", (e) => {
+    const d = down;
+    down = null;
+    if (!d) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) return go(at + (dx < 0 ? 1 : -1));
+    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) go(at + (e.clientX < window.innerWidth / 2 ? -1 : 1));
+  });
+  page.addEventListener("pointercancel", () => (down = null));
+  show(page);
   void fillPinyin(row);
 }
 
