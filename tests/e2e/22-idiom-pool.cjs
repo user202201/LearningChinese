@@ -175,7 +175,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
 
   // the idiom page of the current week shows that week's six
   await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory'); await page.click('#idioms-btn'); await page.waitForSelector('.idiom-card');
-  ok((await page.textContent('#idiom-pool')) === '成语库：共 60 个，还没用的 36 个', 'the idiom page says what is in the library: 60 idioms, 36 not used yet (so the saved library can be seen)');
+  ok((await page.textContent('#idiom-pool')) === '成语库：共 60 个，还没学过的 36 个', 'the idiom page says what is in the library: 60 idioms, 36 not learned yet (so the saved library can be seen)');
   ok((await page.$$eval('.idiom-card', (e) => e.map((x) => x.dataset.idiom))).join(',') === ticked.slice(12, 18).join(',') && (await page.textContent('.sec-row .sec')) === '成语（6）', 'the idiom page of this week (11-08) shows its six idioms: the third group of the sheet');
 
   // and NEXT week's page opens NEXT week's idioms (the fourth week), not only the "all idioms" list
@@ -192,7 +192,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   await page.waitForSelector('#toasts .toast:has-text("随机选好")');
   ok((await page.textContent('#toasts')).includes('已为下一周随机选好 6 个成语'), 'a week later, opening the app: "6 idioms picked at random for next week"');
   await page.evaluate(() => (location.hash = '#/idioms')); await page.waitForSelector('#idiom-pool');
-  ok((await page.textContent('#idiom-pool')) === '成语库：共 60 个，还没用的 30 个', 'after the weekly pick the library line says 30 not used yet');
+  ok((await page.textContent('#idiom-pool')) === '成语库：共 60 个，还没学过的 30 个', 'after the weekly pick the library line says 30 not learned yet');
   await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid');
   const s2 = await store(page, 'idioms.json');
   const next = s2.weeks.find((w) => w.start === '2026-11-22');
