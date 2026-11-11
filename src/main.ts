@@ -345,7 +345,7 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   });
   const grid = h("div", { class: "cards" + (settings.pinyin ? " pinyin-on" : "") }, ...stagger(cards));
   body.append(
-    h("div", { class: "narrow" },
+    h("div", { class: "narrow week-narrow" },
       manageBar(),
       bar,
       curWeek === todayWeek ? null : h("button", { class: "link", onclick: () => go(todayWeek) }, "回到本周"),

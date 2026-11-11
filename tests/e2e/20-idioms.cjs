@@ -10,9 +10,13 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   const { browser, page } = await start(new Map(), { local: true, today: '2026-11-10', touch: true, viewport: { width: 390, height: 844 } });
   await addKid(page, 'Dory'); await addKid(page, 'Leo'); await openKid(page, 'Dory');
   await enterWeek(page, '2026-11-08', WEEK1);
-  const geo = await page.evaluate(() => { const g = document.querySelector('.cards').getBoundingClientRect(), b = document.querySelector('#idioms-btn').getBoundingClientRect(); return { below: b.top - g.bottom, text: document.querySelector('#idioms-btn').textContent }; });
-  ok(geo.text === '成语故事' && geo.below > 0 && geo.below < 80, 'the week page has a "成语故事" button right below the characters (' + Math.round(geo.below) + ' px under them)');
-
+  const geo = await page.evaluate(() => { const g = document.querySelector('.cards').getBoundingClientRect(), b = document.querySelector('#idioms-btn').getBoundingClientRect(), s = document.querySelector('main.scroll, .scroll').getBoundingClientRect(); return { below: b.top - g.bottom, toBottom: s.bottom - b.bottom, text: document.querySelector('#idioms-btn').textContent }; });
+  ok(geo.text === '成语故事' && geo.below > 60 && geo.toBottom < 60, 'the week page has a "成语故事" button at the bottom of the screen, not right under the characters (' + Math.round(geo.below) + ' px below them, ' + Math.round(geo.toBottom) + ' px from the bottom edge)');
+  await page.screenshot({ path: OUT + 'week-idioms-btn.png' });
+  await page.setViewportSize({ width: 844, height: 390 });
+  const short = await page.evaluate(() => { const g = document.querySelector('.cards').getBoundingClientRect(), b = document.querySelector('#idioms-btn').getBoundingClientRect(); return { below: b.top - g.bottom, w: document.documentElement.scrollWidth > innerWidth }; });
+  ok(short.below >= 10 && !short.w, 'on a short screen (phone held sideways) the button simply follows the characters (' + Math.round(short.below) + ' px below) and the page scrolls');
+  await page.setViewportSize({ width: 390, height: 844 });
   // the same big button as "Start the game", only without the nudge animation
   const look = () => page.evaluate(() => { const b = document.querySelector('#idioms-btn, #game-start'), c = getComputedStyle(b); return { bg: c.backgroundImage, h: Math.round(b.getBoundingClientRect().height), r: c.borderRadius, fs: c.fontSize, col: c.color, sh: c.boxShadow, anim: c.animationName, w: Math.round(b.getBoundingClientRect().width) }; });
   const idBtn = await look();

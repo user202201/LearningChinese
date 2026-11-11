@@ -393,7 +393,10 @@ html, body, body * { touch-action: manipulation; }
 button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: auto; }
 
 /* idioms: one shared list, one story page */
-#idioms-btn { margin: 22px 0 8px; }   /* the same big button as "Start the game" (see above), without its nudge animation */
+/* the week page is a column as tall as the screen: the idiom button sits at the bottom, not right under the characters (a long list simply pushes it down) */
+.week-narrow { min-height: 100%; display: flex; flex-direction: column; }
+#idioms-btn { margin: auto 0 8px; }
+.week-narrow > .cards, .week-narrow > .add-empty { margin-bottom: 22px; }   /* the same big button as "Start the game" (see above), without its nudge animation */
 .idiom-list { display: grid; gap: 10px; margin: 6px 0 14px; }
 .idiom-week { margin: 10px 4px 0; }
 button.idiom-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 64px; padding: 10px 18px; border-radius: 22px; text-align: left; background: #fff; border: 3px solid var(--line); box-shadow: 0 4px 0 var(--line); }
