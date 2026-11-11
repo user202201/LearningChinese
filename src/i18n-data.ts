@@ -275,6 +275,13 @@ export const EN: Record<string, string> = {
   "字数较多，已缩小字号：{0}": "Long, set in a smaller type: {0}",
   "太长，打印会被截断，请缩短：{0}": "Too long, it would be cut off when printed, please shorten: {0}",
   "这一周还没有成语。": "No idioms this week yet.",
+  "成语故事库": "Idiom story library",
+  "App 里自带了一批简单的成语小故事（150 字以内，用小学生认识的字）。点下面的按钮，把还没有故事的成语填上；你自己写的故事不会被改动。": "The app has a set of simple idiom stories (up to 150 characters, written with characters primary-school children know). Tap the button to fill in the idioms that have no story yet; stories you wrote yourself are never changed.",
+  "把自带的故事填进成语": "Fill in the built-in stories",
+  "正在填入故事…": "Filling in the stories…",
+  "读不到自带的故事。": "The built-in stories could not be read.",
+  "已填入 {0} 个成语故事": "{0} idiom stories filled in",
+  "没有需要填的故事": "No story needs to be filled in",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -552,4 +559,11 @@ export const FR: Record<string, string> = {
   "字数较多，已缩小字号：{0}": "Long, composé plus petit : {0}",
   "太长，打印会被截断，请缩短：{0}": "Trop long, il serait coupé à l'impression, merci de raccourcir : {0}",
   "这一周还没有成语。": "Pas encore de chengyu cette semaine.",
+  "成语故事库": "Bibliothèque d'histoires de chengyu",
+  "App 里自带了一批简单的成语小故事（150 字以内，用小学生认识的字）。点下面的按钮，把还没有故事的成语填上；你自己写的故事不会被改动。": "L'application contient des histoires simples de chengyu (150 caractères au plus, avec des caractères connus des élèves du primaire). Touchez le bouton pour remplir les chengyu qui n'ont pas encore d'histoire ; vos propres histoires ne sont jamais modifiées.",
+  "把自带的故事填进成语": "Remplir avec les histoires intégrées",
+  "正在填入故事…": "Ajout des histoires…",
+  "读不到自带的故事。": "Impossible de lire les histoires intégrées.",
+  "已填入 {0} 个成语故事": "{0} histoires de chengyu ajoutées",
+  "没有需要填的故事": "Aucune histoire à ajouter",
 };

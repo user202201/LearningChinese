@@ -177,6 +177,20 @@ export function addIdiomsByHand(all: IdiomsFile, start: string, items: string[])
   return { data: r.data, added: r.added, check };
 }
 
+/** gives the idioms of the app (library + weeks) that have no story yet the story of the built-in library; a story the user wrote is never replaced */
+export function fillBuiltInStories(all: IdiomsFile, builtin: Record<string, string>): { data: IdiomsFile; added: number; kept: number } {
+  const known = new Set([...(all.pool ?? []), ...usedIdioms(all)]);
+  const stories = { ...(all.stories ?? {}) };
+  let added = 0, kept = 0;
+  for (const [idiom, text] of Object.entries(builtin)) {
+    if (!known.has(idiom)) continue;
+    if (stories[idiom]?.trim()) { kept++; continue; }
+    stories[idiom] = text;
+    added++;
+  }
+  return { data: added ? { ...all, stories } : all, added, kept };
+}
+
 /** how many characters a text has, not counting punctuation, spaces and line breaks (letters and digits count; each Chinese character counts as one) */
 export const countChars = (text: string): number => (text.match(/[\p{L}\p{N}]/gu) ?? []).length;
 /** the story of an idiom (an empty text removes it) */

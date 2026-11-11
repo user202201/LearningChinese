@@ -418,7 +418,7 @@ async function renderStories() {
   const my = epoch;
   showLoading();
   try {
-    await Promise.all([loadShared(), loadPinyin()]);
+    await loadShared();
   } catch (e) {
     return my === epoch ? showError(e, () => void renderStories()) : undefined;
   }
@@ -449,6 +449,23 @@ async function renderStories() {
   if (empty.length) note.append(h("div", {}, `还没有故事：${empty.join("、")}`));
   if (shrunk.length) note.append(h("div", {}, `字数较多，已缩小字号：${shrunk.join("、")}`));
   if (over.length) note.append(h("div", { class: "warn" }, `太长，打印会被截断，请缩短：${over.join("、")}`));
+}
+
+/** Settings: gives the idioms that have no story yet the story of the built-in library (public/stories.json); never replaces one the user wrote */
+async function fillBuiltInStories() {
+  const done = toast("正在填入故事…", 0, true);
+  try {
+    const r = await fetch(`${import.meta.env.BASE_URL}stories.json`);
+    if (!r.ok) throw new Error("读不到自带的故事。");
+    const builtin = ((await r.json()) as { stories: Record<string, string> }).stories;
+    let added = 0;
+    idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => { const x = M.fillBuiltInStories(cur, builtin); added = x.added; return x.data; }, "fill built-in stories");
+    done();
+    toast(added ? `已填入 ${added} 个成语故事` : "没有需要填的故事");
+  } catch (e) {
+    done();
+    toast(errText(e), 6000);
+  }
 }
 
 async function renderIdioms() {
@@ -1216,6 +1233,8 @@ async function renderSettings() {
           h("p", { class: "muted small" }, "打开后，“本周”和“已入库”里每个汉字的右上角会出现红色“−”，点一下就能删除这个汉字。用完请关掉。")),
         h("div", { class: "card" }, h("h3", {}, "倒计时"), secs),
         h("div", { class: "card" }, h("h3", {}, "语言"), lang),
+        h("div", { class: "card", id: "story-lib" }, h("h3", {}, "成语故事库"), h("p", { class: "muted small" }, "App 里自带了一批简单的成语小故事（150 字以内，用小学生认识的字）。点下面的按钮，把还没有故事的成语填上；你自己写的故事不会被改动。"),
+          h("button", { class: "wide", id: "fill-stories", onclick: () => void fillBuiltInStories() }, "把自带的故事填进成语")),
         // the stroke data of the practice sheets is under the Arphic Public License, which asks for this notice and the license text to travel with the app
         h("div", { class: "card", id: "credits" }, h("h3", {}, "致谢"), h("p", { class: "muted small" }, "笔顺数据来自 Make Me a Hanzi（Arphic Public License）。"),
           h("a", { class: "link", id: "license-link", href: `${import.meta.env.BASE_URL}strokes/ARPHICPL.TXT`, target: "_blank", rel: "noopener" }, "查看许可证")),

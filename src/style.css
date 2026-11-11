@@ -444,13 +444,10 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 .story-sheet { display: grid; gap: 14px; justify-items: center; }
 .sp { width: 180mm; height: 266mm; box-sizing: border-box; display: grid; grid-template-rows: repeat(3, 1fr); background: #fff; box-shadow: var(--shadow); color: #2d2230; break-after: page; page-break-after: always; overflow: hidden; }
 .sp:last-child { break-after: auto; page-break-after: auto; }
-.sb { display: flex; flex-direction: column; min-height: 0; padding: 4mm 3mm 3mm; border-bottom: .3mm dashed color-mix(in srgb, var(--kid) 45%, #fff); }
+.sb { display: flex; flex-direction: column; min-height: 0; font-size: 14pt; line-height: 1.9; padding: 4mm 3mm 3mm; border-bottom: .3mm dashed color-mix(in srgb, var(--kid) 45%, #fff); }
 .sb:last-child { border-bottom: 0; }
-.sb-head { display: flex; justify-content: center; gap: 1.6mm; flex: none; }
-.sb-head .tzg { width: 13mm; }
-.sb-head .tzg .py { height: 4.6mm; line-height: 4.6mm; font-size: 3.1mm; font-weight: 400; }
-.sb-head .tzg .box { border-width: .5mm; border-radius: 2mm; box-shadow: none; }
-.sb-text { flex: 1; min-height: 0; overflow: hidden; margin-top: 2.5mm; font-size: 14pt; line-height: 1.9; text-align: justify; }
+.sb-title { margin: 0; font-size: inherit; font-weight: 400; flex: none; }   /* the idiom: a plain line, the same size as the story */
+.sb-text { flex: 1; min-height: 0; overflow: hidden; font-size: inherit; line-height: inherit; text-align: justify; }
 .sb-text p { margin: 0; text-indent: 2em; overflow-wrap: anywhere; }
 @media screen { .sb-over { outline: 2px solid #e03131; outline-offset: -2px; } }
 @page { size: A4; margin: 15mm; }

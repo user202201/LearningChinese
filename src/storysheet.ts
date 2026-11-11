@@ -1,11 +1,10 @@
 /**
  * Print sheet of the idiom stories of a week: THREE stories on a page, an A4 page printed on both sides holds the week's six. Each story is a block: the idiom
- * in 田字格 cells with its pinyin, then the story in 14 pt. A story that is too long for its third of the page gets a smaller type (down to 11 pt) instead of
+ * as a plain line of the same size as the story (no 田字格, no pinyin), then the story in 14 pt. A story that is too long for its third of the page gets a smaller type (down to 11 pt) instead of
  * being cut off; one that is still too long is marked (the screen shows a warning, the printout is cut at the block). The printout is the browser's own
  * (window.print: "Save as PDF" in the print window); sizes are in mm / pt so that what is printed is what is said here.
  */
 import { h } from "./ui";
-import { loadPinyin, pinyinOf } from "./pinyin";
 
 export const STORY_PT = 14;          // the type size the user asked for
 export const STORY_MIN_PT = 11;      // the smallest size a long story may shrink to
@@ -14,17 +13,14 @@ export const PER_PAGE = 3;
 export interface StoryItem { idiom: string; story: string }
 
 function block(it: StoryItem): HTMLElement {
-  const cells = [...it.idiom].map((c) => h("div", { class: "tzg", "data-ch": c },
-    h("div", { class: "py" }, pinyinOf(c)), h("div", { class: "box" }, h("span", { class: "ch user" }, c))));
   const paras = it.story.split(/\n+/).map((p) => p.trim()).filter(Boolean).map((p) => h("p", { class: "user" }, p));
   return h("div", { class: "sb", "data-idiom": it.idiom },
-    h("div", { class: "sb-head pinyin-on" }, ...cells),
+    h("p", { class: "sb-title user" }, it.idiom),
     h("div", { class: "sb-text" }, ...(paras.length ? paras : [h("p", { class: "sb-none" }, "")])));
 }
 
 /** pages of three blocks; an empty block keeps the place when a page is not full */
 export async function buildStoryPages(items: StoryItem[]): Promise<HTMLElement> {
-  await loadPinyin();
   const pages: HTMLElement[] = [];
   for (let i = 0; i < Math.max(items.length, 1); i += PER_PAGE) {
     const blocks = items.slice(i, i + PER_PAGE).map(block);
@@ -41,8 +37,8 @@ export function fitStories(root: HTMLElement): Fit[] {
   root.querySelectorAll<HTMLElement>(".sb[data-idiom]").forEach((b) => {
     const text = b.querySelector<HTMLElement>(".sb-text")!;
     let pt = STORY_PT;
-    text.style.fontSize = `${pt}pt`;
-    while (text.scrollHeight > text.clientHeight + 0.5 && pt > STORY_MIN_PT) { pt -= 0.5; text.style.fontSize = `${pt}pt`; }
+    b.style.fontSize = `${pt}pt`;                       // (the idiom line and the story always have the same size)
+    while (text.scrollHeight > text.clientHeight + 0.5 && pt > STORY_MIN_PT) { pt -= 0.5; b.style.fontSize = `${pt}pt`; }
     const over = text.scrollHeight > text.clientHeight + 0.5;
     b.classList.toggle("sb-over", over);
     b.dataset.pt = String(pt);
@@ -57,14 +53,15 @@ export function capacity(root: HTMLElement): number {
   if (!text) return 0;
   const probe = h("p", { class: "user" }, "字");
   text.append(probe);
-  const saved = text.style.fontSize;
-  text.style.fontSize = `${STORY_PT}pt`;
+  const blockEl = text.parentElement as HTMLElement;
+  const saved = blockEl.style.fontSize;
+  blockEl.style.fontSize = `${STORY_PT}pt`;
   const cs = getComputedStyle(text);
   const charW = probe.getBoundingClientRect().height > 0 ? parseFloat(cs.fontSize) : 0;
   const lineH = parseFloat(cs.lineHeight) || charW * 1.9;
   const width = text.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const height = text.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
   probe.remove();
-  text.style.fontSize = saved;
+  blockEl.style.fontSize = saved;
   return Math.max(0, Math.floor(width / charW)) * Math.max(0, Math.floor(height / lineH));
 }

@@ -18,6 +18,7 @@ Browser tests (Playwright + Chromium, touch-sized windows) against the app runni
 | 21-practice-sheet | the practice sheet: stroke counts and order, pinyin, cell rows, one A4 page as a real PDF, nothing fetched from outside, license notice, rare characters, English / French on a 320 px phone |
 | 22-idiom-pool | the idiom library: import of the 成语 tab with tick boxes, ticked ones given weeks (6 a week), the rest kept, weekly random pick for next week, English / French |
 | 23-story-sheet | the story printout: 3 stories per A4 page in 14 pt, 2 pages per week (one sheet, both sides), shrink / warn for long stories, real PDFs, English / French |
+| 24-story-library | the built-in idiom stories: at most 150 characters, only everyday characters (GB2312 level 1), the Settings button that fills them in without touching the user's own stories, English / French |
 | 17-sync-card | Settings card: copy the script (exactly the file), box when the clipboard is refused, link to the guide, translations |
 | 15-app-icon | the app icon: sizes, no transparency (iOS), fills the square, safe area, in sync with assets/icon/icon.svg, links + manifest |
 | 14-picture-and-colour | tap the picture at the top of a child page: picture + colour window, live preview, Done / Cancel, the colour changes the whole look, contrast, fits a small phone |

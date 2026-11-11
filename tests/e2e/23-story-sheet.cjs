@@ -22,9 +22,11 @@ const geo = (page) => page.evaluate(() => {
     pages: pages.length, blocks: pages.map((p) => p.querySelectorAll('.sb[data-idiom]').length),
     w: Math.round(mm(pages[0].getBoundingClientRect().width / z)), h: Math.round(mm(pages[0].getBoundingClientRect().height / z)),
     pt: [...document.querySelectorAll('.sb[data-idiom] .sb-text')].map((e) => Math.round(parseFloat(getComputedStyle(e).fontSize) / 96 * 72 * 10) / 10),
+    title: [...document.querySelectorAll('.sb[data-idiom]')].map((b) => { const t = b.querySelector('.sb-title'), x = b.querySelector('.sb-text'); return [t.textContent, getComputedStyle(t).fontSize === getComputedStyle(x).fontSize, getComputedStyle(t).fontWeight]; }),
+    fancy: document.querySelectorAll('#story-sheet .tzg, #story-sheet .py, #story-sheet .box').length,
     over: [...document.querySelectorAll('.sb-over')].length,
     fill: [...document.querySelectorAll('.sb[data-idiom] .sb-text')].map((e) => Math.round([...e.children].reduce((n, c) => n + c.getBoundingClientRect().height, 0) / e.getBoundingClientRect().height * 100)),
-    note: document.querySelector('#story-note')?.textContent, cells: [...document.querySelectorAll('.sb[data-idiom]')].map((b) => b.querySelectorAll('.tzg').length + ':' + [...b.querySelectorAll('.py')].map((p) => p.textContent).join(' ')),
+    note: document.querySelector('#story-note')?.textContent, 
   };
 });
 const pdfPages = async (page, name) => { await page.emulateMedia({ media: 'print' }); const pdf = await page.pdf({ format: 'A4', preferCSSPageSize: true, printBackground: true }); await page.emulateMedia({ media: 'screen' }); fs.writeFileSync(OUT + name, pdf); return (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length; };
@@ -41,10 +43,10 @@ const pdfPages = async (page, name) => { await page.emulateMedia({ media: 'print
   ok(g.pages === 2 && g.blocks.join() === '3,3', 'six stories make TWO pages of three: front and back of one sheet (' + g.pages + ' pages, ' + g.blocks.join(' + ') + ' stories)');
   ok(g.w === 180 && g.h === 266, 'a page is 180 x 266 mm inside the 15 mm margins of an A4 sheet (' + g.w + ' x ' + g.h + ' mm)');
   ok(g.pt.length === 6 && g.pt.every((x) => x === 14), 'every story is set in 14 pt (' + g.pt.join(', ') + ')');
-  ok(g.cells.every((c) => c.startsWith('4:') && c.split(':')[1].trim().split(' ').length === 4), 'each story starts with its idiom, four 田字格 cells with pinyin: ' + g.cells[0]);
+  ok(g.fancy === 0 && g.title.map((x) => x[0]).join() === IDIOMS.join() && g.title.every((x) => x[1] && Number(x[2]) <= 400), 'each story starts with its idiom as a PLAIN line: the same size as the story, normal weight, no 田字格 and no pinyin: ' + g.title.map((x) => x[0]).join(' '));
   ok(g.over === 0 && g.fill.every((f) => f > 0 && f <= 100), 'every ~150 character story fits its third (the text uses ' + g.fill.join('%, ') + '% of the room)');
   const capN = Number((g.note.match(/最多约 (\d+) 个字/) || [])[1]);
-  ok(capN >= 150 && capN <= 260 && Math.abs(capN - 185) <= 25, 'the page says how many characters (not counting punctuation) a story can have at 14 pt: about ' + capN);
+  ok(capN >= 200 && capN <= 300, 'the page says how many characters (not counting punctuation) a story can have at 14 pt: about ' + capN);
   await page.screenshot({ path: OUT + 'story-sheet-screen.png' });
   const p1 = await pdfPages(page, 'story-sheet-150.pdf');
   ok(p1 === 2, 'the PDF made by the browser has exactly 2 pages (front and back of one A4 sheet): ' + p1);
@@ -53,7 +55,7 @@ const pdfPages = async (page, name) => { await page.emulateMedia({ media: 'print
   // the stories of ~190 characters: the usual length of a "fuller" story, still 14 pt
   await open(page, seed(S.long));
   const gl = await geo(page);
-  ok(gl.pt.every((x) => x >= 12.5) && gl.over === 0 && gl.pages === 2 && gl.pt.filter((x) => x === 14).length >= 1, 'stories of 170-190 characters (the full third) are set at 14 pt or a little smaller (' + gl.pt.join(', ') + ' pt), none is cut (the text uses ' + gl.fill.join('%, ') + '%)');
+  ok(gl.pt.every((x) => x === 14) && gl.over === 0 && gl.pages === 2, 'stories of 170-190 characters still fit at 14 pt (' + gl.pt.join(', ') + ' pt), none is cut (the text uses ' + gl.fill.join('%, ') + '%)');
   ok(await pdfPages(page, 'story-sheet-190.pdf') === 2, 'and still make a 2 page PDF');
 
   // a story that is too long is set smaller, never cut; one that is far too long is named
