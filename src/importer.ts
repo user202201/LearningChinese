@@ -46,15 +46,22 @@ export function parsePool(rows: Cell[][]): PoolRows {
   }
   return { items, checked };
 }
-export interface PoolPlan { total: number; checked: number; weeks: string[]; assigned: number; leftover: number; fresh: number; unticked: number }
-/** adds the library and gives the ticked idioms their weeks (in the order of the sheet, `per` a week) */
+export interface PoolPlan { total: number; checked: number; weeks: string[]; assigned: number; leftover: number; fresh: number; unticked: number; removed: number }
+/**
+ * The sheet wins: the ticked idioms of the sheet ARE the idioms that have a week. Idioms that already have a week keep it when the sheet ticks them (so importing
+ * again changes nothing); idioms in a week that the sheet does not tick (typed by hand, tests) are taken out of their week (`removed`); the ticked ones that
+ * have no week yet are given one, in the order of the sheet, `per` a week. Stories are kept.
+ */
 export function applyPool(all: M.IdiomsFile, rows: PoolRows, weeks: string[]): { data: M.IdiomsFile; plan: PoolPlan } {
   const pool = [...(all.pool ?? [])];
   let fresh = 0;
   for (const x of rows.items) if (!pool.includes(x)) { pool.push(x); fresh++; }
-  const r = M.assignToWeeks({ ...all, pool }, rows.checked, weeks);
+  const ticked = new Set(rows.checked);
+  let removed = 0;
+  const kept = all.weeks.map((w) => ({ ...w, items: w.items.filter((x) => (ticked.has(x) ? true : (removed++, false))) })).filter((w) => w.items.length);
+  const r = M.assignToWeeks({ ...all, weeks: kept, pool }, rows.checked, weeks);
   const placed = M.usedIdioms(r.data);
-  return { data: r.data, plan: { total: rows.items.length, checked: rows.checked.length, weeks, assigned: r.assigned, leftover: r.leftover.length, fresh, unticked: pool.filter((x) => !placed.has(x)).length } };
+  return { data: r.data, plan: { total: rows.items.length, checked: rows.checked.length, weeks, assigned: r.assigned, leftover: r.leftover.length, fresh, unticked: pool.filter((x) => !placed.has(x)).length, removed } };
 }
 
 export function parseSheet(rows: Cell[][], kind: Kind): Parsed {
@@ -125,7 +132,7 @@ export function plan(sheets: SheetData[], kids: M.KidsFile, kidData: (id: string
     if (kind === "idioms" && isPoolSheet(s.rows)) {
       const rows = parsePool(s.rows);
       const r = applyPool(idioms, rows, poolWeeks);
-      return { name: s.name, kind, parsed: { weeks: [], skippedRows: [] }, exists: true, added: r.plan.fresh + r.plan.assigned, skipped: 0, present: rows.items.length - r.plan.fresh, total: rows.items.length, pool: r.plan };
+      return { name: s.name, kind, parsed: { weeks: [], skippedRows: [] }, exists: true, added: r.plan.fresh + r.plan.assigned + r.plan.removed, skipped: 0, present: rows.items.length - r.plan.fresh, total: rows.items.length, pool: r.plan };
     }
     const parsed = parseSheet(s.rows, kind);
     const total = parsed.weeks.reduce((n, w) => n + w.items.length, 0);

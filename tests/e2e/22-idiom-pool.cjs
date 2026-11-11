@@ -63,12 +63,18 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
     out.fewer = [three.added.length, M.fillWeek(three.data, '2026-11-29').added.length];
     const partial = M.fillWeek({ weeks: [{ start: '2026-11-22', items: ['甲乙丙丁', '戊己庚辛'] }], pool: p.items }, '2026-11-22');
     out.partial = [partial.data.weeks[0].items.length, partial.data.weeks[0].items.slice(0, 2).join('')];
+    // the sheet wins: idioms typed by hand (not ticked) are taken out of their weeks; the ones the sheet ticks keep the week they have
+    const manual = { weeks: [{ start: '2026-11-08', items: ['手动添加', p.checked[16], p.items[40]] }, { start: '2026-11-15', items: ['测试成语', '另一个测试'] }, { start: '2026-11-22', items: [p.checked[3]] }], pool: p.items.slice(0, 30), stories: { 手动添加: '我的故事' } };
+    const ov = I.applyPool(manual, p, weeks);
+    out.over = [ov.plan.removed, ov.data.weeks.map((w) => w.start + ':' + w.items.length).join(' '), ov.data.weeks.find((w) => w.start === '2026-11-22')?.items.join('') === p.checked[3], ov.data.weeks.find((w) => w.start === '2026-11-08').items.includes(p.checked[16]), JSON.stringify(ov.data.stories), M.usedIdioms(ov.data).has('手动添加'), ov.data.pool.includes(p.items[40])];
+    out.overIdem = JSON.stringify(I.applyPool(ov.data, p, weeks).data) === JSON.stringify(ov.data);
     out.stories = M.fillWeek({ weeks: [], pool: p.items, stories: { 甲一甲一: '故事' } }, '2026-11-22').data.stories['甲一甲一'];
     return out;
   }, [IDIOMS, TICKED]);
   ok(R.isPool && R.parsed.join() === `60,24,${IDIOMS[0]},${IDIOMS[TICKED[15]]}`, 'a 成语 tab without week labels is recognised as the library; 60 idioms, 24 ticked, in the order of the sheet');
   ok(R.text.join('#') === '对牛弹琴|指鹿为马|井底之蛙|守株待兔#对牛弹琴|井底之蛙|守株待兔', 'ticks are read from a real tick box, TRUE, 1 or 是; a heading, doubles and rubbish rows are ignored: ' + R.text.join(' # '));
   ok(R.weeks.length === 4 && R.weeks.every((w) => w[1] === 6) && R.order && R.plan.join() === '24,0,36,60', 'the 24 ticked idioms are given to the 4 weeks, 6 each, in the order of the sheet; 36 stay in the library');
+  ok(R.over[0] === 4 && R.over[2] === true && R.over[3] === true && R.over[4] === '{"手动添加":"我的故事"}' && R.over[5] === false && R.over[6] === true && R.overIdem, 'the sheet wins: 4 idioms that are not ticked (typed by hand / tests) leave their weeks, a ticked idiom keeps the week it already had (even a week later than the others), the story of a removed idiom is kept, the library keeps the sheet\'s idioms, and doing it again changes nothing: ' + R.over.slice(0, 2).join(' | '));
   ok(R.idem, 'importing the same sheet again changes nothing');
   ok(R.leftover.join() === '18,6,3', 'with only 3 weeks 18 are placed and 6 are left over (kept in the library, not lost)');
   ok(R.top.join() === '6,true,0,22', 'a week that already has two idioms is topped up to six, the two stay in front, the other 22 ticked ones fill the rest');
@@ -79,15 +85,18 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   await addKid(page, 'Dory'); await openKid(page, 'Dory');
   await enterWeek(page, '2026-10-25', '假辣酸贫纺炒缸锅烛扇'); await enterWeek(page, '2026-11-01', '鼓旧富言忙桶炉锤泉溪'); await enterWeek(page, '2026-11-08', '波坡板炭镜锁帆筐犁耙');
   await page.waitForSelector('#toasts .toast', { state: 'detached' }).catch(() => {});
+  // the user had tried the idiom page: six idioms of his own in this week and next week (not ticked in the sheet)
+  await page.evaluate(() => localStorage.setItem('learn.local.idioms.json', JSON.stringify({ weeks: [{ start: '2026-11-08', items: ['测试一', '测试二', '测试三', '测试四', '测试五', '测试六'] }, { start: '2026-11-15', items: ['甲乙丙丁', '戊己庚辛'] }] })));
+  await page.reload(); await page.waitForSelector('.weekbar');
   await openSettings(page); await page.click('#import-btn'); await page.setInputFiles('#import-file', FILE); await page.waitForSelector('#import-go');
   const pv = (await page.textContent('.entry')).replace(/\u2011/g, '-');
-  ok(pv.includes('成语库：60 个成语，其中 24 个已勾选') && pv.includes('分配到 4 周，每周 6 个（10-25、11-01、11-08、11-15）') && pv.includes('还没有分配到周的 36 个留在成语库里') && !(await page.locator('.entry .warn').count()), 'the preview says: library of 60, 24 ticked, 4 weeks of 6 (the 3 started weeks and next week), 36 stay in the library');
+  ok(pv.includes('成语库：60 个成语，其中 24 个已勾选') && pv.includes('分配到 4 周，每周 6 个（10-25、11-01、11-08、11-15）') && pv.includes('还没有分配到周的 36 个留在成语库里') && pv.includes('8 个成语（比如手动添加的）会从周里去掉'), 'the preview says: library of 60, 24 ticked, 4 weeks of 6 (the 3 started weeks and next week), 36 stay in the library; and warns that 8 idioms typed by hand will be taken out (the sheet wins)');
   await page.screenshot({ path: OUT + 'idiom-pool-preview.png' });
-  ok(await store(page, 'idioms.json') === null, 'nothing is written while only previewing');
+  ok((await store(page, 'idioms.json')).weeks[0].items[0] === '测试一', 'nothing is written while only previewing');
   await page.click('#import-go');
   await page.waitForSelector('#toasts .toast:has-text("已导入")');
   const saved = await store(page, 'idioms.json');
-  ok(saved.pool.length === 60 && saved.weeks.map((w) => w.start).join() === '2026-10-25,2026-11-01,2026-11-08,2026-11-15' && saved.weeks.every((w) => w.items.length === 6), 'saved: the library (60) and 4 weeks of 6 idioms');
+  ok(saved.pool.length === 60 && saved.weeks.map((w) => w.start).join() === '2026-10-25,2026-11-01,2026-11-08,2026-11-15' && saved.weeks.every((w) => w.items.length === 6) && !JSON.stringify(saved.weeks).includes('测试'), 'saved: the library (60) and exactly 4 weeks of 6 idioms of the sheet; the idioms typed by hand are gone from the weeks (the sheet wins)');
   const ticked = TICKED.map((i) => IDIOMS[i]);
   ok(saved.weeks.flatMap((w) => w.items).join(',') === ticked.join(','), 'the first six ticked idioms of the sheet are week 1, the next six week 2, ... (the sheet order)');
   ok((await page.textContent('#toasts')).includes('24 个成语'), 'the result message says 24 idioms');
@@ -95,6 +104,14 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   // the idiom page of the current week shows that week's six
   await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory'); await page.click('#idioms-btn'); await page.waitForSelector('.idiom-card');
   ok((await page.$$eval('.idiom-card', (e) => e.map((x) => x.dataset.idiom))).join(',') === ticked.slice(12, 18).join(',') && (await page.textContent('.sec-row .sec')) === '成语（6）', 'the idiom page of this week (11-08) shows its six idioms: the third group of the sheet');
+
+  // and NEXT week's page opens NEXT week's idioms (the fourth week), not only the "all idioms" list
+  await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory');
+  await page.click('button[title=下一周]'); await page.waitForFunction(() => document.querySelector('.wlabel .muted').textContent.startsWith('2026-11-15'));
+  await page.click('#idioms-btn'); await page.waitForSelector('.idiom-card');
+  ok((await page.$$eval('.idiom-card', (e) => e.map((x) => x.dataset.idiom))).join(',') === ticked.slice(18, 24).join(',') && (await page.textContent('.sec-row .sec')) === '成语（6）', "from NEXT week's page the idiom list shows next week's six (the fourth group of the sheet)");
+  await page.click('#idiom-scope'); await page.waitForFunction(() => document.querySelectorAll('.idiom-card').length === 24);
+  ok(await page.locator('.idiom-week').count() === 4, 'and "all idioms" shows the same four weeks');
 
   // ---------- every week: next week gets 6 random unused idioms by itself (here: a week later, next week = 11-22)
   await page.clock.setFixedTime(new Date('2026-11-17T10:00:00'));

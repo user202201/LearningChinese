@@ -258,6 +258,7 @@ export const EN: Record<string, string> = {
   "还有 {0} 个已勾选的放不下，留在成语库里": "{0} more ticked ones do not fit and stay in the library",
   "还没有分配到周的 {0} 个留在成语库里，以后每周自动随机选 {1} 个放进下一周": "{0} idioms without a week stay in the library; every week {1} of them are picked at random for next week",
   "已为下一周随机选好 {0} 个成语": "{0} idioms picked at random for next week",
+  "表格里没有勾选的 {0} 个成语（比如手动添加的）会从周里去掉，以表格为准": "{0} idioms that are not ticked in the sheet (for example added by hand) will be taken out of their weeks: the sheet wins",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -518,4 +519,5 @@ export const FR: Record<string, string> = {
   "还有 {0} 个已勾选的放不下，留在成语库里": "{0} autres cochés ne rentrent pas et restent dans la bibliothèque",
   "还没有分配到周的 {0} 个留在成语库里，以后每周自动随机选 {1} 个放进下一周": "{0} chengyu sans semaine restent dans la bibliothèque ; chaque semaine {1} d'entre eux sont tirés au sort pour la semaine suivante",
   "已为下一周随机选好 {0} 个成语": "{0} chengyu tirés au sort pour la semaine suivante",
+  "表格里没有勾选的 {0} 个成语（比如手动添加的）会从周里去掉，以表格为准": "{0} chengyu non cochés dans le tableau (par exemple ajoutés à la main) seront retirés de leurs semaines : le tableau fait foi",
 };
