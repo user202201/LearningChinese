@@ -443,6 +443,6 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
   .page.sheet-page { height: auto; display: block; }
   .sheet-page .top, .sheet-foot, .sheet-hint, #toasts, .update-bar { display: none !important; }
   .sheet-page .scroll { overflow: visible; padding: 0; }
-  .sheet { width: 100%; margin: 0; padding: 0; box-shadow: none; }
+  .sheet { width: calc(100% - 1.5mm); margin: 0 auto; padding: 0; box-shadow: none; }   /* (a little inside the page area: the right-hand border line must not be cut off) */
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

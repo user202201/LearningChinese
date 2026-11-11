@@ -53,6 +53,23 @@ const PINYIN = { 生: 'shēng', 字: 'zì', 帖: 'tiē', 支: 'zhī', 持: 'chí
   fs.writeFileSync(OUT + 'sheet.pdf', pdf);
   const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
   ok(pdf.slice(0, 5).toString() === '%PDF-' && pdf.length > 5000, 'the browser makes a real PDF of it (' + Math.round(pdf.length / 1024) + ' KB)');
+  // looked at as a picture (the PDF is drawn to pixels): the frame is complete on BOTH sides, with equal margins
+  const { execFileSync } = require('child_process');
+  let frame = null;
+  try {
+    execFileSync('pdftoppm', ['-r', '150', '-f', '1', '-l', '1', '-singlefile', OUT + 'sheet.pdf', OUT + 'sheet-pic']);
+    const ppm = fs.readFileSync(OUT + 'sheet-pic.ppm');
+    let o = 0; const tok = () => { while (ppm[o] === 10 || ppm[o] === 32) o++; let s = ''; while (ppm[o] !== 10 && ppm[o] !== 32) s += String.fromCharCode(ppm[o++]); return s; };
+    tok(); const W = +tok(), H = +tok(); tok(); o++;
+    const red = (x, y) => { const i = o + (y * W + x) * 3; return ppm[i] > 180 && ppm[i + 1] < 170 && ppm[i + 2] < 170; };
+    let minX = W, maxX = 0;
+    for (let y = 0; y < H; y += 3) for (let x = 0; x < W; x++) if (red(x, y)) { if (x < minX) minX = x; if (x > maxX) maxX = x; }
+    const strong = (x, y) => { const i = o + (y * W + x) * 3; return ppm[i] > 200 && ppm[i + 1] < 130 && ppm[i + 2] < 130; };   // (a full-strength line, not the pale half of a cut-off one)
+    const longest = (x0) => { let best = 0; for (let x = x0 - 3; x <= x0 + 3; x++) { let run = 0; for (let y = 0; y < H; y++) { if (strong(x, y)) { run++; if (run > best) best = run; } else run = 0; } } return best; };
+    frame = { W, left: minX / 150 * 25.4, right: (W - 1 - maxX) / 150 * 25.4, leftLine: longest(minX + 1), rightLine: longest(maxX - 1) };
+  } catch (e) { frame = null; }
+  if (frame) ok(frame.leftLine > 120 && frame.rightLine > 120 && Math.abs(frame.left - frame.right) <= 1.2 && frame.left >= 14, 'the PDF drawn as a picture: the frame has its left AND right line (' + frame.leftLine + ' / ' + frame.rightLine + ' px long) and the margins are equal (' + frame.left.toFixed(1) + ' / ' + frame.right.toFixed(1) + ' mm)');
+  else console.log('SKIP the picture check (pdftoppm not available)');
   ok(pages === 1, 'ten characters fit on ONE A4 page (' + pages + ' page)');
   await page.emulateMedia({ media: 'screen' });
 
