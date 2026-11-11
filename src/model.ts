@@ -117,6 +117,8 @@ export function addIdioms(all: IdiomsFile, start: string, items: string[]): { da
   weeks.sort((a, b) => a.start.localeCompare(b.start));
   return { data: { ...all, weeks }, added: fresh.length };
 }
+/** how many characters a text has, not counting punctuation, spaces and line breaks (letters and digits count; each Chinese character counts as one) */
+export const countChars = (text: string): number => (text.match(/[\p{L}\p{N}]/gu) ?? []).length;
 /** the story of an idiom (an empty text removes it) */
 export function setStory(all: IdiomsFile, idiom: string, text: string): IdiomsFile {
   const stories = { ...(all.stories ?? {}) };

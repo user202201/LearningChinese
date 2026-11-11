@@ -252,6 +252,7 @@ export const EN: Record<string, string> = {
   "笔顺数据来自 Make Me a Hanzi（Arphic Public License）。": "Stroke-order data: Make Me a Hanzi (Arphic Public License).",
   "查看许可证": "View the license",
   "致谢": "Credits",
+  "{0} 字（不含标点）": "{0} characters (punctuation not counted)",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -506,4 +507,5 @@ export const FR: Record<string, string> = {
   "笔顺数据来自 Make Me a Hanzi（Arphic Public License）。": "Ordre des traits : Make Me a Hanzi (Arphic Public License).",
   "查看许可证": "Voir la licence",
   "致谢": "Remerciements",
+  "{0} 字（不含标点）": "{0} caractères (sans la ponctuation)",
 };

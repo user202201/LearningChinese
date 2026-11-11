@@ -446,3 +446,4 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
   .sheet { width: calc(100% - 1.5mm); margin: 0 auto; padding: 0; box-shadow: none; }   /* (a little inside the page area: the right-hand border line must not be cut off) */
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+.story-count { text-align: right; margin: 6px 4px 0; font-weight: 700; }

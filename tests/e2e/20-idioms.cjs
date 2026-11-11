@@ -61,12 +61,20 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   const sp = await page.evaluate(() => ({ cells: [...document.querySelectorAll('#idiom-chars .tzg .ch')].map((e) => e.textContent).join(''), py: [...document.querySelectorAll('#idiom-chars .tzg .py')].map((e) => e.textContent).join(' '), vis: [...document.querySelectorAll('#idiom-chars .tzg .py')].every((e) => getComputedStyle(e).visibility === 'visible'), over: document.documentElement.scrollWidth > innerWidth }));
   ok(sp.cells === '画蛇添足' && sp.vis && sp.py === 'huà shé tiān zú' && !sp.over, 'the story page shows the idiom in 田字格 cells with its pinyin: ' + sp.py);
   ok(await page.locator('#idiom-nostory').count() === 1, 'no story yet: it says so');
-  await page.click('#story-edit'); await page.fill('dialog textarea', '从前有个人画蛇。\n他给蛇添了脚。'); await page.click('#story-save');
+  await page.click('#story-edit');
+  ok((await page.textContent('#story-count')) === '0 字（不含标点）', 'the story window shows how many characters are written, not counting punctuation: 0 at the start');
+  await page.fill('dialog textarea', '从前有个人画蛇。\n他给蛇添了脚！“好”，');
+  ok((await page.textContent('#story-count')) === '14 字（不含标点）', 'it counts as you type: 7 + 6 + 1 = 14 (the 。 ！ “ ” ， and the line break are not counted)');
+  await page.fill('dialog textarea', '一 二，三 abc 12\n\n。。');
+  ok((await page.textContent('#story-count')) === '8 字（不含标点）', 'spaces and line breaks are not counted either; letters and digits are (8)');
+  await page.fill('dialog textarea', '从前有个人画蛇。\n他给蛇添了脚。'); await page.click('#story-save');
   await page.waitForSelector('#idiom-story');
   ok((await page.textContent('#idiom-story')) === '从前有个人画蛇。\n他给蛇添了脚。' && (await store(page, 'idioms.json')).stories['画蛇添足'] === '从前有个人画蛇。\n他给蛇添了脚。', 'the story is written, shown (line breaks kept) and saved');
   ok(await page.locator('#toasts .toast:has-text("已保存故事")').count() === 1, 'with a message');
   await page.screenshot({ path: OUT + 'idiom-story.png' });
-  await page.click('#story-edit'); await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog', { state: 'detached' });
+  await page.click('#story-edit');
+  ok((await page.textContent('#story-count')) === '13 字（不含标点）', 'editing an existing story starts with its count (13)');
+  await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog', { state: 'detached' });
   ok((await page.textContent('#idiom-story')).startsWith('从前'), 'cancelling the story window changes nothing');
   await page.reload(); await page.waitForSelector('#idiom-story');
   ok((await page.textContent('#idiom-story')).includes('他给蛇添了脚'), 'the story is still there after a reload');
@@ -100,6 +108,7 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
     ok((await noChinese(page)).length === 0 && !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)), loc + ': the list has no Chinese UI text and fits the phone ' + JSON.stringify(await noChinese(page)));
     await page.click('#idiom-add'); ok((await noChinese(page)).length === 0, loc + ': the add window is translated ' + JSON.stringify(await noChinese(page))); await page.click('dialog button >> nth=0'); await page.waitForSelector('dialog', { state: 'detached' });
     await page.click('.idiom-card[data-idiom=画蛇添足]'); await page.waitForSelector('#idiom-story');
+    await page.click('#story-edit'); await page.fill('dialog textarea', '从前，有个人。'); ok((await page.textContent('#story-count')) === (loc === 'en' ? '5 characters (punctuation not counted)' : '5 caractères (sans la ponctuation)') && (await noChinese(page)).length === 0, loc + ': the count line is translated: ' + await page.textContent('#story-count')); await page.click('dialog button >> nth=0'); await page.waitForSelector('dialog', { state: 'detached' });
     ok((await noChinese(page)).length === 0 && !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)), loc + ': the story page is translated and fits ' + JSON.stringify(await noChinese(page)));
     await page.screenshot({ path: OUT + `idiom-story-${loc}.png` });
   }

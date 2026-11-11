@@ -4,7 +4,7 @@ import QRCode from "qrcode";
 import * as api from "./api";
 import * as M from "./model";
 import { h, toast, modal, askText, confirmDlg } from "./ui";
-import { LANGS, setLang, type LangPref } from "./i18n";
+import { LANGS, setLang, tr, type LangPref } from "./i18n";
 import { ANIMAL_NAMES, animal, animalNamed, mascot } from "./art";
 import { fileToAvatar, takePhoto } from "./photo";
 import { loadPinyin, pinyinOf } from "./pinyin";
@@ -483,8 +483,12 @@ async function renderIdiom(name: string) {
 async function editStory(name: string, current: string) {
   const text = h("textarea", { rows: 8, placeholder: "把这个成语的故事写在这里", "aria-label": "故事" }) as HTMLTextAreaElement;
   text.value = current;
+  const counter = h("p", { class: "muted small story-count", id: "story-count" });
+  const count = () => { counter.textContent = tr("{0} 字（不含标点）").replace("{0}", String(M.countChars(text.value))); };
+  text.addEventListener("input", count);
+  count();
   const r = await modal<{ t: string }>((close) =>
-    h("div", { class: "dlg" }, h("h2", {}, "编辑故事"), h("p", { class: "user-title" }, name), text,
+    h("div", { class: "dlg" }, h("h2", {}, "编辑故事"), h("p", { class: "user-title" }, name), text, counter,
       h("div", { class: "row end" }, h("button", { onclick: () => close(null) }, "取消"), h("button", { class: "primary", id: "story-save", onclick: () => close({ t: text.value }) }, "保存"))));
   if (!r) return; // cancelled: no "done" message
   const done = toast("正在保存…", 0, true);
