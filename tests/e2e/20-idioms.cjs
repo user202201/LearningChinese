@@ -134,11 +134,17 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   await page.click(`.idiom-card[data-idiom=${week3[0]}]`); await page.waitForSelector('#idiom-chars');
   ok(await shownIdiom() === week3[0] && await pos() === '1 / 3', 'the story page says where you are in the list: "1 / 3"');
   await page.mouse.click(350, 500); await page.waitForFunction((n) => document.querySelector('#story-pos').textContent === n, '2 / 3');
-  ok(await shownIdiom() === week3[1], 'a tap on the right half of the screen goes to the next story');
+  ok(await shownIdiom() === week3[1], 'a tap in the right quarter of the screen goes to the next story');
   await page.mouse.click(40, 500); await page.waitForFunction((n) => document.querySelector('#story-pos').textContent === n, '1 / 3');
-  ok(await shownIdiom() === week3[0], 'a tap on the left half goes back to the previous one');
+  ok(await shownIdiom() === week3[0], 'a tap in the left quarter goes back to the previous one');
   await page.mouse.click(40, 500); await page.waitForTimeout(200);
   ok(await pos() === '1 / 3' && await shownIdiom() === week3[0], 'before the first story there is nothing: it stays');
+  // the middle of the screen is for reading: a tap there does nothing; the edges of the zones: 25 % and 75 % of the width (97 and 292 px on this 390 px screen)
+  for (const x of [105, 150, 195, 250, 285]) { await page.mouse.click(x, 500); await page.waitForTimeout(120); }
+  ok(await pos() === '1 / 3', 'taps in the middle half of the screen (x = 27 % ... 73 % of the width) do nothing');
+  await page.mouse.click(292 + 8, 500); await page.waitForFunction((n) => document.querySelector('#story-pos').textContent === n, '2 / 3');
+  await page.mouse.click(97 - 8, 500); await page.waitForFunction((n) => document.querySelector('#story-pos').textContent === n, '1 / 3');
+  ok(true, 'just inside the quarters (x = 89 and 300 px) the page turns');
   await swipe(-120); await page.waitForFunction((n) => document.querySelector('#story-pos').textContent === n, '2 / 3');
   await swipe(-120); await page.waitForFunction((n) => document.querySelector('#story-pos').textContent === n, '3 / 3');
   ok(await shownIdiom() === week3[2], 'swiping left goes to the next story, twice');

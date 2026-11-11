@@ -587,7 +587,7 @@ async function renderIdiom(name: string) {
       story
         ? h("p", { class: "story user", id: "idiom-story" }, story)
         : h("p", { class: "empty", id: "idiom-nostory" }, "还没有故事。双击右上角的小铅笔，写一个。"))));
-  // a tap on the left / right half of the screen, or a swipe, goes to the previous / next story (buttons keep their own job)
+  // a tap on the outer quarter of the screen on the left / right, or a swipe, goes to the previous / next story (buttons keep their own job)
   let down: { x: number; y: number } | null = null;
   page.addEventListener("pointerdown", (e) => { down = (e.target as Element).closest("button, a, input, textarea") ? null : { x: e.clientX, y: e.clientY }; });
   page.addEventListener("pointerup", (e) => {
@@ -596,7 +596,8 @@ async function renderIdiom(name: string) {
     if (!d) return;
     const dx = e.clientX - d.x, dy = e.clientY - d.y;
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) return go(at + (dx < 0 ? 1 : -1));
-    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) go(at + (e.clientX < window.innerWidth / 2 ? -1 : 1));
+    // a tap turns the page only in the outer quarters of the screen (left quarter: previous, right quarter: next); the middle is for reading and does nothing
+    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) { const f = e.clientX / window.innerWidth; if (f < 0.25) go(at - 1); else if (f > 0.75) go(at + 1); }
   });
   page.addEventListener("pointercancel", () => (down = null));
   show(page);
