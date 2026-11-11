@@ -355,7 +355,7 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
         ? grid
         : h("div", { class: "add-empty" }, h("button", { class: "add-big", id: "enter", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k) }, "＋"), h("p", {}, "点 ＋ 录入这一周的汉字")),
       // the idioms are the same for every child: one list, one story page (not one per child)
-      h("button", { class: "idiom-link wide", id: "idioms-btn", onclick: () => { idiomFrom = `#/kid/${k.id}`; location.hash = "#/idioms"; } }, "成语故事"),
+      h("button", { class: "primary wide", id: "idioms-btn", onclick: () => { idiomFrom = `#/kid/${k.id}`; location.hash = "#/idioms"; } }, "成语故事"),
     ),
   );
   if (settings.pinyin) void fillPinyin(grid);

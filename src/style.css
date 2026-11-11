@@ -334,7 +334,7 @@ a.linkbtn:active { transform: translateY(3px); box-shadow: none; }
 button.secbtn { min-width: 68px; min-height: 44px; padding: 6px 12px; border-radius: 999px; }
 button.secbtn.on { background: var(--kid); color: #fff; border-color: transparent; box-shadow: 0 3px 0 color-mix(in srgb, var(--kid) 70%, #000); }
 .mini-h.center { text-align: center; }
-#game-start { font-size: 22px; min-height: 64px; border-radius: 22px; background: linear-gradient(180deg, color-mix(in srgb, var(--kid) 82%, #fff), var(--kid)); box-shadow: 0 6px 0 color-mix(in srgb, var(--kid) 70%, #000); }
+#game-start, #idioms-btn { font-size: 22px; min-height: 64px; border-radius: 22px; background: linear-gradient(180deg, color-mix(in srgb, var(--kid) 82%, #fff), var(--kid)); box-shadow: 0 6px 0 color-mix(in srgb, var(--kid) 70%, #000); }
 
 /* the game: a round 田字格 with a ring that runs down, a big tick and a big cross */
 .game { position: fixed; inset: 0; z-index: 35; display: flex; flex-direction: column; user-select: none; -webkit-user-select: none; touch-action: manipulation; animation: pop .25s both;
@@ -393,7 +393,7 @@ html, body, body * { touch-action: manipulation; }
 button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: auto; }
 
 /* idioms: one shared list, one story page */
-button.idiom-link { margin: 22px 0 8px; min-height: 52px; border-radius: 999px; font-weight: 800; color: var(--kid); background: #fff; border: 3px solid var(--kid); box-shadow: 0 3px 0 var(--kid-line); }
+#idioms-btn { margin: 22px 0 8px; }   /* the same big button as "Start the game" (see above), without its nudge animation */
 .idiom-list { display: grid; gap: 10px; margin: 6px 0 14px; }
 .idiom-week { margin: 10px 4px 0; }
 button.idiom-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 64px; padding: 10px 18px; border-radius: 22px; text-align: left; background: #fff; border: 3px solid var(--line); box-shadow: 0 4px 0 var(--line); }

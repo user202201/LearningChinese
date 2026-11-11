@@ -13,6 +13,14 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   const geo = await page.evaluate(() => { const g = document.querySelector('.cards').getBoundingClientRect(), b = document.querySelector('#idioms-btn').getBoundingClientRect(); return { below: b.top - g.bottom, text: document.querySelector('#idioms-btn').textContent }; });
   ok(geo.text === '成语故事' && geo.below > 0 && geo.below < 80, 'the week page has a "成语故事" button right below the characters (' + Math.round(geo.below) + ' px under them)');
 
+  // the same big button as "Start the game", only without the nudge animation
+  const look = () => page.evaluate(() => { const b = document.querySelector('#idioms-btn, #game-start'), c = getComputedStyle(b); return { bg: c.backgroundImage, h: Math.round(b.getBoundingClientRect().height), r: c.borderRadius, fs: c.fontSize, col: c.color, sh: c.boxShadow, anim: c.animationName, w: Math.round(b.getBoundingClientRect().width) }; });
+  const idBtn = await look();
+  await page.click('#tab-game'); await page.waitForSelector('#game-start'); const gameBtn = await look();
+  ok(idBtn.bg === gameBtn.bg && idBtn.h === gameBtn.h && idBtn.r === gameBtn.r && idBtn.fs === gameBtn.fs && idBtn.col === gameBtn.col && idBtn.sh === gameBtn.sh && idBtn.w === gameBtn.w && idBtn.h >= 60, 'the "成语故事" button looks exactly like "开始游戏" (' + idBtn.w + 'x' + idBtn.h + ' px, radius ' + idBtn.r + ', ' + idBtn.fs + ')');
+  ok(idBtn.anim === 'none', 'but without its nudge animation');
+  await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory');
+
   // --- the list (empty first)
   await page.click('#idioms-btn'); await page.waitForSelector('#idiom-add');
   ok(await page.locator('#idiom-empty').count() === 1 && (await page.textContent('h1')) === '成语故事', 'the idiom list opens; with no idioms it says how to add them');

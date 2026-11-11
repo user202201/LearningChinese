@@ -10,7 +10,7 @@ const OUT = process.env.D || 'tests/out/work/';
   // --- the week page
   ok((await page.textContent('.wlabel .muted')).startsWith('2026-11-08'), 'opens on the week that contains today (Sunday 2026-11-08)');
   ok(await page.locator('button[title=上一周]').isDisabled(), 'nothing entered anywhere yet: there is no earlier week to go back to, the left arrow is off');
-  ok(await page.locator('button.primary.wide').count() === 0, 'no big "enter this week" button any more');
+  ok(await page.locator('button.primary.wide:not(#idioms-btn)').count() === 0, 'no big "enter this week" button any more (the only big button is the one to the idiom stories)');
   const big = await page.locator('#enter').boundingBox();
   const area = await page.locator('.narrow').boundingBox();
   ok(await page.locator('#enter.add-big').count() === 1 && Math.abs((big.x + big.width / 2) - (area.x + area.width / 2)) <= 2, 'an empty week: a big + in the middle of the area (' + Math.round(big.x + big.width / 2) + ' vs ' + Math.round(area.x + area.width / 2) + ')');
