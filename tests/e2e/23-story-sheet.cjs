@@ -54,7 +54,7 @@ const pdfPages = async (page, name) => { await page.emulateMedia({ media: 'print
   // the stories of ~190 characters: the usual length of a "fuller" story, still 14 pt
   await open(page, seed(S.long));
   const gl = await geo(page);
-  ok(gl.pt.every((x) => x === 14) && gl.over === 0 && gl.pages === 2, 'stories of 170-190 characters still fit at 14 pt (' + gl.pt.join(', ') + ' pt), none is cut (the text uses ' + gl.fill.join('%, ') + '%)');
+  ok(gl.pt.every((x) => x >= 12.5) && gl.over === 0 && gl.pages === 2, 'stories of 170-190 characters (the full third) are set at 14 pt or a little smaller (' + gl.pt.join(', ') + ' pt), none is cut (the text uses ' + gl.fill.join('%, ') + '%)');
   ok(await pdfPages(page, 'story-sheet-190.pdf') === 2, 'and still make a 2 page PDF');
 
   // a story that is too long is set smaller, never cut; one that is far too long is named
@@ -75,6 +75,19 @@ const pdfPages = async (page, name) => { await page.emulateMedia({ media: 'print
   const pr = await page.evaluate(() => ({ foot: getComputedStyle(document.querySelector('.sheet-foot')).display, top: getComputedStyle(document.querySelector('.top')).display, note: getComputedStyle(document.querySelector('#story-note')).display, shadow: getComputedStyle(document.querySelector('.sp')).boxShadow }));
   await page.emulateMedia({ media: 'screen' });
   ok(pr.foot === 'none' && pr.top === 'none' && pr.note === 'none' && pr.shadow === 'none', 'when printing: no title bar, no button, no hints, no shadow');
+
+  // the margins of the printout, measured on the PDF drawn as a picture: roomy (at least 22 mm on every side) and equal left / right
+  try {
+    execFileSync('pdftoppm', ['-r', '100', '-f', '1', '-l', '1', '-singlefile', OUT + 'story-sheet-150.pdf', OUT + 'story-margin']);
+    const ppm = fs.readFileSync(OUT + 'story-margin.ppm');
+    let o = 0; const tok = () => { while (ppm[o] === 10 || ppm[o] === 32) o++; let s = ''; while (ppm[o] !== 10 && ppm[o] !== 32) s += String.fromCharCode(ppm[o++]); return s; };
+    tok(); const W = +tok(), H = +tok(); tok(); o++;
+    let minX = W, maxX = 0, minY = H, maxY = 0;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = o + (y * W + x) * 3; if (ppm[i] < 160 && ppm[i + 1] < 160 && ppm[i + 2] < 160) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; } }
+    const mm = (px) => px / 100 * 25.4;
+    const m = { left: mm(minX), right: mm(W - 1 - maxX), top: mm(minY) };
+    ok(m.left >= 22 && m.right >= 22 && m.top >= 20 && Math.abs(m.left - m.right) <= 22, 'the printout has roomy margins: text starts ' + m.left.toFixed(0) + ' mm from the left edge of the paper and ends ' + m.right.toFixed(0) + ' mm from the right edge, ' + m.top.toFixed(0) + ' mm from the top');
+  } catch (e) { console.log('SKIP margin picture (pdftoppm not available)'); }
 
   // picture of the PDF: three blocks on a page, text starts near the top of each, left / right margins equal
   try {

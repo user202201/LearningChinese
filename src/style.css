@@ -437,12 +437,12 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 .zc svg { width: 88%; height: 88%; }
 .zc.trace { color: color-mix(in srgb, var(--kid) 28%, #fff); }
 .zc-ch { font-family: var(--kai); font-size: 7cqw; line-height: 1; }
-/* story printout: three stories on an A4 page (180 x 266 mm inside the 15 mm margins), 14 pt type; sizes in mm / pt on purpose */
+/* story printout: three stories on an A4 page (180 x 266 mm inside the 15 mm page margins, plus 10 / 8 mm inside: roomy margins of 25 / 23 mm), 14 pt type; sizes in mm / pt on purpose */
 .story-wrap { max-width: 900px; }
 .story-note { margin: 0 0 10px; line-height: 1.5; }
 .story-scale { width: 100%; display: flex; justify-content: center; }
 .story-sheet { display: grid; gap: 14px; justify-items: center; }
-.sp { width: 180mm; height: 266mm; box-sizing: border-box; display: grid; grid-template-rows: repeat(3, 1fr); background: #fff; box-shadow: var(--shadow); color: #2d2230; break-after: page; page-break-after: always; overflow: hidden; }
+.sp { width: 180mm; height: 266mm; box-sizing: border-box; padding: 8mm 10mm; display: grid; grid-template-rows: repeat(3, 1fr); background: #fff; box-shadow: var(--shadow); color: #2d2230; break-after: page; page-break-after: always; overflow: hidden; }
 .sp:last-child { break-after: auto; page-break-after: auto; }
 .sb { display: flex; flex-direction: column; min-height: 0; font-size: 14pt; line-height: 1.9; padding: 4mm 3mm 3mm; border-bottom: .3mm dashed color-mix(in srgb, var(--kid) 45%, #fff); }
 .sb:last-child { border-bottom: 0; }
