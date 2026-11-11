@@ -81,6 +81,25 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   ok(R.pick.join() === '6,true,6,true' && R.full === 0, 'random picks: 6 different idioms from the unused ones, never a used one, a different set with another seed, nothing when the week is full');
   ok(R.fewer.join() === '3,0' && R.partial.join() === '6,甲乙丙丁戊己庚辛' && R.stories === '故事', 'with fewer than 6 left it takes what is there, a week with 2 is topped up to 6, stories are kept');
 
+  // ---------- a big sheet like the user's: 297 idioms + a heading, a double and a non-idiom: all 297 are read, the odd rows are named
+  const BIG = Array.from({ length: 297 }, (_, i) => { const a = '天地玄黄宇宙洪荒日月盈昃辰宿列张寒来暑往秋收冬藏闰余成岁律吕调阳云腾致雨露结为霜金生丽水玉出昆冈剑号巨阙珠称夜光果珍李柰菜重芥姜海咸河淡鳞潜羽翔龙师火帝鸟官人皇'; const ch = (k) => a[(i * 7 + k * 13 + Math.floor(i / 11) * 3) % a.length]; return ch(0) + ch(1) + ch(2) + ch(3) + String.fromCharCode(0x4e00 + Math.floor(i / 7)) ; });
+  const rows = [['成语', false], ...BIG.map((x, i) => [x, i < 24]), [BIG[5], false], ['好', false]];
+  xlsx(OUT + 'idiom-pool-big.xlsx', rows);
+  const bigR = await page.evaluate(async (rows) => { const I = await import('/src/importer.ts'); const r = I.parsePool(rows.map((x) => [x[0], x[1], 24])); return [r.items.length, r.checked.length, r.filled, r.ignored.join()]; }, rows);
+  ok(bigR[0] === 297 && bigR[1] === 24 && bigR[2] === 300 && bigR[3] === '1,299,300', 'a sheet with 297 different idioms: all 297 are read (and 24 ticked); the heading (row 1), the double (row 299) and the one-character row (row 300) are named as not counted: ' + bigR.join(' / '));
+  {
+    const t4 = await start(new Map(), { local: true, today: '2026-11-10' });
+    await addKid(t4.page, 'Dory');
+    await t4.page.evaluate(() => (location.hash = '#/settings')); await t4.page.waitForSelector('#import-btn');
+    await t4.page.click('#import-btn'); await t4.page.setInputFiles('#import-file', OUT + 'idiom-pool-big.xlsx'); await t4.page.waitForSelector('#import-go');
+    const bt = (await t4.page.textContent('.entry')).replace(/\u2011/g, '-');
+    ok(bt.includes('成语库：297 个成语，其中 24 个已勾选') && bt.includes('表格 A 列有 300 行内容，认出 297 个成语') && bt.includes('有 3 行没有算进去') && bt.includes('第 1、299、300 行'), 'the preview of the big sheet says it plainly: 297 idioms read from 300 filled rows, 3 rows not counted (1, 299, 300): ' + bt.replace(/\s+/g, ' ').slice(0, 200));
+    await t4.page.click('#import-go'); await t4.page.waitForSelector('#toasts .toast:has-text("已导入")');
+    const sv = await t4.page.evaluate(() => JSON.parse(localStorage.getItem('learn.local.idioms.json')));
+    ok(sv.pool.length === 297, 'and all 297 are saved in the library (idioms.json), not only the ticked ones');
+    await t4.browser.close();
+  }
+
   // ---------- the real flow: three weeks of characters, import the sheet, preview, import
   await addKid(page, 'Dory'); await openKid(page, 'Dory');
   await enterWeek(page, '2026-10-25', '假辣酸贫纺炒缸锅烛扇'); await enterWeek(page, '2026-11-01', '鼓旧富言忙桶炉锤泉溪'); await enterWeek(page, '2026-11-08', '波坡板炭镜锁帆筐犁耙');

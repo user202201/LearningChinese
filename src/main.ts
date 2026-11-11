@@ -982,6 +982,8 @@ function previewImport(entries: I.Entry[]): Promise<I.Entry[]> {
       if (e.pool) {
         const q = e.pool;
         lines.push(h("div", {}, `成语库：${q.total} 个成语，其中 ${q.checked} 个已勾选`));
+        lines.push(h("div", { class: "muted" }, `表格 A 列有 ${q.filled} 行内容，认出 ${q.total} 个成语`));
+        if (q.ignored.length) lines.push(h("div", { class: "warn" }, `有 ${q.ignored.length} 行没有算进去（重复的、标题或不是成语），第 ${q.ignored.slice(0, 8).join("、")} 行${q.ignored.length > 8 ? " …" : ""}`));
         if (q.assigned) lines.push(h("div", {}, `已勾选的按表格顺序分配到 ${q.weeks.length} 周，每周 ${M.IDIOMS_PER_WEEK} 个（${q.weeks.map((w) => w.slice(5).replace("-", "\u2011")).join("、")}）`));
         if (q.removed) lines.push(h("div", { class: "warn" }, `表格里没有勾选的 ${q.removed} 个成语（比如手动添加的）会从周里去掉，以表格为准`));
         if (q.leftover) lines.push(h("div", { class: "warn" }, `还有 ${q.leftover} 个已勾选的放不下，留在成语库里`));

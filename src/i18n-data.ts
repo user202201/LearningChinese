@@ -263,6 +263,8 @@ export const EN: Record<string, string> = {
   "已经学过了，不能保存：{0}": "Already learned, can not be saved: {0}",
   "成语库里有 {0} 个，新成语 {1} 个（会加进成语库，同步时也会加到你的表格）": "{0} are in the library, {1} are new (they are added to the library, and to your sheet at the next sync)",
   "有的成语已经学过了，没有保存": "Some idioms were already learned: nothing was saved",
+  "表格 A 列有 {0} 行内容，认出 {1} 个成语": "Column A of the sheet has {0} filled rows, {1} idioms recognised",
+  "有 {0} 行没有算进去（重复的、标题或不是成语），第 {1} 行{2}": "{0} rows were not counted (doubles, headings or not an idiom): rows {1}{2}",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -528,4 +530,6 @@ export const FR: Record<string, string> = {
   "已经学过了，不能保存：{0}": "Déjà appris, impossible d'enregistrer : {0}",
   "成语库里有 {0} 个，新成语 {1} 个（会加进成语库，同步时也会加到你的表格）": "{0} sont dans la bibliothèque, {1} sont nouveaux (ajoutés à la bibliothèque, et à votre tableau à la prochaine synchronisation)",
   "有的成语已经学过了，没有保存": "Certains chengyu sont déjà appris : rien n'a été enregistré",
+  "表格 A 列有 {0} 行内容，认出 {1} 个成语": "La colonne A du tableau a {0} lignes remplies, {1} chengyu reconnus",
+  "有 {0} 行没有算进去（重复的、标题或不是成语），第 {1} 行{2}": "{0} lignes non comptées (doublons, titres ou pas un chengyu) : lignes {1}{2}",
 };

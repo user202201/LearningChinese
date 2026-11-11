@@ -32,21 +32,25 @@ export function isPoolSheet(rows: Cell[][]): boolean {
   if (rows.some((r) => dateOf(r[0]))) return false;
   return rows.filter((r) => typeof r[0] === "string" && /[\u4e00-\u9fff]{2,}/.test(r[0])).length >= 3;
 }
-export interface PoolRows { items: string[]; checked: string[] }
+export interface PoolRows { items: string[]; checked: string[]; filled: number; ignored: number[] }   // filled = rows with something in column A; ignored = row numbers that were not taken (doubles, headings, not an idiom)
 const TICKED = /^(true|1|yes|y|是|已用|✓|✔|√)$/i;   // (what a ticked box becomes when the table was copied as text)
 /** the library of a 成语 tab: every idiom of column A in order, and the ones whose box in column B is ticked */
 export function parsePool(rows: Cell[][]): PoolRows {
-  const items: string[] = [], checked: string[] = [];
-  for (const r of rows) {
-    const a = typeof r[0] === "string" ? r[0].replace(/\s+/g, "") : "";
-    if (!/[\u4e00-\u9fff]{2,}/.test(a) || /^(成语|idioms?)$/i.test(a) || items.includes(a)) continue;
+  const items: string[] = [], checked: string[] = [], ignored: number[] = [];
+  let filled = 0;
+  rows.forEach((r, i) => {
+    const raw = r[0] === null || r[0] === undefined ? "" : String(r[0]).trim();
+    if (!raw) return;
+    filled++;
+    const a = raw.replace(/\s+/g, "");
+    if (!/[\u4e00-\u9fff]{2,}/.test(a) || /^(成语|idioms?)$/i.test(a) || items.includes(a)) { ignored.push(i + 1); return; }
     items.push(a);
     const b = r[1];
     if (b === true || (typeof b === "number" && b === 1) || (typeof b === "string" && TICKED.test(b.trim()))) checked.push(a);
-  }
-  return { items, checked };
+  });
+  return { items, checked, filled, ignored };
 }
-export interface PoolPlan { total: number; checked: number; weeks: string[]; assigned: number; leftover: number; fresh: number; unticked: number; removed: number }
+export interface PoolPlan { total: number; checked: number; weeks: string[]; assigned: number; leftover: number; fresh: number; unticked: number; removed: number; filled: number; ignored: number[] }
 /**
  * The sheet wins: the ticked idioms of the sheet ARE the idioms that have a week. Idioms that already have a week keep it when the sheet ticks them (so importing
  * again changes nothing); idioms in a week that the sheet does not tick (typed by hand, tests) are taken out of their week (`removed`); the ticked ones that
@@ -61,7 +65,7 @@ export function applyPool(all: M.IdiomsFile, rows: PoolRows, weeks: string[]): {
   const kept = all.weeks.map((w) => ({ ...w, items: w.items.filter((x) => (ticked.has(x) ? true : (removed++, false))) })).filter((w) => w.items.length);
   const r = M.assignToWeeks({ ...all, weeks: kept, pool }, rows.checked, weeks);
   const placed = M.usedIdioms(r.data);
-  return { data: r.data, plan: { total: rows.items.length, checked: rows.checked.length, weeks, assigned: r.assigned, leftover: r.leftover.length, fresh, unticked: pool.filter((x) => !placed.has(x)).length, removed } };
+  return { data: r.data, plan: { total: rows.items.length, checked: rows.checked.length, weeks, assigned: r.assigned, leftover: r.leftover.length, fresh, unticked: pool.filter((x) => !placed.has(x)).length, removed, filled: rows.filled, ignored: rows.ignored } };
 }
 
 export function parseSheet(rows: Cell[][], kind: Kind): Parsed {
