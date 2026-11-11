@@ -404,10 +404,11 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 .story { white-space: pre-wrap; font-size: 20px; line-height: 1.8; padding: 16px 18px; margin: 6px 0 16px; border-radius: 22px; background: #fff; box-shadow: var(--shadow); overflow-wrap: anywhere; }
 /* idioms: one idiom per line, like a line of a 田字本: the four cells are joined into ONE framed strip (so the idiom reads as one thing), the cells the size of the recorded characters (at most 102 px) */
 .idiom-head { max-width: 720px; width: 100%; margin: 0 auto; padding: 0 calc(env(safe-area-inset-right) + 16px) 0 calc(env(safe-area-inset-left) + 16px); }
-.idiom-list { display: grid; gap: 22px; margin-top: 10px; padding-bottom: 14px; }
-.idiom-card { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); width: min(100%, calc(var(--n, 4) * 102px + 6px)); margin: 0 auto; border: 3px solid var(--kid); border-radius: 18px; overflow: hidden; background: #fffdf8; box-shadow: 0 5px 0 var(--kid-line); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.idiom-list { display: grid; gap: 26px; margin-top: 10px; padding-bottom: 14px; }
+.idiom-card { display: grid; background-image: linear-gradient(180deg, #fffefb, #fff8ec); grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); width: min(100%, calc(var(--n, 4) * 102px + 6px)); margin: 0 auto; border: 4px solid var(--kid); border-radius: 20px; overflow: hidden; box-shadow: 0 6px 0 var(--kid-line), 0 10px 18px rgba(120, 60, 20, .10); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .idiom-card .tzg .box { border: 0; border-radius: 0; box-shadow: none; }
-.idiom-card .tzg + .tzg { border-left: 2px solid var(--kid); }
+.idiom-card .tzg .ch { font-size: 60cqw; }   /* a little air round each character, centred in its square */
+.idiom-card .tzg + .tzg { border-left: 2px solid var(--kid-line); }
 .idiom-card .tzg .py { background: var(--kid-soft); }
 .idiom-list:not(.pinyin-on) .idiom-card .tzg .py { display: none; }   /* (no empty line above the squares while the pinyin is off) */
 .idiom-card:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--kid-line); }
