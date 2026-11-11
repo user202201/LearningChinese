@@ -47,6 +47,7 @@ function onOpen() {
     .addItem('2. 立即同步', 'syncNow')
     .addItem('3. 开启自动同步（周六、周日各一次）', 'enableAutoSync')
     .addItem('关闭自动同步', 'disableAutoSync')
+    .addItem('查看自动同步是否开启', 'showAutoSyncStatus')
     .addToUi();
 }
 
@@ -438,4 +439,21 @@ function dayName_(d) {
 function disableAutoSync() {
   removeTriggers_();
   SpreadsheetApp.getUi().alert('自动同步已关闭', '想再开启，点菜单 识字助手 → 3. 开启自动同步。', SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
+/** 自动同步现在开着吗：数一数名叫 syncAuto 的定时器，并告诉你最近一次同步是什么时候 */
+function showAutoSyncStatus() {
+  var ui = SpreadsheetApp.getUi();
+  var n = ScriptApp.getProjectTriggers().filter(function (t) { return t.getHandlerFunction() === 'syncAuto'; }).length;
+  var last = '';
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(STATUS_TAB);
+    if (sheet && sheet.getLastRow() >= 2) {
+      var v = sheet.getRange(1, 2, 2, 1).getDisplayValues();
+      last = '\n\n最近一次同步：' + v[0][0] + '（' + v[1][0] + '）。详细情况看“' + STATUS_TAB + '”标签页。';
+    }
+  } catch (e) { /* 读不到状态页就不显示 */ }
+  var days = SYNC_DAYS.map(function (d) { return '周' + dayName_(d); }).join('、');
+  if (n > 0) ui.alert('自动同步：已开启', '现在有 ' + n + ' 个自动同步的定时器，按脚本里的设置：每' + days + '的晚上 ' + SYNC_HOUR + ' 点左右各同步一次。' + last + '\n\n也可以在 扩展程序 → Apps Script 左边的“触发器”（闹钟图标）里看到它们。', ui.ButtonSet.OK);
+  else ui.alert('自动同步：没有开启', '现在没有自动同步的定时器。想开启：菜单 识字助手 → 3. 开启自动同步。' + last, ui.ButtonSet.OK);
 }

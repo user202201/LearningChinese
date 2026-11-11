@@ -280,6 +280,17 @@ const auditOk = (log, dropped = []) => log.writes.filter((w) => w.tab && w.tab !
   ok(/周六、周日/.test(tt.log.alerts.at(-1).msg) && /20 点/.test(tt.log.alerts.at(-1).msg) && /立即同步/.test(tt.log.alerts.at(-1).msg), 'the message says when it will run and that "sync now" is there for any time: ' + JSON.stringify(tt.log.alerts.at(-1).msg).slice(0, 70));
   tt.run('disableAutoSync');
   ok(tt.triggers.filter((y) => y.fn === 'syncAuto').length === 0 && tt.triggers.some((y) => y.fn === 'somethingElse'), 'switching it off removes both of ours and nothing else');
+  // "is the automatic sync on?" - a menu item that counts our timers and says when the last sync was
+  const st0 = makeEnv({ files: FILES, props: REPO, tabs: { Dory: [], Leo: [], Antoine: [] } });
+  st0.run('showAutoSyncStatus');
+  ok(st0.log.alerts.at(-1).title === '自动同步：没有开启' && /菜单 识字助手 → 3\. 开启自动同步/.test(st0.log.alerts.at(-1).msg), 'the status menu item says "not on" (and how to switch it on) when there is no timer');
+  st0.run('enableAutoSync'); st0.run('showAutoSyncStatus');
+  const onMsg = st0.log.alerts.at(-1);
+  ok(onMsg.title === '自动同步：已开启' && /2 个自动同步的定时器/.test(onMsg.msg) && /周六、周日/.test(onMsg.msg) && /20 点/.test(onMsg.msg) && /触发器/.test(onMsg.msg), 'after switching it on it says "on", how many timers, when, and where the sheet shows them (Triggers in Apps Script)');
+  st0.run('syncAuto'); st0.run('showAutoSyncStatus');
+  ok(/最近一次同步：\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}（成功）/.test(st0.log.alerts.at(-1).msg), 'and when a sync has run, the time and result of the last one: ' + (st0.log.alerts.at(-1).msg.match(/最近一次同步：[^。]*/) || [''])[0]);
+  st0.run('disableAutoSync'); st0.run('showAutoSyncStatus');
+  ok(st0.log.alerts.at(-1).title === '自动同步：没有开启', 'after switching it off it says "not on" again');
   ok(!/everyMinutes|EVERY_MINUTES/.test(SCRIPT), 'the script has no every-N-minutes timer any more');
   const once = makeEnv({ files: FILES });
   const oncePatched = SCRIPT.replace("var SYNC_DAYS = ['SATURDAY', 'SUNDAY'];", "var SYNC_DAYS = ['SUNDAY'];");
@@ -332,7 +343,7 @@ const auditOk = (log, dropped = []) => log.writes.filter((w) => w.tab && w.tab !
   ok(!/\.clear\(|deleteRow|deleteColumn|deleteSheet|removeSheet|setFormula|setBackground|setNumberFormat|setFontColor/.test(SCRIPT) && (SCRIPT.match(/clearContent\(\)/g) || []).length === 1 && (SCRIPT.match(/setValues\(/g) || []).length === 1, 'the script text: nothing that deletes or reformats; clearContent / setValues appear once each, only for the status tab');
   ok(!/method:\s*'(put|post|delete|patch)'/i.test(SCRIPT), 'and no write request to GitHub');
   const mm = makeEnv(); mm.run('onOpen');
-  ok(mm.log.menus[0].name === '识字助手' && mm.log.menus[0].items.map((i) => i[0]).join('|') === '1. 设置 GitHub 连接|2. 立即同步|3. 开启自动同步（周六、周日各一次）|关闭自动同步' && mm.log.menus[0].items.every(([, fn]) => typeof mm.ctx[fn] === 'function'), 'the menu "识字助手" with its four items, each calling a function that exists');
+  ok(mm.log.menus[0].name === '识字助手' && mm.log.menus[0].items.map((i) => i[0]).join('|') === '1. 设置 GitHub 连接|2. 立即同步|3. 开启自动同步（周六、周日各一次）|关闭自动同步|查看自动同步是否开启' && mm.log.menus[0].items.every(([, fn]) => typeof mm.ctx[fn] === 'function'), 'the menu "识字助手" with its four items, each calling a function that exists');
   ok(mm.log.menus[0].items.every(([label]) => README.includes(label)), 'README.md uses the exact menu names');
   ok(['github_pat_', 'SYNC_DAYS', 'SYNC_HOUR', 'FIRST_WEEK', '同步状态', 'Contents', '只读', '空格', 'A 列', 'L 列'].every((k) => README.includes(k)), 'README.md covers: the read-only token, only empty cells, A / L untouched, the status tab, FIRST_WEEK, the days and hour');
   ok(!/整页重写|整页由脚本管理|会被覆盖/.test(README), 'README.md no longer says that tabs are rewritten');
