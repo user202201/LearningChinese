@@ -40,6 +40,16 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   await page.waitForSelector('#toasts .toast:has-text("已经在列表里")');
   ok(await page.locator('.idiom-card').count() === 3, 'adding an idiom that is already there adds nothing (and says so)');
 
+  // --- the list shows only the week it was opened from; "all idioms" shows every week
+  await page.click('#idiom-add'); await page.fill('dialog input[type=date]', '2026-11-01'); await page.fill('dialog textarea', '亡羊补牢 掩耳盗铃'); await page.click('dialog button.primary');
+  await page.waitForSelector('#toasts .toast:has-text("已添加 2 个成语")');
+  ok(await page.locator('.idiom-card').count() === 3 && (await page.$$eval('.idiom-card .idiom-name', (e) => e.map((x) => x.textContent))).join('|') === '一心一意|画蛇添足|守株待兔', "idioms added for another week are not in this week's list: it still shows only this week's three");
+  ok((await page.textContent('#idiom-scope')) === '全部成语', 'and a button offers "all idioms"');
+  await page.click('#idiom-scope'); await page.waitForFunction(() => document.querySelectorAll('.idiom-card').length === 5);
+  ok((await page.$$eval('.idiom-week', (e) => e.map((x) => x.textContent))).join('|') !== '' && (await page.$$eval('.idiom-week', (e) => e.length)) === 2 && (await page.textContent('#idiom-scope')) === '只看这一周', 'all idioms: both weeks, in order, each under its heading; the button now says "this week only"');
+  await page.click('#idiom-scope'); await page.waitForFunction(() => document.querySelectorAll('.idiom-card').length === 3);
+  ok(await page.locator('.idiom-card').count() === 3, 'and back to this week only');
+
   // --- the story page
   await page.click('.idiom-card[data-idiom=画蛇添足]'); await page.waitForSelector('#idiom-chars');
   const sp = await page.evaluate(() => ({ cells: [...document.querySelectorAll('#idiom-chars .tzg .ch')].map((e) => e.textContent).join(''), py: [...document.querySelectorAll('#idiom-chars .tzg .py')].map((e) => e.textContent).join(' '), vis: [...document.querySelectorAll('#idiom-chars .tzg .py')].every((e) => getComputedStyle(e).visibility === 'visible'), over: document.documentElement.scrollWidth > innerWidth }));

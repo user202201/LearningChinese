@@ -405,3 +405,5 @@ button.idiom-card { display: flex; align-items: center; justify-content: space-b
 .idiom-chars { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 112px)); justify-content: center; gap: 8px; margin: 14px 0 18px; }
 .idiom-chars .tzg .py { visibility: visible; }
 .story { white-space: pre-wrap; font-size: 20px; line-height: 1.8; padding: 16px 18px; margin: 6px 0 16px; border-radius: 22px; background: #fff; box-shadow: var(--shadow); overflow-wrap: anywhere; }
+/* the big view (and the game) is controlled only by our own taps and swipes: the browser must not zoom (double tap) or pan there; iOS Safari honours "none" / "manipulation" */
+.viewer, .viewer * { touch-action: none; }

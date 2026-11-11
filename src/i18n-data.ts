@@ -235,6 +235,9 @@ export const EN: Record<string, string> = {
   "把这个成语的故事写在这里": "Write the story of this idiom here",
   "故事": "Story",
   "已保存故事": "Story saved",
+  "这一周还没有成语。点下面的“＋ 添加成语”，或在设置里从 Excel 导入。": "No idioms for this week yet. Tap “＋ Add idioms” below, or import them from Excel in Settings.",
+  "全部成语": "All idioms",
+  "只看这一周": "This week only",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -472,4 +475,7 @@ export const FR: Record<string, string> = {
   "把这个成语的故事写在这里": "Écrivez ici l'histoire de ce chengyu",
   "故事": "Histoire",
   "已保存故事": "Histoire enregistrée",
+  "这一周还没有成语。点下面的“＋ 添加成语”，或在设置里从 Excel 导入。": "Pas encore de chengyu cette semaine. Touchez « ＋ Ajouter des chengyu » ci-dessous, ou importez-les depuis Excel dans les Réglages.",
+  "全部成语": "Tous les chengyu",
+  "只看这一周": "Cette semaine seulement",
 };
