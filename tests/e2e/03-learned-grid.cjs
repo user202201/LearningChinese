@@ -102,6 +102,19 @@ const MANY = Array.from('一二三四五六七八九十上下大小山水火土�
   for (let n = 0; n < 4; n++) { await tapHint(); await page.waitForTimeout(150); seq.push(await gridPy()); }
   ok(seq.every((v, n) => v === (n % 2 === 0 ? (afterViewer === 'visible' ? 'hidden' : 'visible') : afterViewer)), 'and then every tap on an empty spot switches it, again and again (' + seq.join(', ') + ')');
   if (await gridPy() === 'hidden') await tapHint();   // (back to "on" for the checks below)
+  // the Self-test button is a button, not an empty spot: pressing it must not also switch the pinyin
+  const beforeSelf = await gridPy();
+  await page.click('#selftest'); await page.waitForSelector('#game'); await page.click('#game-quit'); await page.click('dialog button.danger'); await page.waitForSelector('#game', { state: 'detached' });
+  await page.waitForSelector('#grid .tzg'); await page.waitForTimeout(300);
+  ok(await gridPy() === beforeSelf, 'pressing the Self-test button does not switch the pinyin of the list');
+  // a tap by the finger alone (pointer down + up, the browser\'s click never comes) works, and a click that follows a tap does not count twice
+  const hb = await page.locator('.learned-head .muted').boundingBox(); const hx = hb.x + hb.width / 2, hy = hb.y + hb.height / 2;
+  const fingerTap = () => page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); const o = { bubbles: true, clientX: x, clientY: y, pointerId: 7, pointerType: 'touch', isPrimary: true }; el.dispatchEvent(new PointerEvent('pointerdown', o)); el.dispatchEvent(new PointerEvent('pointerup', o)); }, [hx, hy]);
+  const s0 = await gridPy(); await fingerTap(); const s1 = await gridPy(); await fingerTap(); const s2 = await gridPy(); await fingerTap(); const s3 = await gridPy();
+  ok(s1 !== s0 && s2 === s0 && s3 !== s0, 'a finger tap without a browser click still switches the pinyin, three times in a row (' + [s0, s1, s2, s3].join(', ') + ')');
+  const s4 = await gridPy(); await page.mouse.click(hx, hy); await page.waitForTimeout(100);
+  ok(await gridPy() !== s4, 'a normal tap (pointer events + click) switches it once, not twice');
+  if (await gridPy() === 'hidden') await tapHint();
   // the week view follows the same pinyin setting
   await page.click('button:has-text("本周")'); await gotoWeek(page, '2026-11-29');
   await page.waitForSelector('.cards .tzg .py');

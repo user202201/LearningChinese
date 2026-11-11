@@ -555,14 +555,28 @@ function renderLearned(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   const scroller = h("div", { class: "scroll", id: "learned-scroll" }, h("div", { class: "narrow" }, manageBar()), head, chars.length ? grid : h("p", { class: "empty" }, "还没有入库的字，先去“本周”录入吧。"));
   // a tap on a character opens the big view of it (then back / forward through all the recorded characters, like on the week page);
   // a tap anywhere else on the screen (not a scroll) shows / hides the pinyin
-  scroller.addEventListener("click", (e) => {
-    const tzg = (e.target as HTMLElement).closest<HTMLElement>(".tzg");
+  const tap = (target: HTMLElement) => {
+    if (target.closest("button")) return;   // (the self-test button and the red − have their own job)
+    const tzg = target.closest<HTMLElement>(".tzg");
     if (tzg && !settings.manage) return openViewer(chars, Math.max(0, chars.indexOf(tzg.dataset.ch ?? "")), k.color);
     settings.pinyin = !grid.classList.contains("pinyin-on");   // (from what is on screen, so the tap always does what it looks like)
     saveSettings();
     grid.classList.toggle("pinyin-on", settings.pinyin);
     if (settings.pinyin) void fillPinyin(grid);
+  };
+  // A tap is recognised from the finger itself (pointer down + up without moving), not only from the "click" the browser makes of it afterwards:
+  // an iPad may drop that click (it is busy deciding about a double-tap zoom). The click still works (keyboard, mouse, older browsers) but never counts twice.
+  let down: { x: number; y: number; t: number } | null = null, lastTap = -1e9;
+  scroller.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: e.timeStamp }; });
+  scroller.addEventListener("pointerup", (e) => {
+    const d = down;
+    down = null;
+    if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10 || e.timeStamp - d.t > 700) return;   // a scroll or a long press is not a tap
+    lastTap = e.timeStamp;
+    tap(e.target as HTMLElement);
   });
+  scroller.addEventListener("pointercancel", () => { down = null; });
+  scroller.addEventListener("click", (e) => { if (e.timeStamp - lastTap > 800) tap(e.target as HTMLElement); });
   body.replaceChildren(scroller);
   if (settings.pinyin) void fillPinyin(grid);
 }
