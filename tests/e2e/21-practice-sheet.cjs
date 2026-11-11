@@ -33,7 +33,7 @@ const PINYIN = { 生: 'shēng', 字: 'zì', 帖: 'tiē', 支: 'zhī', 持: 'chí
   ok(Object.keys(PINYIN).every((c) => blocks.find((b) => b.ch === c).py === PINYIN[c]), 'with the pinyin: ' + blocks.slice(0, 5).map((b) => b.py).join(' '));
   ok(blocks.every((b) => b.steps.length === COUNTS[b.ch] && b.steps.every((s, i) => s.length === i + 1)), 'the strokes one by one in writing order: picture i has i strokes (the first has 1, the last all of them)');
   ok(blocks.every((b) => b.steps.every((s) => s.slice(0, -1).every((f) => f === '#2d2230') && s.at(-1) === 'var(--kid)')), 'the newest stroke of each picture is in the colour, the earlier ones in black');
-  ok(blocks.every((b) => b.cells.length === 12 && b.cells[0] === 'M' + COUNTS[b.ch] && [1, 3, 5].every((i) => b.cells[i] === 'T' + COUNTS[b.ch]) && [2, 4, 6, 7, 8, 9, 10, 11].every((i) => b.cells[i] === '.0') && b.tops === 1 && b.sq), 'a row of 12 square cells: the character, traced copies at 2, 4, 6 and empty cells to write in');
+  ok(blocks.every((b) => b.cells.length === 12 && b.cells[0] === 'M' + COUNTS[b.ch] && [1, 3, 5, 7, 9, 11].every((i) => b.cells[i] === 'T' + COUNTS[b.ch]) && [2, 4, 6, 8, 10].every((i) => b.cells[i] === '.0') && b.tops === 1 && b.sq), 'a row of 12 square cells: the character, then a traced copy and an empty cell, one after the other (6 to trace, 5 to write)');
   const thin = await page.evaluate(() => ['.zb-py', '.zb-n'].map((s) => { const e = document.querySelector('#sheet ' + s), c = getComputedStyle(e); return [s, c.fontWeight, Math.round(parseFloat(c.fontSize) / (document.querySelector('#sheet').getBoundingClientRect().width / 100) * 10) / 10]; }));
   ok(thin.every(([, w, s]) => Number(w) <= 300 && s <= 2.2), 'the pinyin and the stroke count are small and in the lightest weight (300; name, weight, size in % of the sheet width): ' + thin.map((x) => x.join(' ')).join(', '));
   // the header sits on the same columns as the cells: pinyin centred over the first cell, the stroke count over the second, the stroke pictures from the third on
@@ -47,6 +47,8 @@ const PINYIN = { 生: 'shēng', 字: 'zì', 帖: 'tiē', 支: 'zhī', 持: 'chí
   await page.emulateMedia({ media: 'print' });
   const pr = await page.evaluate(() => ({ foot: getComputedStyle(document.querySelector('.sheet-foot')).display, top: getComputedStyle(document.querySelector('.top')).display, w: Math.round(document.querySelector('#sheet').getBoundingClientRect().width) }));
   ok(pr.foot === 'none' && pr.top === 'none', 'when printing the title bar and the button are not printed');
+  const topw = await page.evaluate(() => { const c = getComputedStyle(document.querySelector('.sheet-top')); return [c.fontWeight, c.fontFamily.split(',')[0]]; });
+  ok(Number(topw[0]) <= 300, 'the name and date line is not bold either (weight ' + topw[0] + ')');
   const pdf = await page.pdf({ format: 'A4', preferCSSPageSize: true, printBackground: true });
   fs.writeFileSync(OUT + 'sheet.pdf', pdf);
   const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;

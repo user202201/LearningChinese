@@ -422,7 +422,7 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 .sec-row .sheet-btn + .plus { margin-left: 10px; }
 .sheet-hint { margin: 0 0 10px; }
 .sheet { container-type: inline-size; width: min(100%, 210mm); margin: 0 auto 18px; padding: 4cqw; background: #fff; box-shadow: var(--shadow); color: #2d2230; box-sizing: border-box; }
-.sheet-top { display: flex; justify-content: space-between; font-size: 3.2cqw; font-weight: 700; color: var(--kid); padding: 0 .5cqw .8cqw; }
+.sheet-top { display: flex; justify-content: space-between; font-size: 2.6cqw; font-weight: 300; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; color: #3d3340; padding: 0 .5cqw .8cqw; }
 .zb { border: 1px solid var(--kid); margin-bottom: .7cqw; break-inside: avoid; page-break-inside: avoid; }
 .zb-head { display: grid; grid-template-columns: repeat(12, 1fr); align-items: center; padding: .2cqw 0; border-bottom: 1px solid var(--kid); min-height: 3.4cqw; }   /* the same 12 columns as the cells below: the pinyin is centred over the first cell, the stroke count over the second, the stroke pictures start at the third */
 .zb-py { font-size: 2.1cqw; font-weight: 300; letter-spacing: .02em; color: #3d3340; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; grid-column: 1; text-align: center; white-space: nowrap; }
@@ -437,7 +437,7 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 .zc svg { width: 88%; height: 88%; }
 .zc.trace { color: color-mix(in srgb, var(--kid) 28%, #fff); }
 .zc-ch { font-family: var(--kai); font-size: 7cqw; line-height: 1; }
-@page { size: A4; margin: 8mm; }
+@page { size: A4; margin: 15mm; }
 @media print {
   html, body, #app { height: auto !important; overflow: visible !important; background: #fff !important; }
   .page.sheet-page { height: auto; display: block; }

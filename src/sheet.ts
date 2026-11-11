@@ -38,8 +38,8 @@ export function strokeSvg(strokes: string[], opts: { upTo?: number; ink?: string
   return s;
 }
 
-/** 12 cells per row: the character, then traced copies and blanks (like the usual practice sheets) */
-const PATTERN = ["model", "trace", "", "trace", "", "trace", "", "", "", "", "", ""] as const;
+/** 12 cells per row: the character, then traced copies and empty cells, one after the other (6 to trace, 5 to write freely) */
+const PATTERN = ["model", "trace", "", "trace", "", "trace", "", "trace", "", "trace", "", "trace"] as const;
 
 async function block(ch: string): Promise<HTMLElement> {
   const strokes = await strokesOf(ch);
