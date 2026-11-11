@@ -46,22 +46,3 @@ export function fitStories(root: HTMLElement): Fit[] {
   });
   return out;
 }
-
-/** how many characters of 14 pt type fit under the idiom in one third of the page (measured from the real layout) */
-export function capacity(root: HTMLElement): number {
-  const text = root.querySelector<HTMLElement>(".sb-text");
-  if (!text) return 0;
-  const probe = h("p", { class: "user" }, "字");
-  text.append(probe);
-  const blockEl = text.parentElement as HTMLElement;
-  const saved = blockEl.style.fontSize;
-  blockEl.style.fontSize = `${STORY_PT}pt`;
-  const cs = getComputedStyle(text);
-  const charW = probe.getBoundingClientRect().height > 0 ? parseFloat(cs.fontSize) : 0;
-  const lineH = parseFloat(cs.lineHeight) || charW * 1.9;
-  const width = text.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  const height = text.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-  probe.remove();
-  blockEl.style.fontSize = saved;
-  return Math.max(0, Math.floor(width / charW)) * Math.max(0, Math.floor(height / lineH));
-}

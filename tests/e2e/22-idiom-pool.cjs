@@ -74,6 +74,8 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
     const w08 = dres.data.weeks.find((w) => w.start === '2026-11-08');
     out.dcol = [dres.plan.fromSheetWeeks, dres.plan.assigned, dres.plan.leftover, Object.keys(pd.weekOf).length, w08.items.slice(0, 1).join('') === IDIOMS[40] ? '2026-11-08' : 'x', pd.checked.includes(IDIOMS[50])];
     out.overIdem = JSON.stringify(I.applyPool(ov.data, p, weeks).data) === JSON.stringify(ov.data);
+    const sim = { weeks: [{ start: '2026-11-08', items: ['井底之蛙'] }], pool: ['井底之蛙', '守株待兔', '刻舟求剑', '对牛弹琴'] };
+    out.sim = [M.similarIdioms(sim, '井底之娃').join(), M.similarIdioms(sim, '守株待免').join(), M.similarIdioms(sim, '刻舟求').join(), M.similarIdioms(sim, '刻舟求剑吗').join(), M.similarIdioms(sim, '对牛琴弹').join(), M.similarIdioms(sim, '井底之蛙').length, M.similarIdioms(sim, '完全不同的').length, M.similarIdioms(sim, '甲乙').length, M.similarIdioms(sim, '对牛弹琴琴琴').length];
     out.stories = M.fillWeek({ weeks: [], pool: p.items, stories: { 甲一甲一: '故事' } }, '2026-11-22').data.stories['甲一甲一'];
     return out;
   }, [IDIOMS, TICKED]);
@@ -82,6 +84,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   ok(R.weeks.length === 4 && R.weeks.every((w) => w[1] === 6) && R.order && R.plan.join() === '24,0,36,60', 'the 24 ticked idioms are given to the 4 weeks, 6 each, in the order of the sheet; 36 stay in the library');
   ok(R.over[0] === 5 && R.over[1] === '2026-10-25:6 2026-11-01:6 2026-11-08:6 2026-11-15:6' && R.over[2] && R.over[3] === 4 && R.over[4] === '{"手动添加":"我的故事"}' && R.over[5] === false && R.over[6] === true && R.overIdem, 'importing RESETS the weeks: whatever was in them (typed by hand, tests, even a week later than the rest) is washed away and the four weeks are filled from the sheet\'s ticked idioms in the sheet order; stories are kept, the library keeps the sheet\'s idioms, doing it again changes nothing: ' + R.over.slice(0, 2).join(' | '));
   ok(R.dcol.join() === '7,17,7,7,2026-11-08,true', 'a week written in column D puts the idiom back in exactly that week (7 of them, one written as a plain date), the others without a week fill the weeks that still have room in the sheet order (17, 7 left over); a week in D counts as used even when the box is empty');
+  ok(R.sim.join('|') === '井底之蛙|守株待兔|刻舟求剑|刻舟求剑|对牛弹琴|0|0|0|0', 'similar idioms (typos): one wrong character, one missing, one extra and two swapped characters are found; an exact match, something different, a two-character word and a much longer text are not: ' + R.sim.join(' | '));
   ok(R.idem, 'importing the same sheet again changes nothing');
   ok(R.leftover.join() === '18,6,3', 'with only 3 weeks 18 are placed and 6 are left over (kept in the library, not lost)');
   ok(R.top.join() === '6,true,0,22', 'a week that already has two idioms is topped up to six, the two stay in front, the other 22 ticked ones fill the rest');
@@ -202,6 +205,21 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   const wk = after.weeks.find((w) => w.start === '2026-12-06');
   ok(wk && wk.items.join() === [libA, libB, '全新成语'].join() && after.pool.length === before.pool.length + 1 && after.pool.includes('全新成语') && after.pool.indexOf('全新成语') === after.pool.length - 1, 'saved: the two library idioms are picked for that week, the new one is added to the week AND to the end of the library (so the next sync adds it to the sheet)');
   ok(JSON.stringify(after.weeks.filter((w) => w.start !== '2026-12-06')) === JSON.stringify(before.weeks), 'the other weeks are untouched');
+  // "did you mean ...": a new idiom that is one character off an idiom the app has
+  await page.click('#idiom-add');
+  const typo = libA.slice(0, 3) + '龘';
+  await page.fill('dialog textarea', `${typo} 全然不同的新词`);
+  const simTxt = await page.textContent('#idiom-check');
+  ok(simTxt.includes(`「${typo}」和已有的「${libA}」很像，是不是想写「${libA}」？`) && !simTxt.includes('全然不同的新词」和') && !(await page.locator('#idiom-save').isDisabled()), 'typing a new idiom that is one character off a known one: "did you mean ...?" (not for the unrelated one) and saving is still allowed: ' + simTxt.slice(0, 90));
+  await page.click('#idiom-check button[data-fix]');
+  ok((await page.inputValue('dialog textarea')).includes(libA) && !(await page.inputValue('dialog textarea')).includes(typo) && (await page.textContent('#idiom-check')).includes('已经学过了'), 'the "Change to" button puts the known idiom in the text (here it was learned already, so Save is off)');
+  await page.fill('dialog textarea', `${libB.slice(0, 3)}龘`);
+  ok((await page.textContent('#idiom-check')).includes('很像') && /已学：第\d+周/.test(await page.textContent('#idiom-check')), 'the suggestion of an idiom that was already learned says in which week');
+  const unusedNow = after.pool.find((x) => !after.weeks.some((w) => w.items.includes(x)));
+  await page.fill('dialog textarea', `${unusedNow.slice(0, 3)}龘`);
+  const learnedTxt = await page.textContent('#idiom-check');
+  ok(learnedTxt.includes('很像') && !learnedTxt.includes('已学：第'), 'an unused library idiom is suggested without a week');
+  await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog', { state: 'detached' });
   await page.click('#idiom-add'); await page.fill('dialog textarea', `${libA}`);
   ok((await page.textContent('#idiom-check')).includes('已经学过了') && await page.locator('#idiom-save').isDisabled(), 'the idiom just saved is now "already learned" too (typing it again is refused)');
   await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog', { state: 'detached' });

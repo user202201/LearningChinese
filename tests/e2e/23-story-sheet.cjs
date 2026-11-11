@@ -45,8 +45,7 @@ const pdfPages = async (page, name) => { await page.emulateMedia({ media: 'print
   ok(g.pt.length === 6 && g.pt.every((x) => x === 14), 'every story is set in 14 pt (' + g.pt.join(', ') + ')');
   ok(g.fancy === 0 && g.title.map((x) => x[0]).join() === IDIOMS.join() && g.title.every((x) => x[1] && Number(x[2]) <= 400), 'each story starts with its idiom as a PLAIN line: the same size as the story, normal weight, no 田字格 and no pinyin: ' + g.title.map((x) => x[0]).join(' '));
   ok(g.over === 0 && g.fill.every((f) => f > 0 && f <= 100), 'every ~150 character story fits its third (the text uses ' + g.fill.join('%, ') + '% of the room)');
-  const capN = Number((g.note.match(/最多约 (\d+) 个字/) || [])[1]);
-  ok(capN >= 200 && capN <= 300, 'the page says how many characters (not counting punctuation) a story can have at 14 pt: about ' + capN);
+  ok(g.note === '', 'no explaining labels on the page when everything fits (no "14 pt, 3 a page, about N characters" text)');
   await page.screenshot({ path: OUT + 'story-sheet-screen.png' });
   const p1 = await pdfPages(page, 'story-sheet-150.pdf');
   ok(p1 === 2, 'the PDF made by the browser has exactly 2 pages (front and back of one A4 sheet): ' + p1);
@@ -62,13 +61,13 @@ const pdfPages = async (page, name) => { await page.emulateMedia({ media: 'print
   const big = { ...mid, 亡羊补牢: S.long['亡羊补牢'] + S.long['井底之蛙'].slice(0, 90), 守株待兔: S.long['守株待兔'].repeat(4) };
   await open(page, seed(big));
   const gb = await geo(page);
-  ok(gb.pt[0] < 14 && gb.pt[0] >= 11 && gb.pt.slice(2).every((x) => x === 14) && /字数较多，已缩小字号：亡羊补牢/.test(gb.note), 'a story of ~280 characters is set smaller (' + gb.pt[0] + ' pt, never below 11) and the page says so');
+  ok(gb.pt[0] < 14 && gb.pt[0] >= 11 && gb.pt.slice(2).every((x) => x === 14) && !/字数较多/.test(gb.note), 'a story of ~280 characters is set smaller (' + gb.pt[0] + ' pt, never below 11), quietly');
   ok(gb.over === 1 && /太长，打印会被截断，请缩短：守株待兔/.test(gb.note) && await page.locator('.sb-over').count() === 1, 'one of ~750 characters does not fit even at 11 pt: it is marked and named in a warning');
 
   // less than six / no story
   await open(page, seed({ 亡羊补牢: mid['亡羊补牢'] }, IDIOMS.slice(0, 4)));
   const g4 = await geo(page);
-  ok(g4.pages === 2 && g4.blocks.join() === '3,1' && await page.locator('.sb-empty').count() === 2 && /还没有故事：守株待兔、刻舟求剑、井底之蛙/.test(g4.note), 'four idioms: the second page has one story and two empty places; the page names the idioms that have no story yet');
+  ok(g4.pages === 2 && g4.blocks.join() === '3,1' && await page.locator('.sb-empty').count() === 2 && g4.note === '', 'four idioms: the second page has one story and two empty places, no label about it');
 
   // the print page itself
   await open(page, seed(mid));

@@ -1,5 +1,5 @@
 import { buildSheet } from "./sheet";
-import { buildStoryPages, fitStories, capacity, STORY_PT, STORY_MIN_PT } from "./storysheet";
+import { buildStoryPages, fitStories } from "./storysheet";
 import "./style.css";
 import QRCode from "qrcode";
 import * as api from "./api";
@@ -147,7 +147,8 @@ async function autoPickIdioms() {
   if ((idioms.weeks.find((w) => w.start === next)?.items.length ?? 0) >= M.IDIOMS_PER_WEEK || !M.unusedIdioms(idioms).length) return;
   try {
     let added = 0;
-    idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => { const r = M.fillWeek(cur, next); added = r.added.length; return r.data; }, "pick idioms for next week");
+    const builtin = await loadBuiltInStories().catch(() => ({} as Record<string, string>));   // (the picked idioms get their built-in story at once)
+    idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => { const r = M.fillWeek(cur, next); added = r.added.length; return M.fillBuiltInStories(r.data, builtin, r.added).data; }, "pick idioms for next week");
     if (added) toast(`已为下一周随机选好 ${added} 个成语`);
   } catch { /* offline or no access right now: it is tried again the next time */ }
 }
@@ -440,24 +441,24 @@ async function renderStories() {
   window.addEventListener("resize", fit);
   await document.fonts?.ready;
   const res = fitStories(paper);
-  const cap = Math.round(capacity(paper) * 0.88);   // (what fits counts the punctuation too: about an eighth of a story)
-  const lines: string[] = [`每个故事用 ${STORY_PT} 号字，一页 3 个，一张 A4 正反面印完一周的 ${items.length} 个；每个故事最多约 ${cap} 个字（超过会自动缩小，最小 ${STORY_MIN_PT} 号）。`];
-  const empty = res.filter((r) => !r.chars).map((r) => r.idiom);
-  const shrunk = res.filter((r) => r.chars && r.pt < STORY_PT && !r.over).map((r) => r.idiom);
+  // no explaining labels: the only thing said is a warning, when a story is so long that the printout would cut it off
   const over = res.filter((r) => r.over).map((r) => r.idiom);
-  note.replaceChildren(h("div", {}, lines[0]));
-  if (empty.length) note.append(h("div", {}, `还没有故事：${empty.join("、")}`));
-  if (shrunk.length) note.append(h("div", {}, `字数较多，已缩小字号：${shrunk.join("、")}`));
   if (over.length) note.append(h("div", { class: "warn" }, `太长，打印会被截断，请缩短：${over.join("、")}`));
 }
 
-/** Settings: gives the idioms that have no story yet the story of the built-in library (public/stories.json); never replaces one the user wrote */
+/** the built-in stories (public/stories.json), read once */
+let builtInStories: Promise<Record<string, string>> | null = null;
+const loadBuiltInStories = (): Promise<Record<string, string>> =>
+  (builtInStories ??= fetch(`${import.meta.env.BASE_URL}stories.json`).then(async (r) => {
+    if (!r.ok) throw new Error("读不到自带的故事。");
+    return ((await r.json()) as { stories: Record<string, string> }).stories;
+  }).catch((e) => { builtInStories = null; throw e; }));
+
+/** Settings: gives the idioms that have no story yet the story of the built-in library; never replaces one the user wrote */
 async function fillBuiltInStories() {
   const done = toast("正在填入故事…", 0, true);
   try {
-    const r = await fetch(`${import.meta.env.BASE_URL}stories.json`);
-    if (!r.ok) throw new Error("读不到自带的故事。");
-    const builtin = ((await r.json()) as { stories: Record<string, string> }).stories;
+    const builtin = await loadBuiltInStories();
     let added = 0;
     idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => { const x = M.fillBuiltInStories(cur, builtin); added = x.added; return x.data; }, "fill built-in stories");
     done();
@@ -519,6 +520,15 @@ async function addIdiomsDialog() {
       note.replaceChildren();
       if (c.learned.length) note.append(h("div", { class: "warn" }, `已经学过了，不能保存：${c.learned.map((x) => `${x.item}（第${M.weekNo(x.start, kidsFile.startWeek ?? x.start)}周）`).join("、")}`));
       else if (list.length) note.append(h("div", { class: "muted" }, `成语库里有 ${c.fromPool.length} 个，新成语 ${c.brandNew.length} 个（会加进成语库，同步时也会加到你的表格）`));
+      // "did you mean ...": a new idiom that looks like a typo of one the app already has
+      for (const x of c.brandNew) {
+        for (const y of M.similarIdioms(idioms, x)) {
+          const week = idioms.weeks.find((w) => w.items.includes(y));
+          note.append(h("div", { class: "similar", "data-typo": x },
+            h("span", {}, `「${x}」和已有的「${y}」很像，是不是想写「${y}」？`), week ? h("span", { class: "muted" }, ` ${`已学：第${M.weekNo(week.start, kidsFile.startWeek ?? week.start)}周`}`) : null,
+            h("button", { class: "mini", "data-fix": y, onclick: () => { text.value = text.value.split(x).join(y); check(); } }, `改成「${y}」`)));
+        }
+      }
       save.disabled = !list.length || c.learned.length > 0;
     };
     text.addEventListener("input", check);

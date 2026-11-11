@@ -282,6 +282,9 @@ export const EN: Record<string, string> = {
   "读不到自带的故事。": "The built-in stories could not be read.",
   "已填入 {0} 个成语故事": "{0} idiom stories filled in",
   "没有需要填的故事": "No story needs to be filled in",
+  "「{0}」和已有的「{1}」很像，是不是想写「{2}」？": "“{0}” looks like “{1}” which is already there: did you mean “{2}”?",
+  "已学：第{0}周": "learned: week {0}",
+  "改成「{0}」": "Change to “{0}”",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -566,4 +569,7 @@ export const FR: Record<string, string> = {
   "读不到自带的故事。": "Impossible de lire les histoires intégrées.",
   "已填入 {0} 个成语故事": "{0} histoires de chengyu ajoutées",
   "没有需要填的故事": "Aucune histoire à ajouter",
+  "「{0}」和已有的「{1}」很像，是不是想写「{2}」？": "« {0} » ressemble à « {1} » qui existe déjà : vouliez-vous écrire « {2} » ?",
+  "已学：第{0}周": "appris : semaine {0}",
+  "改成「{0}」": "Remplacer par « {0} »",
 };

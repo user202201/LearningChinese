@@ -168,6 +168,23 @@ export function classifyIdioms(all: IdiomsFile, items: string[]): IdiomCheck {
   }
   return out;
 }
+/** one wrong, missing, extra or swapped character apart (a typo of the other) */
+function nearTypo(a: string, b: string): boolean {
+  const A = [...a], B = [...b];
+  if (Math.min(A.length, B.length) < 3 || Math.abs(A.length - B.length) > 1) return false;
+  if (A.length === B.length) {
+    const d = A.map((c, i) => (c === B[i] ? -1 : i)).filter((i) => i >= 0);
+    return d.length === 1 || (d.length === 2 && d[1] === d[0] + 1 && A[d[0]] === B[d[1]] && A[d[1]] === B[d[0]]);
+  }
+  const [long, short] = A.length > B.length ? [A, B] : [B, A];
+  return long.some((_, i) => long.filter((__, j) => j !== i).join("") === short.join(""));
+}
+/** idioms of the app (library or weeks) that look like a typo of `item`; nothing when `item` itself is known */
+export function similarIdioms(all: IdiomsFile, item: string): string[] {
+  const known = [...new Set([...(all.pool ?? []), ...usedIdioms(all)])];
+  if (known.includes(item)) return [];
+  return known.filter((k) => nearTypo(k, item)).slice(0, 3);
+}
 /** adds idioms to a week by hand: nothing at all when one of them is already learned; new ones are also added to the library (and so go to the sheet at the next sync) */
 export function addIdiomsByHand(all: IdiomsFile, start: string, items: string[]): { data: IdiomsFile; added: number; check: IdiomCheck } {
   const check = classifyIdioms(all, items);
@@ -178,12 +195,12 @@ export function addIdiomsByHand(all: IdiomsFile, start: string, items: string[])
 }
 
 /** gives the idioms of the app (library + weeks) that have no story yet the story of the built-in library; a story the user wrote is never replaced */
-export function fillBuiltInStories(all: IdiomsFile, builtin: Record<string, string>): { data: IdiomsFile; added: number; kept: number } {
+export function fillBuiltInStories(all: IdiomsFile, builtin: Record<string, string>, only?: string[]): { data: IdiomsFile; added: number; kept: number } {
   const known = new Set([...(all.pool ?? []), ...usedIdioms(all)]);
   const stories = { ...(all.stories ?? {}) };
   let added = 0, kept = 0;
   for (const [idiom, text] of Object.entries(builtin)) {
-    if (!known.has(idiom)) continue;
+    if (!known.has(idiom) || (only && !only.includes(idiom))) continue;
     if (stories[idiom]?.trim()) { kept++; continue; }
     stories[idiom] = text;
     added++;
