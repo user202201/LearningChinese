@@ -16,3 +16,4 @@
 16-google-sheet-sync
 17-sync-card
 18-game
+19-light-only

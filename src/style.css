@@ -1,5 +1,6 @@
 /* A friendly look for children: warm paper background, round letters, chunky buttons, a colour and an animal for every child. */
 :root {
+  color-scheme: only light;
   --bg: #fff6e5; --card: #fff; --text: #3a2e39; --muted: #8a7a86; --line: #f0dfc4;
   --accent: #f76707; --accent-2: #ff922b; --accent-dark: #c64f00; --accent-soft: #fff0df;
   --danger: #e03131; --warn: #c2680a;
