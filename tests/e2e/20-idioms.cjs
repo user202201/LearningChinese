@@ -18,7 +18,7 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   ok(short.below >= 10 && !short.w, 'on a short screen (phone held sideways) the button simply follows the characters (' + Math.round(short.below) + ' px below) and the page scrolls');
   await page.setViewportSize({ width: 390, height: 844 });
   // the same big button as "Start the game", only without the nudge animation
-  const look = () => page.evaluate(() => { const b = document.querySelector('#idioms-btn, #game-start'), c = getComputedStyle(b); return { bg: c.backgroundImage, h: Math.round(b.getBoundingClientRect().height), r: c.borderRadius, fs: c.fontSize, col: c.color, sh: c.boxShadow, anim: c.animationName, w: Math.round(b.getBoundingClientRect().width) }; });
+  const look = () => page.evaluate(() => { const b = document.querySelector('#idioms-btn, #game-start, #idiom-scope'), c = getComputedStyle(b); return { bg: c.backgroundImage, h: Math.round(b.getBoundingClientRect().height), r: c.borderRadius, fs: c.fontSize, col: c.color, sh: c.boxShadow, anim: c.animationName, w: Math.round(b.getBoundingClientRect().width) }; });
   const idBtn = await look();
   await page.click('#tab-game'); await page.waitForSelector('#game-start'); const gameBtn = await look();
   ok(idBtn.bg === gameBtn.bg && idBtn.h === gameBtn.h && idBtn.r === gameBtn.r && idBtn.fs === gameBtn.fs && idBtn.col === gameBtn.col && idBtn.sh === gameBtn.sh && idBtn.w === gameBtn.w && idBtn.h >= 60, 'the "成语故事" button looks exactly like "开始游戏" (' + idBtn.w + 'x' + idBtn.h + ' px, radius ' + idBtn.r + ', ' + idBtn.fs + ')');
@@ -33,9 +33,10 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   ok(await page.locator('#toasts .toast:has-text("个成语")').count() === 0 && await page.locator('.idiom-card').count() === 0, 'cancelling the add window changes nothing and says nothing');
   await page.click('#idiom-add'); await page.fill('dialog textarea', '一心一意 画蛇添足，守株待兔'); await page.click('dialog button.primary');
   await page.waitForSelector('.idiom-card'); 
-  ok((await page.$$eval('.idiom-card .idiom-name', (e) => e.map((x) => x.textContent))).join('|') === '一心一意|画蛇添足|守株待兔', 'the three idioms are listed, in the order they were typed');
+  ok((await page.$$eval('.idiom-card', (e) => e.map((x) => x.dataset.idiom))).join('|') === '一心一意|画蛇添足|守株待兔', 'the three idioms are listed, in the order they were typed');
   ok(await page.locator('#toasts .toast:has-text("已添加 3 个成语")').count() === 1 && (await store(page, 'idioms.json')).weeks[0].items.length === 3, 'a message says "added 3 idioms" and they are saved in idioms.json (shared, not in a child file)');
-  ok((await page.textContent('.idiom-week')) === '第1周', 'under the heading of their week');
+  ok((await page.textContent('.sec-row .sec')) === '成语（3）', 'with the count in the heading (like the characters page)');
+  ok(await page.locator('.sec-row .plus#idiom-add').count() === 1, 'and a small + to add more (a week has six idioms, so there is room)');
   await page.click('#idiom-add'); await page.fill('dialog textarea', '一心一意'); await page.click('dialog button.primary');
   await page.waitForSelector('#toasts .toast:has-text("已经在列表里")');
   ok(await page.locator('.idiom-card').count() === 3, 'adding an idiom that is already there adds nothing (and says so)');
@@ -43,8 +44,13 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   // --- the list shows only the week it was opened from; "all idioms" shows every week
   await page.click('#idiom-add'); await page.fill('dialog input[type=date]', '2026-11-01'); await page.fill('dialog textarea', '亡羊补牢 掩耳盗铃'); await page.click('dialog button.primary');
   await page.waitForSelector('#toasts .toast:has-text("已添加 2 个成语")');
-  ok(await page.locator('.idiom-card').count() === 3 && (await page.$$eval('.idiom-card .idiom-name', (e) => e.map((x) => x.textContent))).join('|') === '一心一意|画蛇添足|守株待兔', "idioms added for another week are not in this week's list: it still shows only this week's three");
+  ok(await page.locator('.idiom-card').count() === 3 && (await page.$$eval('.idiom-card', (e) => e.map((x) => x.dataset.idiom))).join('|') === '一心一意|画蛇添足|守株待兔', "idioms added for another week are not in this week's list: it still shows only this week's three");
   ok((await page.textContent('#idiom-scope')) === '全部成语', 'and a button offers "all idioms"');
+  const sc = await look(); const scPos = await page.evaluate(() => { const b = document.querySelector('#idiom-scope').getBoundingClientRect(), l = document.querySelector('#idiom-list').getBoundingClientRect(), m = document.querySelector('main.scroll').getBoundingClientRect(); return { below: b.top - l.bottom, toBottom: m.bottom - b.bottom }; });
+  ok(sc.bg === idBtn.bg && sc.h === idBtn.h && sc.r === idBtn.r && sc.fs === idBtn.fs && sc.w === idBtn.w && sc.anim === 'none', 'the "all idioms" button is the same big button as "成语故事" and "开始游戏" (' + sc.w + 'x' + sc.h + ')');
+  ok(scPos.toBottom < 60 && scPos.below > 60, 'and it sits at the bottom of the screen, not under the list (' + Math.round(scPos.below) + ' px below it, ' + Math.round(scPos.toBottom) + ' px from the edge)');
+  const cw = await page.evaluate(() => [...document.querySelectorAll('.idiom-card')].map((r) => { const cs = [...r.querySelectorAll('.tzg')].map((c) => c.getBoundingClientRect()); return { n: cs.length, w: Math.round(cs[0].width), same: new Set(cs.map((c) => Math.round(c.top))).size === 1, red: getComputedStyle(r.querySelector('.box')).borderTopColor, bw: getComputedStyle(r.querySelector('.box')).borderTopWidth }; }));
+  ok(cw.every((c) => c.n === 4 && c.same && c.bw === '3px' && c.w >= 70 && c.w <= 102), 'one idiom per line: its four characters side by side in red-framed 田字格 cells (' + cw.map((c) => c.w + 'px').join(', ') + ')');
   await page.click('#idiom-scope'); await page.waitForFunction(() => document.querySelectorAll('.idiom-card').length === 5);
   ok((await page.$$eval('.idiom-week', (e) => e.map((x) => x.textContent))).join('|') !== '' && (await page.$$eval('.idiom-week', (e) => e.length)) === 2 && (await page.textContent('#idiom-scope')) === '只看这一周', 'all idioms: both weeks, in order, each under its heading; the button now says "this week only"');
   await page.click('#idiom-scope'); await page.waitForFunction(() => document.querySelectorAll('.idiom-card').length === 3);
@@ -103,9 +109,19 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
     await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('learn.settings.v1') || '{}'); s.lang = 'zh'; localStorage.setItem('learn.settings.v1', JSON.stringify(s)); });
     await page.evaluate(() => (location.hash = '#/idioms')); await page.reload(); await page.waitForSelector('.idiom-card');
     const l = await page.evaluate(() => { const c = document.querySelector('.idiom-card').getBoundingClientRect(); return c.left - (innerWidth - c.right); });
+    const idW = await page.evaluate(() => document.querySelector('.idiom-card .tzg').getBoundingClientRect().width);
+    const cr = await page.evaluate(() => { const r = [...document.querySelectorAll('.idiom-card')].map((x) => x.getBoundingClientRect()); const m = document.querySelector('main.scroll').getBoundingClientRect(); return r.map((x) => (x.left - m.left) - (m.right - x.right)); });
     await page.click('.idiom-card[data-idiom=画蛇添足]'); await page.waitForSelector('#idiom-chars');
     const s2 = await page.evaluate(() => { const c = document.querySelector('#idiom-chars').getBoundingClientRect(), st = document.querySelector('#idiom-story')?.getBoundingClientRect(); return [c.left - (innerWidth - c.right), st ? st.left - (innerWidth - st.right) : 0]; });
+    if (w >= 820) { const kid0 = await page.evaluate(() => JSON.parse(localStorage.getItem('learn.local.kids.json')).kids[0].id); await page.evaluate((i) => (location.hash = `#/kid/${i}/learned`), kid0); await page.waitForSelector('#grid .tzg'); const lw = await page.evaluate(() => document.querySelector('#grid .tzg').getBoundingClientRect().width); ok(Math.abs(idW - lw) <= 2, w + 'x' + h2 + ': an idiom cell is as big as a recorded character cell (' + Math.round(idW) + ' / ' + Math.round(lw) + ' px)'); }
+    ok(cr.every((x) => Math.abs(x) <= 1), w + 'x' + h2 + ': every idiom line is centred (' + cr.map((x) => x.toFixed(1)).join(', ') + ')');
     ok(Math.abs(l) <= 1 && Math.abs(s2[0]) <= 1 && Math.abs(s2[1]) <= 1, w + 'x' + h2 + ': the list, the idiom and the story are centred (equal space left and right: ' + [l, ...s2].map((x) => x.toFixed(1)).join(', ') + ')');
   }
+  // --- a week has six idioms: at six the small + is gone
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory'); await page.click('#idioms-btn'); await page.waitForSelector('.idiom-card');
+  await page.click('#idiom-add'); await page.fill('dialog textarea', '井底之蛙 刻舟求剑 对牛弹琴'); await page.click('dialog button.primary');
+  await page.waitForFunction(() => document.querySelectorAll('.idiom-card').length === 6);
+  ok(await page.locator('#idiom-add').count() === 0 && (await page.textContent('.sec-row .sec')) === '成语（6）', 'with six idioms the small + is gone (like the characters at ten): "成语（6）"');
   await done(browser);
 })();

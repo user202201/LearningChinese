@@ -311,6 +311,8 @@ async function renderKid(id: string, tab: "week" | "learned" | "game") {
 
 /** characters a week is meant to have: with this many the + is not offered any more */
 const WEEKLY = 10;
+/** idioms a week is meant to have: with this many the + is not offered any more */
+const IDIOMS_PER_WEEK = 6;
 
 type Tab3 = "week" | "learned" | "game";
 
@@ -355,7 +357,7 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
         ? grid
         : h("div", { class: "add-empty" }, h("button", { class: "add-big", id: "enter", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k) }, "＋"), h("p", {}, "点 ＋ 录入这一周的汉字")),
       // the idioms are the same for every child: one list, one story page (not one per child)
-      h("button", { class: "primary wide", id: "idioms-btn", onclick: () => { idiomFrom = `#/kid/${k.id}`; idiomWeek = curWeek; idiomAll = false; location.hash = "#/idioms"; } }, "成语故事"),
+      h("button", { class: "primary wide", id: "idioms-btn", onclick: () => { idiomFrom = `#/kid/${k.id}`; idiomWeek = curWeek; idiomAll = false; idiomColor = k.color; location.hash = "#/idioms"; } }, "成语故事"),
     ),
   );
   if (settings.pinyin) void fillPinyin(grid);
@@ -365,6 +367,7 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
 let idiomFrom = "";   // the child's page the list was opened from (where "back" goes)
 let idiomWeek = "";   // the week that page was showing: the list shows only that week's idioms (and stories) ...
 let idiomAll = false; // ... until "all idioms" is chosen
+let idiomColor = "";  // the colour of the child it was opened from (the idiom pages wear it, like that child's own pages)
 
 async function renderIdioms() {
   const my = epoch;
@@ -377,19 +380,27 @@ async function renderIdioms() {
   if (my !== epoch) return;
   const only = !!idiomWeek && !idiomAll;     // this week only, or every week
   const items = idioms.weeks.filter((w) => w.items.length && (!only || w.start === idiomWeek));
-  const list = h("div", { class: "idiom-list", id: "idiom-list" },
-    ...items.flatMap((w) => [
-      h("h3", { class: "mini-h idiom-week" }, `第${M.weekNo(w.start, kidsFile.startWeek ?? w.start)}周`),
-      ...w.items.map((it) => h("button", { class: "idiom-card", "data-idiom": it, onclick: () => (location.hash = `#/idiom/${encodeURIComponent(it)}`) },
-        h("span", { class: "idiom-name user" }, it), h("span", { class: "idiom-go", "aria-hidden": "true" }, "›"))),
-    ]));
-  const switchBtn = !idiomWeek ? null : h("button", { class: "wide", id: "idiom-scope", onclick: () => { idiomAll = !idiomAll; void renderIdioms(); } }, only ? "全部成语" : "只看这一周");
-  show(h("div", { class: "page" },
+  const count = items.reduce((n, w) => n + w.items.length, 0);
+  // one idiom per line, in the same red-framed 田字格 cells (same size) as the recorded characters; tap a line for its story
+  const row = (it: string) => {
+    const r = h("div", { class: "idiom-card", role: "button", tabindex: "0", "data-idiom": it, style: `--n:${[...it].length}`, onclick: () => (location.hash = `#/idiom/${encodeURIComponent(it)}`) },
+      ...[...it].map((c) => cell(c)));
+    r.addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), r.click()));
+    return r;
+  };
+  const list = h("div", { class: "idiom-list" + (settings.pinyin ? " pinyin-on" : ""), id: "idiom-list" },
+    ...items.flatMap((w) => [only ? null : h("h3", { class: "mini-h idiom-week" }, `第${M.weekNo(w.start, kidsFile.startWeek ?? w.start)}周`), ...w.items.map(row)]));
+  const addTip = only ? "添加这一周的成语" : "添加成语";
+  const head = h("div", { class: "sec-row" }, h("h2", { class: "sec" }, `成语（${count}）`),
+    count > 0 && (!only || count < IDIOMS_PER_WEEK) ? h("button", { class: "plus", id: "idiom-add", title: addTip, "aria-label": addTip, onclick: () => void addIdiomsDialog() }, "＋") : null);
+  const empty = h("div", { class: "add-empty", id: "idiom-empty" }, h("button", { class: "add-big", id: "idiom-add", title: addTip, "aria-label": addTip, onclick: () => void addIdiomsDialog() }, "＋"),
+    h("p", {}, only ? "点 ＋ 添加这一周的成语" : "点 ＋ 添加成语"));
+  // the same big button as on the week page, at the bottom of the screen
+  const switchBtn = !idiomWeek ? null : h("button", { class: "primary wide", id: "idiom-scope", onclick: () => { idiomAll = !idiomAll; void renderIdioms(); } }, only ? "全部成语" : "只看这一周");
+  show(h("div", { class: "page", style: idiomColor ? `--kid:${idiomColor}` : "" },
     topBar("成语故事", backBtn(idiomFrom || "#/")),
-    h("main", { class: "scroll" }, h("div", { class: "narrow" },
-      items.length ? list : h("p", { class: "empty", id: "idiom-empty" }, only ? "这一周还没有成语。点下面的“＋ 添加成语”，或在设置里从 Excel 导入。" : "还没有成语。点下面的“＋ 添加成语”，或在设置里从 Excel 导入。"),
-      h("button", { class: "wide", id: "idiom-add", onclick: () => void addIdiomsDialog() }, "＋ 添加成语"),
-      switchBtn))));
+    h("main", { class: "scroll" }, h("div", { class: "narrow week-narrow" }, count ? head : null, count ? list : empty, switchBtn))));
+  if (settings.pinyin) void fillPinyin(list);
 }
 
 async function addIdiomsDialog() {
@@ -428,7 +439,7 @@ async function renderIdiom(name: string) {
   const story = idioms.stories?.[name] ?? "";
   const chars = [...name];
   const row = h("div", { class: "idiom-chars pinyin-on", id: "idiom-chars" }, ...chars.map((c) => cell(c)));
-  show(h("div", { class: "page" },
+  show(h("div", { class: "page", style: idiomColor ? `--kid:${idiomColor}` : "" },
     topBar("成语故事", backBtn("#/idioms")),
     h("main", { class: "scroll" }, h("div", { class: "narrow" },
       row,

@@ -238,6 +238,9 @@ export const EN: Record<string, string> = {
   "这一周还没有成语。点下面的“＋ 添加成语”，或在设置里从 Excel 导入。": "No idioms for this week yet. Tap “＋ Add idioms” below, or import them from Excel in Settings.",
   "全部成语": "All idioms",
   "只看这一周": "This week only",
+  "点 ＋ 添加这一周的成语": "Tap ＋ to add this week's idioms",
+  "点 ＋ 添加成语": "Tap ＋ to add idioms",
+  "添加这一周的成语": "Add this week's idioms",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -478,4 +481,7 @@ export const FR: Record<string, string> = {
   "这一周还没有成语。点下面的“＋ 添加成语”，或在设置里从 Excel 导入。": "Pas encore de chengyu cette semaine. Touchez « ＋ Ajouter des chengyu » ci-dessous, ou importez-les depuis Excel dans les Réglages.",
   "全部成语": "Tous les chengyu",
   "只看这一周": "Cette semaine seulement",
+  "点 ＋ 添加这一周的成语": "Touchez ＋ pour ajouter les chengyu de cette semaine",
+  "点 ＋ 添加成语": "Touchez ＋ pour ajouter des chengyu",
+  "添加这一周的成语": "Ajouter les chengyu de cette semaine",
 };
