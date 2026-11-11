@@ -354,9 +354,103 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
       chars.length
         ? grid
         : h("div", { class: "add-empty" }, h("button", { class: "add-big", id: "enter", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k) }, "＋"), h("p", {}, "点 ＋ 录入这一周的汉字")),
+      // the idioms are the same for every child: one list, one story page (not one per child)
+      h("button", { class: "idiom-link wide", id: "idioms-btn", onclick: () => { idiomFrom = `#/kid/${k.id}`; location.hash = "#/idioms"; } }, "成语故事"),
     ),
   );
   if (settings.pinyin) void fillPinyin(grid);
+}
+
+// ---------- idioms (shared by every child): the list, and the story page of one idiom ----------
+let idiomFrom = "";   // the child's page the list was opened from (where "back" goes)
+
+async function renderIdioms() {
+  const my = epoch;
+  showLoading();
+  try {
+    await loadShared();
+  } catch (e) {
+    return my === epoch ? showError(e, () => void renderIdioms()) : undefined;
+  }
+  if (my !== epoch) return;
+  const items = idioms.weeks.filter((w) => w.items.length);
+  const list = h("div", { class: "idiom-list", id: "idiom-list" },
+    ...items.flatMap((w) => [
+      h("h3", { class: "mini-h idiom-week" }, `第${M.weekNo(w.start, kidsFile.startWeek ?? w.start)}周`),
+      ...w.items.map((it) => h("button", { class: "idiom-card", "data-idiom": it, onclick: () => (location.hash = `#/idiom/${encodeURIComponent(it)}`) },
+        h("span", { class: "idiom-name user" }, it), h("span", { class: "idiom-go", "aria-hidden": "true" }, "›"))),
+    ]));
+  show(h("div", { class: "page" },
+    topBar("成语故事", backBtn(idiomFrom || "#/")),
+    h("main", { class: "scroll" }, h("div", { class: "narrow" },
+      items.length ? list : h("p", { class: "empty", id: "idiom-empty" }, "还没有成语。点下面的“＋ 添加成语”，或在设置里从 Excel 导入。"),
+      h("button", { class: "wide", id: "idiom-add", onclick: () => void addIdiomsDialog() }, "＋ 添加成语")))));
+}
+
+async function addIdiomsDialog() {
+  const date = h("input", { type: "date", value: M.sundayOf(M.todayLocal()), "aria-label": "这一周的第一天（周日）" });
+  const text = h("textarea", { rows: 3, placeholder: "把成语粘贴或输入在这里，空格、逗号、换行都可以分开", "aria-label": "成语" });
+  const save = h("button", { class: "primary" }, "保存");
+  const r = await modal<string[]>((close) => {
+    save.addEventListener("click", () => { const l = M.parseIdioms(text.value); if (l.length) close(l); });
+    return h("div", { class: "dlg" }, h("h2", {}, "添加成语"), h("label", { class: "muted small" }, "这一周的第一天（周日）"), date, text,
+      h("div", { class: "row end" }, h("button", { onclick: () => close(null) }, "取消"), save));
+  });
+  if (!r) return; // cancelled: no "done" message
+  const start = M.sundayOf(date.value || M.todayLocal());
+  const done = toast("正在保存…", 0, true);
+  try {
+    let added = 0;
+    idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => { const x = M.addIdioms(cur, start, r); added = x.added; return x.data; }, "add idioms");
+    done();
+    toast(added ? `已添加 ${added} 个成语` : "这些成语已经在列表里了");
+    void renderIdioms();
+  } catch (e) {
+    done();
+    toast(errText(e), 6000);
+  }
+}
+
+async function renderIdiom(name: string) {
+  const my = epoch;
+  showLoading();
+  try {
+    await Promise.all([loadShared(), loadPinyin()]);
+  } catch (e) {
+    return my === epoch ? showError(e, () => void renderIdiom(name)) : undefined;
+  }
+  if (my !== epoch) return;
+  const story = idioms.stories?.[name] ?? "";
+  const chars = [...name];
+  const row = h("div", { class: "idiom-chars pinyin-on", id: "idiom-chars" }, ...chars.map((c) => cell(c)));
+  show(h("div", { class: "page" },
+    topBar("成语故事", backBtn("#/idioms")),
+    h("main", { class: "scroll" }, h("div", { class: "narrow" },
+      row,
+      story
+        ? h("p", { class: "story user", id: "idiom-story" }, story)
+        : h("p", { class: "empty", id: "idiom-nostory" }, "还没有故事。点“编辑故事”写一个。"),
+      h("button", { class: "wide", id: "story-edit", onclick: () => void editStory(name, story) }, "编辑故事")))));
+  void fillPinyin(row);
+}
+
+async function editStory(name: string, current: string) {
+  const text = h("textarea", { rows: 8, placeholder: "把这个成语的故事写在这里", "aria-label": "故事" }) as HTMLTextAreaElement;
+  text.value = current;
+  const r = await modal<{ t: string }>((close) =>
+    h("div", { class: "dlg" }, h("h2", {}, "编辑故事"), h("p", { class: "user-title" }, name), text,
+      h("div", { class: "row end" }, h("button", { onclick: () => close(null) }, "取消"), h("button", { class: "primary", id: "story-save", onclick: () => close({ t: text.value }) }, "保存"))));
+  if (!r) return; // cancelled: no "done" message
+  const done = toast("正在保存…", 0, true);
+  try {
+    idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => M.setStory(cur, name, r.t), `story ${name}`);
+    done();
+    toast("已保存故事");
+    void renderIdiom(name);
+  } catch (e) {
+    done();
+    toast(errText(e), 6000);
+  }
 }
 
 /** every week that has characters (and this week): choose one to look at */
@@ -454,13 +548,16 @@ function renderLearned(body: HTMLElement, k: M.Kid, kid: M.KidData) {
       h("span", {}),
       h("div", { class: "big" }, h("strong", { id: "count" }, String(chars.length)), " 字"),
       chars.length ? h("button", { class: "selftest", id: "selftest", onclick: (e: Event) => { e.stopPropagation(); selfTest(k, kid); } }, "自测") : h("span", {})),
-    h("div", { class: "muted small" }, "点击屏幕显示 / 隐藏拼音"),
+    h("div", { class: "muted small" }, "点汉字放大；点空白处显示 / 隐藏拼音"),
   );
   const cells = chars.map((c) => (settings.manage ? withDelete(cell(c), c, (ch) => void deleteChar(k, ch)) : cell(c)));
   const grid = h("div", { class: "grid" + (settings.pinyin ? " pinyin-on" : ""), id: "grid" }, ...stagger(cells));
   const scroller = h("div", { class: "scroll", id: "learned-scroll" }, h("div", { class: "narrow" }, manageBar()), head, chars.length ? grid : h("p", { class: "empty" }, "还没有入库的字，先去“本周”录入吧。"));
-  // a tap anywhere on the screen (not a scroll) shows / hides the pinyin
-  scroller.addEventListener("click", () => {
+  // a tap on a character opens the big view of it (then back / forward through all the recorded characters, like on the week page);
+  // a tap anywhere else on the screen (not a scroll) shows / hides the pinyin
+  scroller.addEventListener("click", (e) => {
+    const tzg = (e.target as HTMLElement).closest<HTMLElement>(".tzg");
+    if (tzg && !settings.manage) return openViewer(chars, Math.max(0, chars.indexOf(tzg.dataset.ch ?? "")), k.color);
     settings.pinyin = !settings.pinyin;
     saveSettings();
     grid.classList.toggle("pinyin-on", settings.pinyin);
@@ -1041,6 +1138,9 @@ async function route() {
   if (!/^#\/kid\//.test(hash)) { curWeek = ""; curWeekKid = ""; }
   const kid = /^#\/kid\/([\w-]+)(?:\/(learned|game))?$/.exec(hash);
   if (kid) return renderKid(kid[1], kid[2] === "learned" ? "learned" : kid[2] === "game" ? "game" : "week");
+  if (hash === "#/idioms") return void renderIdioms();
+  const idiom = /^#\/idiom\/(.+)$/.exec(hash);
+  if (idiom) return void renderIdiom(decodeURIComponent(idiom[1]));
   if (hash === "#/settings") return void renderSettings();
   return renderHome();
 }

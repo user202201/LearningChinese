@@ -29,16 +29,18 @@ const MANY = Array.from('一二三四五六七八九十上下大小山水火土�
   // pinyin: hidden at first, a tap anywhere shows it, another tap hides it; no layout jump
   const y0 = await page.locator('#grid .tzg .box').first().evaluate((e) => e.getBoundingClientRect().top);
   ok(await page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) === 'hidden', 'pinyin is hidden at first');
-  await page.mouse.click(410, 600);
+  await page.waitForSelector('#toasts .toast', { state: 'detached' });   // (the "saved" message of the last entry would sit over the hint line)
+  const tapHint = async () => { const b = await page.locator('.learned-head .muted').boundingBox(); await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); };   // (an empty spot: a tap on a character opens the big view)
+  await tapHint();
   await page.waitForFunction(() => document.querySelector('#grid .tzg .py')?.textContent);
   ok(await page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) === 'visible', 'a tap on the screen shows the pinyin');
   ok((await page.textContent('#grid .tzg[data-ch=假] .py')) === 'jiǎ', 'pinyin of 假 is jiǎ (with tone)');
   ok((await page.textContent('#grid .tzg[data-ch=酸] .py')) === 'suān', 'pinyin of 酸 is suān');
   const y1 = await page.locator('#grid .tzg .box').first().evaluate((e) => e.getBoundingClientRect().top);
-  ok(y0 === y1, 'showing the pinyin does not move the characters');
-  await page.mouse.click(410, 600);
+  ok(y0 === y1, 'showing the pinyin does not move the characters (' + y0 + ' / ' + y1 + ')');
+  await tapHint();
   ok(await page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) === 'hidden', 'another tap hides it again');
-  await page.mouse.click(410, 600);                                   // on again, to check it is remembered
+  await tapHint();                                   // on again, to check it is remembered
   await page.reload(); await page.waitForSelector('#grid .tzg');
   await page.waitForFunction(() => document.querySelector('#grid .tzg .py')?.textContent);
   ok(await page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) === 'visible', 'the pinyin choice is remembered');
@@ -59,6 +61,32 @@ const MANY = Array.from('一二三四五六七八九十上下大小山水火土�
   const wide = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
   ok(!wide, 'no sideways scrolling');
   await page.screenshot({ path: (process.env.D || 'tests/out/work/') + 'learned-grid.png' });
+
+  // tapping a character enlarges it (like on the week page): that very character, back / forward through all of them, closing returns to the list
+  const all = await page.$$eval('#grid .tzg', (e) => e.map((x) => x.dataset.ch));
+  const nAll = all.length;
+  await page.locator('#grid .tzg').nth(5).click();
+  await page.waitForSelector('#viewer');
+  const vshown = () => page.$eval('#viewer .tzg .ch', (e) => e.textContent);
+  ok((await vshown()) === all[5] && (await page.textContent('#viewer .vcount')) === `6 / ${nAll}`, 'tapping the 6th recorded character enlarges exactly that one (' + all[5] + ', 6 / ' + nAll + ')');
+  await page.click('#viewer-next'); ok((await vshown()) === all[6], 'the arrow goes forward through the recorded characters');
+  await page.click('#viewer-prev'); await page.click('#viewer-prev'); ok((await vshown()) === all[4], 'and back');
+  const vb = await page.$eval('#viewer .vstage', (e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; });
+  await page.mouse.click(vb[0] + 12, vb[1] + vb[3] / 2); ok((await vshown()) === all[3], 'a tap on the left part of the screen goes back');
+  await page.mouse.click(vb[0] + vb[2] - 12, vb[1] + vb[3] / 2); await page.mouse.click(vb[0] + vb[2] - 12, vb[1] + vb[3] / 2); ok((await vshown()) === all[5], 'a tap on the right part goes forward');
+  await page.click('#viewer-close'); await page.waitForSelector('#viewer', { state: 'detached' });
+  ok(await page.locator('#grid .tzg').count() === nAll && await page.locator('#viewer').count() === 0, 'closing returns to the list');
+  const pyBefore = await page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility);
+  await tapHint();
+  ok(await page.locator('#viewer').count() === 0 && await page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) !== pyBefore, 'a tap on an empty spot still shows / hides the pinyin (and opens nothing)');
+  await tapHint();
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('learn.settings.v1') || '{}'); s.manage = true; localStorage.setItem('learn.settings.v1', JSON.stringify(s)); });
+  await page.reload(); await page.waitForSelector('#grid .tzg .del, #grid .tzg');
+  await page.locator('#grid .tzg').nth(2).click({ position: { x: 20, y: 40 } });
+  ok(await page.locator('#viewer').count() === 0, 'in manage mode a tap on a character does not open the big view (the red − deletes)');
+  await page.waitForSelector('#toasts .toast', { state: 'detached' }).catch(() => {}); await tapHint();   // (the tap on the character switched the pinyin, as before: switch it back)
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('learn.settings.v1') || '{}'); s.manage = false; localStorage.setItem('learn.settings.v1', JSON.stringify(s)); });
+  await page.reload(); await page.waitForSelector('#grid .tzg');
 
   // the week view follows the same pinyin setting
   await page.click('button:has-text("本周")'); await gotoWeek(page, '2026-11-29');

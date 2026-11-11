@@ -11,7 +11,8 @@ export interface KidsFile { kids: Kid[]; startWeek?: string }
 export interface Week { start: string; chars: string[] }
 export interface KidData { weeks: Week[] }
 export interface IdiomWeek { start: string; items: string[] }
-export interface IdiomsFile { weeks: IdiomWeek[] }
+/** weeks: the idioms by week, the same for every child; stories: the story of an idiom, typed by the adult (optional) */
+export interface IdiomsFile { weeks: IdiomWeek[]; stories?: Record<string, string> }
 
 export const EMPTY_KIDS: KidsFile = { kids: [] };
 export const EMPTY_KID: KidData = { weeks: [] };
@@ -114,7 +115,14 @@ export function addIdioms(all: IdiomsFile, start: string, items: string[]): { da
   if (!w) weeks.push((w = { start, items: [] }));
   w.items.push(...fresh);
   weeks.sort((a, b) => a.start.localeCompare(b.start));
-  return { data: { weeks }, added: fresh.length };
+  return { data: { ...all, weeks }, added: fresh.length };
+}
+/** the story of an idiom (an empty text removes it) */
+export function setStory(all: IdiomsFile, idiom: string, text: string): IdiomsFile {
+  const stories = { ...(all.stories ?? {}) };
+  const t = text.trim();
+  if (t) stories[idiom] = t; else delete stories[idiom];
+  return { ...all, stories };
 }
 
 /** takes a character out of the week it is in (a week left empty disappears) */

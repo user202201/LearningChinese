@@ -14,6 +14,7 @@ Browser tests (Playwright + Chromium, touch-sized windows) against the app runni
 | 16-google-sheet-sync | the Google Sheets sync script run against a PRETEND sheet + GitHub: layout A / B..K / L, re-sync, errors, auto-sync switch, read-only, no personal data (a real Google account is NOT covered) |
 | 18-game | the game: the memory-curve rules (Node) and the screen (shared by every child, ring, time-out, tick / cross, retries, leaving, saving, sizes, languages) |
 | 19-light-only | no dark mode: the page declares "only light" (meta + CSS), there is no dark rule, a phone in dark mode shows exactly the same screens (real "auto dark" of a phone browser can not be reproduced here) |
+| 20-idioms | the shared idiom list and story page: button on the week page, adding, story editing, shared by every child, back, centred, English / French |
 | 17-sync-card | Settings card: copy the script (exactly the file), box when the clipboard is refused, link to the guide, translations |
 | 15-app-icon | the app icon: sizes, no transparency (iOS), fills the square, safe area, in sync with assets/icon/icon.svg, links + manifest |
 | 14-picture-and-colour | tap the picture at the top of a child page: picture + colour window, live preview, Done / Cancel, the colour changes the whole look, contrast, fits a small phone |
