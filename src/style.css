@@ -424,10 +424,10 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 .sheet { container-type: inline-size; width: min(100%, 210mm); margin: 0 auto 18px; padding: 4cqw; background: #fff; box-shadow: var(--shadow); color: #2d2230; box-sizing: border-box; }
 .sheet-top { display: flex; justify-content: space-between; font-size: 3.2cqw; font-weight: 700; color: var(--kid); padding: 0 .5cqw .8cqw; }
 .zb { border: 1px solid var(--kid); margin-bottom: .7cqw; break-inside: avoid; page-break-inside: avoid; }
-.zb-head { display: flex; align-items: center; gap: 2.4cqw; padding: .2cqw 1.4cqw; border-bottom: 1px solid var(--kid); min-height: 3.4cqw; }
-.zb-py { font-size: 2.1cqw; font-weight: 300; letter-spacing: .02em; color: #3d3340; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; min-width: 8cqw; }
-.zb-n { font-size: 1.9cqw; font-weight: 300; color: #3d3340; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; }   /* thin lettering for the pinyin and the stroke count */
-.zb-steps { display: flex; flex-wrap: wrap; gap: .2cqw; align-items: center; }
+.zb-head { display: grid; grid-template-columns: repeat(12, 1fr); align-items: center; padding: .2cqw 0; border-bottom: 1px solid var(--kid); min-height: 3.4cqw; }   /* the same 12 columns as the cells below: the pinyin is centred over the first cell, the stroke count over the second, the stroke pictures start at the third */
+.zb-py { font-size: 2.1cqw; font-weight: 300; letter-spacing: .02em; color: #3d3340; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; grid-column: 1; text-align: center; white-space: nowrap; }
+.zb-n { grid-column: 2; text-align: center; white-space: nowrap; font-size: 1.9cqw; font-weight: 300; color: #3d3340; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; }   /* thin lettering for the pinyin and the stroke count */
+.zb-steps { grid-column: 3 / span 10; display: flex; flex-wrap: wrap; gap: .2cqw 0; align-items: center; padding-left: .8cqw; }
 .zb-steps svg { width: 3cqw; height: 3cqw; }
 .zb-row { display: grid; grid-template-columns: repeat(12, 1fr); }
 .zc { aspect-ratio: 1; position: relative; border-right: 1px solid var(--kid); display: grid; place-items: center; color: #1b1420;
