@@ -448,3 +448,4 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 }
 .story-count { text-align: right; margin: 6px 4px 0; font-weight: 700; }
 a.link { color: var(--accent-dark); font-weight: 700; }
+.idiom-pool { margin: 2px 4px 0; text-align: left; }

@@ -14,7 +14,7 @@ const README = fs.readFileSync(path.join(ROOT, 'docs/google-sheet-sync/README.md
 function makeEnv({ files = {}, props = {}, status = {}, noUi = false, answers = [], tabs = {}, oldTimer = false } = {}) {
   const opts_oldTimer = oldTimer;
   const sheets = new Map();
-  const log = { fetches: [], alerts: [], menus: [], writes: [], inserted: [] };
+  const log = { fetches: [], alerts: [], menus: [], writes: [], inserted: [], boxes: [] };
   class Sheet {
     constructor(name, rows = []) { this.name = name; this.grid = rows.map((r) => r.slice()); this.maxRows = Math.max(1000, rows.length); }
     getName() { return this.name; }
@@ -30,6 +30,7 @@ function makeEnv({ files = {}, props = {}, status = {}, noUi = false, answers = 
       return {
         clearContent() { for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) if (sh.grid[r - 1 + i]) sh.grid[r - 1 + i][c - 1 + j] = ''; log.writes.push({ tab: sh.name, clear: true }); return this; },
         setValue(v) { write(r, c, v); return this; },
+        insertCheckboxes() { log.boxes.push([sh.name, r, c]); return this; },
         setValues(v) { if (v.length !== nr || v.some((row) => row.length !== nc)) throw new Error('setValues size'); v.forEach((row, i) => row.forEach((x, j) => write(r + i, c + j, x))); return this; },
         getValues() { return Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => sh.cell(r + i, c + j))); },
         getDisplayValues() { return Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => String(sh.cell(r + i, c + j)))); },
@@ -293,11 +294,13 @@ const auditOk = (log, dropped = []) => log.writes.filter((w) => w.tab && w.tab !
   ib.run('syncAuto');
   const iw = ib.log.writes.filter((w) => w.tab === '成语');
   const igrid = ib.sheets.get('成语').grid;
-  ok(iw.length === 3 && iw.every((w) => w.col === 2 && w.value === true && w.before === false) && iw.map((w) => w.row).sort().join() === '3,4,8', 'the idioms the app gave a week get their box in column B TICKED (rows 3, 4 and 8); nothing else in the tab is written');
-  ok(igrid.every((r, i) => r[0] === JSON.parse(idiomBefore)[i][0] && r[2] === 24), 'column A (the locked idioms) and column C (the count) are never touched');
+  const tickW = iw.filter((w) => w.row <= 8), newW = iw.filter((w) => w.row > 8);
+  ok(tickW.length === 3 && tickW.every((w) => w.col === 2 && w.value === true && w.before === false) && tickW.map((w) => w.row).sort().join() === '3,4,8', 'the idioms the app gave a week get their box in column B TICKED (rows 3, 4 and 8)');
+  ok(newW.length === 2 && newW[0].row === 9 && newW[0].col === 1 && newW[0].value === '不在表格里的成语' && newW[0].before === '' && newW[1].row === 9 && newW[1].col === 2 && newW[1].value === true && ib.log.boxes.length === 1 && ib.log.boxes[0].join() === '成语,9,2', 'a new idiom of the app (typed by hand) is ADDED below the last idiom of column A (row 9) with a tick box in B, ticked because it has a week; nothing else is written');
+  ok(igrid.slice(0, 8).every((r, i) => r[0] === JSON.parse(idiomBefore)[i][0] && r[2] === 24) && igrid[8][2] === undefined, 'the existing idioms of column A and the counts in column C are never touched (the new row leaves C to the sheet)');
   ok(igrid[0][1] === true && igrid[5][1] === true && igrid[1][1] === false && igrid[4][1] === false && igrid[6][1] === false, 'ticks that were already there stay, boxes of idioms without a week stay empty, nothing is ever un-ticked');
   const idSt = ib.sheets.get('同步状态').grid.flat().join('|');
-  ok(/新打勾 3 个/.test(idSt) && /不在表格里的成语/.test(idSt), 'the status tab says how many were ticked and names an idiom of the app that the sheet does not have: ' + (idSt.match(/成语：[^|]*/) || [''])[0]);
+  ok(/新打勾 3 个/.test(idSt) && /新加到表格 A 列 1 个（不在表格里的成语）/.test(idSt), 'the status tab says how many were ticked and which new idioms were added: ' + (idSt.match(/成语：[^|]*/) || [''])[0]);
   ib.log.writes.length = 0; ib.run('syncAuto');
   ok(ib.log.writes.filter((w) => w.tab === '成语').length === 0, 'running it again writes nothing more (idempotent)');
   const noTab = makeEnv({ files: { ...FILES, 'idioms.json': IDIOMS }, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [] } });
@@ -307,6 +310,11 @@ const auditOk = (log, dropped = []) => log.writes.filter((w) => w.tab && w.tab !
   const nfBefore = JSON.stringify(noFile.sheets.get('成语').grid);
   noFile.run('syncAuto');
   ok(JSON.stringify(noFile.sheets.get('成语').grid) === nfBefore, 'no idioms.json in the data repository yet: the tab is left exactly as it is');
+  const many = Array.from({ length: 40 }, (_, k) => '新成语' + String(k).padStart(2, '甲'));
+  const mb = makeEnv({ files: { ...FILES, 'idioms.json': { weeks: [], pool: [...LIB, ...many] } }, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [], 成语: idiomTab() } });
+  const mbBefore = JSON.stringify(mb.sheets.get('成语').grid);
+  mb.run('syncAuto');
+  ok(JSON.stringify(mb.sheets.get('成语').grid) === mbBefore && /超过一次最多 30 个的安全上限/.test(mb.sheets.get('同步状态').grid.flat().join('|')), 'safety: 40 new idioms at once is more than the limit (30): nothing is added and the status tab says why');
   ok(/idiomTicks_/.test(SCRIPT) && !/setValue\(false\)|setValue\(''\).*idiom/i.test(SCRIPT.slice(SCRIPT.indexOf('function syncIdioms_'), SCRIPT.indexOf('function syncIdioms_') + 1600)), 'the script text: the idiom part only ever writes true');
 
   // ---------- the script text, the menu, the guide

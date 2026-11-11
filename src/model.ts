@@ -153,6 +153,30 @@ export function assignToWeeks(all: IdiomsFile, idioms: string[], weeks: string[]
   return { data, assigned, leftover: todo };
 }
 
+/** what typing idioms by hand means: `learned` already have a week (not allowed again), `fromPool` are in the library and just get picked, `brandNew` are not in the library yet */
+export interface IdiomCheck { learned: { item: string; start: string }[]; fromPool: string[]; brandNew: string[] }
+export function classifyIdioms(all: IdiomsFile, items: string[]): IdiomCheck {
+  const where = new Map<string, string>();
+  for (const w of all.weeks) for (const c of w.items) if (!where.has(c) || w.start < where.get(c)!) where.set(c, w.start);
+  const pool = new Set(all.pool ?? []);
+  const out: IdiomCheck = { learned: [], fromPool: [], brandNew: [] };
+  for (const x of items.filter((c, i) => items.indexOf(c) === i)) {
+    const at = where.get(x);
+    if (at !== undefined) out.learned.push({ item: x, start: at });
+    else if (pool.has(x)) out.fromPool.push(x);
+    else out.brandNew.push(x);
+  }
+  return out;
+}
+/** adds idioms to a week by hand: nothing at all when one of them is already learned; new ones are also added to the library (and so go to the sheet at the next sync) */
+export function addIdiomsByHand(all: IdiomsFile, start: string, items: string[]): { data: IdiomsFile; added: number; check: IdiomCheck } {
+  const check = classifyIdioms(all, items);
+  if (check.learned.length || (!check.fromPool.length && !check.brandNew.length)) return { data: all, added: 0, check };
+  const withPool = { ...all, pool: [...(all.pool ?? []), ...check.brandNew] };
+  const r = addIdioms(withPool, start, [...check.fromPool, ...check.brandNew]);
+  return { data: r.data, added: r.added, check };
+}
+
 /** how many characters a text has, not counting punctuation, spaces and line breaks (letters and digits count; each Chinese character counts as one) */
 export const countChars = (text: string): number => (text.match(/[\p{L}\p{N}]/gu) ?? []).length;
 /** the story of an idiom (an empty text removes it) */

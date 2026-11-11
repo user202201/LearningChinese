@@ -103,6 +103,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
 
   // the idiom page of the current week shows that week's six
   await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory'); await page.click('#idioms-btn'); await page.waitForSelector('.idiom-card');
+  ok((await page.textContent('#idiom-pool')) === '成语库：共 60 个，还没用的 36 个', 'the idiom page says what is in the library: 60 idioms, 36 not used yet (so the saved library can be seen)');
   ok((await page.$$eval('.idiom-card', (e) => e.map((x) => x.dataset.idiom))).join(',') === ticked.slice(12, 18).join(',') && (await page.textContent('.sec-row .sec')) === '成语（6）', 'the idiom page of this week (11-08) shows its six idioms: the third group of the sheet');
 
   // and NEXT week's page opens NEXT week's idioms (the fourth week), not only the "all idioms" list
@@ -118,6 +119,9 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   await page.evaluate(() => (location.hash = '#/'));            // (opening the home screen: the picking is done when the data is loaded)
   await page.waitForSelector('#toasts .toast:has-text("随机选好")');
   ok((await page.textContent('#toasts')).includes('已为下一周随机选好 6 个成语'), 'a week later, opening the app: "6 idioms picked at random for next week"');
+  await page.evaluate(() => (location.hash = '#/idioms')); await page.waitForSelector('#idiom-pool');
+  ok((await page.textContent('#idiom-pool')) === '成语库：共 60 个，还没用的 30 个', 'after the weekly pick the library line says 30 not used yet');
+  await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid');
   const s2 = await store(page, 'idioms.json');
   const next = s2.weeks.find((w) => w.start === '2026-11-22');
   const old = new Set(saved.weeks.flatMap((w) => w.items));
@@ -131,6 +135,31 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   await page.reload(); await page.waitForSelector('#toasts .toast:has-text("随机选好")');
   const s3 = await store(page, 'idioms.json'); const w29 = s3.weeks.find((w) => w.start === '2026-11-29');
   ok(w29.items.length === 6 && w29.items[0] === IDIOMS[40] && w29.items[1] === IDIOMS[41] && (await page.textContent('#toasts')).includes('随机选好 4 个'), 'next week with two idioms the user chose is topped up to six (4 picked), the two stay first');
+
+  // ---------- idioms typed by hand: learned ones are refused, library ones are picked, new ones also join the library
+  await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory'); await page.click('#idioms-btn'); await page.waitForSelector('#idiom-pool');
+  await page.click('#idiom-scope'); await page.waitForFunction(() => document.querySelectorAll('.idiom-card').length > 6);
+  const before = await store(page, 'idioms.json');
+  const unusedBefore = before.pool.filter((x) => !before.weeks.some((w) => w.items.includes(x)));
+  const learnedOne = before.weeks[0].items[0], libA = unusedBefore[0], libB = unusedBefore[1];
+  await page.click('#idiom-add'); await page.fill('dialog input[type=date]', '2026-12-06');
+  await page.fill('dialog textarea', `${libA} ${learnedOne} 全新成语`);
+  const warn = await page.textContent('#idiom-check');
+  ok(warn.includes('已经学过了，不能保存') && warn.includes(learnedOne + '（第1周）') && !warn.includes(libA) && await page.locator('#idiom-save').isDisabled(), 'an idiom that was already learned is refused: the window says which one (and its week) and the Save button is off: ' + warn);
+  await page.fill('dialog textarea', `${libA} ${libB} 全新成语`);
+  const ok2 = await page.textContent('#idiom-check');
+  ok(ok2.includes('成语库里有 2 个，新成语 1 个') && !(await page.locator('#idiom-save').isDisabled()), 'without a learned one: "2 in the library, 1 new" and Save is on: ' + ok2);
+  await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog', { state: 'detached' });
+  ok(JSON.stringify(await store(page, 'idioms.json')) === JSON.stringify(before) && await page.locator('#toasts .toast:has-text("已添加")').count() === 0, 'cancelling saves nothing and says nothing');
+  await page.click('#idiom-add'); await page.fill('dialog input[type=date]', '2026-12-06'); await page.fill('dialog textarea', `${libA} ${libB} 全新成语`); await page.click('#idiom-save');
+  await page.waitForSelector('#toasts .toast:has-text("已添加 3 个成语")');
+  const after = await store(page, 'idioms.json');
+  const wk = after.weeks.find((w) => w.start === '2026-12-06');
+  ok(wk && wk.items.join() === [libA, libB, '全新成语'].join() && after.pool.length === before.pool.length + 1 && after.pool.includes('全新成语') && after.pool.indexOf('全新成语') === after.pool.length - 1, 'saved: the two library idioms are picked for that week, the new one is added to the week AND to the end of the library (so the next sync adds it to the sheet)');
+  ok(JSON.stringify(after.weeks.filter((w) => w.start !== '2026-12-06')) === JSON.stringify(before.weeks), 'the other weeks are untouched');
+  await page.click('#idiom-add'); await page.fill('dialog textarea', `${libA}`);
+  ok((await page.textContent('#idiom-check')).includes('已经学过了') && await page.locator('#idiom-save').isDisabled(), 'the idiom just saved is now "already learned" too (typing it again is refused)');
+  await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog', { state: 'detached' });
 
   // ---------- no library imported: the app does nothing by itself
   const t2 = await start(new Map(), { local: true, today: '2026-11-10' });

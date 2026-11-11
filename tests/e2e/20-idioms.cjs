@@ -37,9 +37,10 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   ok(await page.locator('#toasts .toast:has-text("已添加 3 个成语")').count() === 1 && (await store(page, 'idioms.json')).weeks[0].items.length === 3, 'a message says "added 3 idioms" and they are saved in idioms.json (shared, not in a child file)');
   ok((await page.textContent('.sec-row .sec')) === '成语（3）', 'with the count in the heading (like the characters page)');
   ok(await page.locator('.sec-row .plus#idiom-add').count() === 1, 'and a small + to add more (a week has six idioms, so there is room)');
-  await page.click('#idiom-add'); await page.fill('dialog textarea', '一心一意'); await page.click('dialog button.primary');
-  await page.waitForSelector('#toasts .toast:has-text("已经在列表里")');
-  ok(await page.locator('.idiom-card').count() === 3, 'adding an idiom that is already there adds nothing (and says so)');
+  await page.click('#idiom-add'); await page.fill('dialog textarea', '一心一意');
+  ok((await page.textContent('#idiom-check')).includes('已经学过了，不能保存：一心一意') && await page.locator('#idiom-save').isDisabled(), 'typing an idiom that is already there: the window says it is already learned and Save is off');
+  await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog', { state: 'detached' });
+  ok(await page.locator('.idiom-card').count() === 3, 'so nothing is added');
 
   // --- the list shows only the week it was opened from; "all idioms" shows every week
   await page.click('#idiom-add'); await page.fill('dialog input[type=date]', '2026-11-01'); await page.fill('dialog textarea', '亡羊补牢 掩耳盗铃'); await page.click('dialog button.primary');
@@ -106,7 +107,7 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
     ok((await page.textContent('#idioms-btn')) === btn, loc + ': the button reads "' + btn + '"');
     await page.click('#idioms-btn'); await page.waitForSelector('.idiom-card');
     ok((await noChinese(page)).length === 0 && !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)), loc + ': the list has no Chinese UI text and fits the phone ' + JSON.stringify(await noChinese(page)));
-    await page.click('#idiom-add'); ok((await noChinese(page)).length === 0, loc + ': the add window is translated ' + JSON.stringify(await noChinese(page))); await page.click('dialog button >> nth=0'); await page.waitForSelector('dialog', { state: 'detached' });
+    await page.click('#idiom-add'); await page.fill('dialog textarea', '一心一意'); const dn = (await page.textContent('#idiom-check')).replace('一心一意', ''); ok(!/[\u4e00-\u9fff]/.test(dn) && /learned|appris/.test(dn) && await page.locator('#idiom-save').isDisabled(), loc + ': the "already learned" warning is translated: ' + dn); await page.fill('dialog textarea', '新来的成语'); const dn2 = (await page.textContent('#idiom-check')).replace('新来的成语', ''); ok(!/[\u4e00-\u9fff]/.test(dn2) && /library|bibliothèque/i.test(dn2), loc + ': the library / new line is translated: ' + dn2); await page.fill('dialog textarea', ''); ok((await noChinese(page)).length === 0, loc + ': the add window is translated ' + JSON.stringify(await noChinese(page))); await page.click('dialog button >> nth=0'); await page.waitForSelector('dialog', { state: 'detached' });
     await page.click('.idiom-card[data-idiom=画蛇添足]'); await page.waitForSelector('#idiom-story');
     await page.click('#story-edit'); await page.fill('dialog textarea', '从前，有个人。'); ok((await page.textContent('#story-count')) === (loc === 'en' ? '5 characters (punctuation not counted)' : '5 caractères (sans la ponctuation)') && (await noChinese(page)).length === 0, loc + ': the count line is translated: ' + await page.textContent('#story-count')); await page.click('dialog button >> nth=0'); await page.waitForSelector('dialog', { state: 'detached' });
     ok((await noChinese(page)).length === 0 && !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)), loc + ': the story page is translated and fits ' + JSON.stringify(await noChinese(page)));

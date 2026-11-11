@@ -442,7 +442,8 @@ async function renderIdioms() {
   const switchBtn = !idiomWeek ? null : h("button", { class: "primary wide", id: "idiom-scope", onclick: () => { idiomAll = !idiomAll; void renderIdioms(); } }, only ? "全部成语" : "只看这一周");
   show(h("div", { class: "page", style: idiomColor ? `--kid:${idiomColor}` : "" },
     topBar("成语故事", backBtn(idiomFrom || "#/")),
-    count ? h("div", { class: "idiom-head" }, head) : null,
+    count || idioms.pool?.length ? h("div", { class: "idiom-head" }, count ? head : null,
+      idioms.pool?.length ? h("p", { class: "muted small idiom-pool", id: "idiom-pool" }, `成语库：共 ${idioms.pool.length} 个，还没用的 ${M.unusedIdioms(idioms).length} 个`) : null) : null,
     h("main", { class: "scroll idiom-scroll" }, h("div", { class: "narrow" }, count ? list : empty)),
     switchBtn ? h("div", { class: "idiom-foot" }, switchBtn) : null));
   if (settings.pinyin) void fillPinyin(list);
@@ -451,20 +452,32 @@ async function renderIdioms() {
 async function addIdiomsDialog() {
   const date = h("input", { type: "date", value: idiomWeek || M.sundayOf(M.todayLocal()), "aria-label": "这一周的第一天（周日）" });
   const text = h("textarea", { rows: 3, placeholder: "把成语粘贴或输入在这里，空格、逗号、换行都可以分开", "aria-label": "成语" });
-  const save = h("button", { class: "primary" }, "保存");
+  const save = h("button", { class: "primary", id: "idiom-save" }, "保存");
+  const note = h("div", { class: "note", id: "idiom-check" });
   const r = await modal<string[]>((close) => {
-    save.addEventListener("click", () => { const l = M.parseIdioms(text.value); if (l.length) close(l); });
-    return h("div", { class: "dlg" }, h("h2", {}, "添加成语"), h("label", { class: "muted small" }, "这一周的第一天（周日）"), date, text,
+    // what is typed is checked at once: an idiom that was already learned can not be saved; one that is in the library is simply picked; a new one goes into the library
+    const check = () => {
+      const list = M.parseIdioms(text.value);
+      const c = M.classifyIdioms(idioms, list);
+      note.replaceChildren();
+      if (c.learned.length) note.append(h("div", { class: "warn" }, `已经学过了，不能保存：${c.learned.map((x) => `${x.item}（第${M.weekNo(x.start, kidsFile.startWeek ?? x.start)}周）`).join("、")}`));
+      else if (list.length) note.append(h("div", { class: "muted" }, `成语库里有 ${c.fromPool.length} 个，新成语 ${c.brandNew.length} 个（会加进成语库，同步时也会加到你的表格）`));
+      save.disabled = !list.length || c.learned.length > 0;
+    };
+    text.addEventListener("input", check);
+    check();
+    save.addEventListener("click", () => { const l = M.parseIdioms(text.value); if (l.length && !M.classifyIdioms(idioms, l).learned.length) close(l); });
+    return h("div", { class: "dlg" }, h("h2", {}, "添加成语"), h("label", { class: "muted small" }, "这一周的第一天（周日）"), date, text, note,
       h("div", { class: "row end" }, h("button", { onclick: () => close(null) }, "取消"), save));
   });
   if (!r) return; // cancelled: no "done" message
   const start = M.sundayOf(date.value || M.todayLocal());
   const done = toast("正在保存…", 0, true);
   try {
-    let added = 0;
-    idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => { const x = M.addIdioms(cur, start, r); added = x.added; return x.data; }, "add idioms");
+    let added = 0, blocked = 0;
+    idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => { const x = M.addIdiomsByHand(cur, start, r); added = x.added; blocked = x.check.learned.length; return x.data; }, "add idioms");
     done();
-    toast(added ? `已添加 ${added} 个成语` : "这些成语已经在列表里了");
+    toast(blocked ? "有的成语已经学过了，没有保存" : added ? `已添加 ${added} 个成语` : "这些成语已经在列表里了");
     void renderIdioms();
   } catch (e) {
     done();
