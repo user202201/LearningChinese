@@ -265,6 +265,9 @@ export const EN: Record<string, string> = {
   "有的成语已经学过了，没有保存": "Some idioms were already learned: nothing was saved",
   "表格 A 列有 {0} 行内容，认出 {1} 个成语": "Column A of the sheet has {0} filled rows, {1} idioms recognised",
   "有 {0} 行没有算进去（重复的、标题或不是成语），第 {1} 行{2}": "{0} rows were not counted (doubles, headings or not an idiom): rows {1}{2}",
+  "表格 D 列写了周的 {0} 个成语，回到表格里写的那一周": "{0} idioms have a week in column D of the sheet: they go back to that week",
+  "没写周的已勾选成语按表格顺序分配到 {0} 周，每周 {1} 个（{2}）": "The ticked idioms without a week go to {0} weeks in the order of the sheet, {1} a week ({2})",
+  "现有周里的 {0} 个成语会被冲掉，按表格重新安排（以表格为准）": "{0} idioms in the current weeks will be washed away and arranged again from the sheet (the sheet wins)",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -532,4 +535,7 @@ export const FR: Record<string, string> = {
   "有的成语已经学过了，没有保存": "Certains chengyu sont déjà appris : rien n'a été enregistré",
   "表格 A 列有 {0} 行内容，认出 {1} 个成语": "La colonne A du tableau a {0} lignes remplies, {1} chengyu reconnus",
   "有 {0} 行没有算进去（重复的、标题或不是成语），第 {1} 行{2}": "{0} lignes non comptées (doublons, titres ou pas un chengyu) : lignes {1}{2}",
+  "表格 D 列写了周的 {0} 个成语，回到表格里写的那一周": "{0} chengyu ont une semaine dans la colonne D du tableau : ils retournent à cette semaine",
+  "没写周的已勾选成语按表格顺序分配到 {0} 周，每周 {1} 个（{2}）": "Les chengyu cochés sans semaine vont dans {0} semaines, dans l'ordre du tableau, {1} par semaine ({2})",
+  "现有周里的 {0} 个成语会被冲掉，按表格重新安排（以表格为准）": "{0} chengyu des semaines actuelles seront effacés et réarrangés d'après le tableau (le tableau fait foi)",
 };

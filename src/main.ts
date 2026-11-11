@@ -984,8 +984,9 @@ function previewImport(entries: I.Entry[]): Promise<I.Entry[]> {
         lines.push(h("div", {}, `成语库：${q.total} 个成语，其中 ${q.checked} 个已勾选`));
         lines.push(h("div", { class: "muted" }, `表格 A 列有 ${q.filled} 行内容，认出 ${q.total} 个成语`));
         if (q.ignored.length) lines.push(h("div", { class: "warn" }, `有 ${q.ignored.length} 行没有算进去（重复的、标题或不是成语），第 ${q.ignored.slice(0, 8).join("、")} 行${q.ignored.length > 8 ? " …" : ""}`));
-        if (q.assigned) lines.push(h("div", {}, `已勾选的按表格顺序分配到 ${q.weeks.length} 周，每周 ${M.IDIOMS_PER_WEEK} 个（${q.weeks.map((w) => w.slice(5).replace("-", "\u2011")).join("、")}）`));
-        if (q.removed) lines.push(h("div", { class: "warn" }, `表格里没有勾选的 ${q.removed} 个成语（比如手动添加的）会从周里去掉，以表格为准`));
+        if (q.fromSheetWeeks) lines.push(h("div", {}, `表格 D 列写了周的 ${q.fromSheetWeeks} 个成语，回到表格里写的那一周`));
+        if (q.assigned) lines.push(h("div", {}, `没写周的已勾选成语按表格顺序分配到 ${q.weeks.length} 周，每周 ${M.IDIOMS_PER_WEEK} 个（${q.weeks.map((w) => w.slice(5).replace("-", "\u2011")).join("、")}）`));
+        if (q.removed) lines.push(h("div", { class: "warn" }, `现有周里的 ${q.removed} 个成语会被冲掉，按表格重新安排（以表格为准）`));
         if (q.leftover) lines.push(h("div", { class: "warn" }, `还有 ${q.leftover} 个已勾选的放不下，留在成语库里`));
         lines.push(h("div", { class: "muted" }, `还没有分配到周的 ${q.unticked} 个留在成语库里，以后每周自动随机选 ${M.IDIOMS_PER_WEEK} 个放进下一周`));
       } else if (!n) lines.push(h("div", { class: "warn" }, "没有认出内容。第一列要写成“第1周-2026-10-25”，后面是汉字。"));

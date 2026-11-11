@@ -19,6 +19,8 @@
  * 成语标签页（A 列 = 成语，B 列 = 打勾的格子，C 列 = 你表格自己算的数量）：
  *   App 每周从成语库里给下一周随机选 6 个成语；同步时，脚本把“App 里已经分配到某一周的成语”在 B 列对应的格子【打上勾】。
  *   只会【打勾】，不会取消已有的勾；已有的 A 列成语和 C 列（计算）一律不碰。
+ *   学习的周会写在 D 列（例如 第4周-2026-11-15），和孩子标签页 A 列的写法一样；D 列是空的、或者已经是这种周标签但周不一样时才写，
+ *   你自己在 D 列写的别的内容不动。下次在 App 里重新导入这张表时，D 列写了周的成语会回到原来的那一周。
  *   你在 App 里手动添加的、表格里还没有的新成语，会【加到 A 列最后一个成语的下面】（B 列同时放一个勾选框，并按 App 里有没有分配到周打勾）；
  *   一次最多加 30 个，再多就不加并在“同步状态”里提醒（可在脚本属性里加 MAX_IDIOM_ADDS 改）。
  * 只读：脚本只读取 GitHub，不会改动 App 里的任何数据。
@@ -29,6 +31,7 @@
 
 var STATUS_TAB = '同步状态';
 var MAX_IDIOM_ADDS = 30;       // 一次同步最多往成语标签页 A 列加几个新成语
+var IDIOM_WEEK_COL = 4;       // D 列：这个成语学习的周
 var IDIOM_TAB = '成语';         // 成语标签页的名字（A 列成语，B 列打勾）
 var FIRST_CHAR_COL = 2;        // B 列
 var CHAR_COLS = 10;            // B ～ K：每周 10 个字
@@ -261,6 +264,29 @@ function idiomTicks_(aValues, bValues, used) {
   Object.keys(used).forEach(function (k) { if (!seen[k]) out.missing.push(k); });
   return out;
 }
+/** “第N周-日期”：N 从 anchor（App 里第一周）算起，和 App、孩子标签页 A 列的写法一样 */
+function weekLabel_(start, anchor) {
+  var diff = utcDay_(start) - utcDay_(anchor);
+  var n = isNaN(diff) ? 1 : Math.round(diff / WEEK_MS) + 1;
+  return '第' + n + '周-' + start;
+}
+/**
+ * D 列要写什么：aValues = A 列（成语），dValues = D 列现在的内容，weekOf = {成语: 周日期}，anchor = App 里第一周的日期。
+ * 只在 D 格是【空的】，或者里面是“带日期的周标签但日期不一样”时才写；你自己写的别的内容不动。
+ * 返回 { writes: [[行号, 标签]], kept: 别的内容没动的个数 }
+ */
+function idiomWeekWrites_(aValues, dValues, weekOf, anchor) {
+  var out = { writes: [], kept: 0 };
+  for (var i = 0; i < aValues.length; i++) {
+    var a = String(aValues[i] === undefined || aValues[i] === null ? '' : aValues[i]).replace(/\s+/g, '');
+    var start = a && weekOf[a];
+    if (!start) continue;
+    var cur = String(dValues[i] === undefined || dValues[i] === null ? '' : dValues[i]).trim();
+    if (!cur || (dateInLabel_(cur) && dateInLabel_(cur) !== start)) out.writes.push([i + 1, weekLabel_(start, anchor)]);
+    else if (dateInLabel_(cur) !== start) out.kept++;
+  }
+  return out;
+}
 /** App 里有、表格 A 列里还没有的成语（成语库 + 已分配到周的），按成语库的顺序；返回 [{idiom, tick: 是否分配到周}] */
 function idiomAppends_(aValues, pool, used) {
   var have = {}, out = [], seen = {};
@@ -272,18 +298,25 @@ function idiomAppends_(aValues, pool, used) {
   });
   return out;
 }
-/** 把 App 里已经分配到周的成语，在成语标签页 B 列的格子打上勾；再把表格里还没有的新成语加到 A 列最后一个成语的下面。返回一行说明 */
-function syncIdioms_(ss, idiomsFile, maxAdds) {
+/** 把 App 里已经分配到周的成语在 B 列打勾、在 D 列写上学习的周；再把表格里还没有的新成语加到 A 列最后一个成语的下面。返回一行说明 */
+function syncIdioms_(ss, idiomsFile, maxAdds, startWeek) {
   var sheet = findTab_(ss, IDIOM_TAB);
   if (!sheet) return '成语：表格里没有叫“' + IDIOM_TAB + '”的标签页，已跳过';
   if (!idiomsFile) return '成语：App 里还没有成语数据，已跳过';
-  var used = {}, n = 0;
-  (idiomsFile.weeks || []).forEach(function (w) { (w.items || []).forEach(function (x) { if (!used[x]) { used[x] = true; n++; } }); });
+  var used = {}, weekOf = {}, n = 0, earliest = '';
+  (idiomsFile.weeks || []).forEach(function (w) {
+    if (w.items && w.items.length && (!earliest || w.start < earliest)) earliest = w.start;
+    (w.items || []).forEach(function (x) { if (!used[x]) { used[x] = true; weekOf[x] = w.start; n++; } });
+  });
+  var anchor = startWeek || earliest;
   var last = sheet.getLastRow();
   var a = last < 1 ? [] : sheet.getRange(1, 1, last, 1).getDisplayValues().map(function (r) { return r[0]; });
   var b = last < 1 ? [] : sheet.getRange(1, 2, last, 1).getValues().map(function (r) { return r[0]; });
+  var d = last < 1 ? [] : sheet.getRange(1, IDIOM_WEEK_COL, last, 1).getDisplayValues().map(function (r) { return r[0]; });
   var r = idiomTicks_(a, b, used);
   r.ticks.forEach(function (row) { sheet.getRange(row, 2).setValue(true); });
+  var wk = idiomWeekWrites_(a, d, weekOf, anchor);
+  wk.writes.forEach(function (w) { sheet.getRange(w[0], IDIOM_WEEK_COL).setValue(w[1]); });
   // 新成语：加到 A 列最后一个成语的下面（不碰已有的格子；C 列留给表格自己的公式）
   var add = idiomAppends_(a, idiomsFile.pool, used), added = 0, note = '';
   if (add.length > (maxAdds || MAX_IDIOM_ADDS)) {
@@ -298,11 +331,12 @@ function syncIdioms_(ss, idiomsFile, maxAdds) {
       var box = sheet.getRange(row, 2);
       if (typeof box.insertCheckboxes === 'function') box.insertCheckboxes();
       box.setValue(x.tick);
+      if (x.tick && weekOf[x.idiom]) sheet.getRange(row, IDIOM_WEEK_COL).setValue(weekLabel_(weekOf[x.idiom], anchor));
       added++;
     });
     note = '；新加到表格 A 列 ' + added + ' 个（' + add.slice(0, 6).map(function (x) { return x.idiom; }).join('、') + (add.length > 6 ? ' 等' : '') + '）';
   }
-  return '成语：App 里分配了 ' + n + ' 个，新打勾 ' + r.ticks.length + ' 个，原来就有勾 ' + r.already + ' 个' + note;
+  return '成语：App 里分配了 ' + n + ' 个，新打勾 ' + r.ticks.length + ' 个，原来就有勾 ' + r.already + ' 个；D 列写入学习的周 ' + wk.writes.length + ' 个' + (wk.kept ? '（另有 ' + wk.kept + ' 个 D 格里是你自己写的内容，没有动）' : '') + note;
 }
 
 /** 脚本属性里这个孩子“上次同步时 App 有哪些字”的记录 */
@@ -355,7 +389,7 @@ function doSync_() {
     lines.push(k.name + '：新填入 ' + r.added + ' 个字，已有 ' + r.present + ' 个' + (r.deleted ? '，清除 ' + r.deleted + ' 个（App 里已删除）' : '') + (r.notes.length ? '；注意：' + r.notes.join('；') : ''));
   });
   try {
-    lines.push(syncIdioms_(ss, ghGet_(cfg, 'idioms.json'), cfg.maxIdiomAdds));
+    lines.push(syncIdioms_(ss, ghGet_(cfg, 'idioms.json'), cfg.maxIdiomAdds, fallback));
   } catch (e) {
     lines.push('成语：没有同步成功（' + e.message + '）');
   }
