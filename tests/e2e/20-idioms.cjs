@@ -46,13 +46,13 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   await page.waitForSelector('#toasts .toast:has-text("已添加 2 个成语")');
   ok(await page.locator('.idiom-card').count() === 3 && (await page.$$eval('.idiom-card', (e) => e.map((x) => x.dataset.idiom))).join('|') === '一心一意|画蛇添足|守株待兔', "idioms added for another week are not in this week's list: it still shows only this week's three");
   ok((await page.textContent('#idiom-scope')) === '全部成语', 'and a button offers "all idioms"');
-  const sc = await look(); const scPos = await page.evaluate(() => { const b = document.querySelector('#idiom-scope').getBoundingClientRect(), l = document.querySelector('#idiom-list').getBoundingClientRect(), m = document.querySelector('main.scroll').getBoundingClientRect(); return { below: b.top - l.bottom, toBottom: m.bottom - b.bottom }; });
+  const sc = await look(); const scPos = await page.evaluate(() => { const b = document.querySelector('#idiom-scope').getBoundingClientRect(), l = document.querySelector('#idiom-list').getBoundingClientRect(); return { below: b.top - l.bottom, toBottom: innerHeight - b.bottom }; });
   ok(sc.bg === idBtn.bg && sc.h === idBtn.h && sc.r === idBtn.r && sc.fs === idBtn.fs && sc.w === idBtn.w && sc.anim === 'none', 'the "all idioms" button is the same big button as "成语故事" and "开始游戏" (' + sc.w + 'x' + sc.h + ')');
   ok(scPos.toBottom < 60 && scPos.below > 60, 'and it sits at the bottom of the screen, not under the list (' + Math.round(scPos.below) + ' px below it, ' + Math.round(scPos.toBottom) + ' px from the edge)');
-  const cw = await page.evaluate(() => [...document.querySelectorAll('.idiom-card')].map((r) => { const cs = [...r.querySelectorAll('.tzg')].map((c) => c.getBoundingClientRect()); return { n: cs.length, w: Math.round(cs[0].width), same: new Set(cs.map((c) => Math.round(c.top))).size === 1, red: getComputedStyle(r.querySelector('.box')).borderTopColor, bw: getComputedStyle(r.querySelector('.box')).borderTopWidth }; }));
-  ok(cw.every((c) => c.n === 4 && c.same && c.bw === '3px' && c.w >= 70 && c.w <= 102), 'one idiom per line: its four characters side by side in red-framed 田字格 cells (' + cw.map((c) => c.w + 'px').join(', ') + ')');
+  const cw = await page.evaluate(() => [...document.querySelectorAll('.idiom-card')].map((r) => { const cs = [...r.querySelectorAll('.tzg')].map((c) => c.getBoundingClientRect()); const rs = getComputedStyle(r); const bx = r.querySelector('.box').getBoundingClientRect(); return { sq: Math.abs(bx.width - bx.height) <= 2 && Math.abs(cs[0].height - cs[0].width) <= 2, n: cs.length, w: Math.round(cs[0].width), same: new Set(cs.map((c) => Math.round(c.top))).size === 1, joined: cs.every((c, i) => i === 0 || Math.abs(c.left - cs[i - 1].right) <= 2.5), frame: rs.borderTopWidth, round: parseFloat(rs.borderTopLeftRadius) > 10, cell: getComputedStyle(r.querySelector('.box')).borderTopWidth }; }));
+  ok(cw.every((c) => c.n === 4 && c.sq && c.same && c.joined && c.frame === '3px' && c.round && c.cell === '0px' && c.w >= 70 && c.w <= 102), 'one idiom per line: the four characters are JOINED in one framed strip like a line of a 田字本, each in its own 田字格 cell (' + cw.map((c) => c.w + 'px').join(', ') + ')');
   await page.click('#idiom-scope'); await page.waitForFunction(() => document.querySelectorAll('.idiom-card').length === 5);
-  ok((await page.$$eval('.idiom-week', (e) => e.map((x) => x.textContent))).join('|') !== '' && (await page.$$eval('.idiom-week', (e) => e.length)) === 2 && (await page.textContent('#idiom-scope')) === '只看这一周', 'all idioms: both weeks, in order, each under its heading; the button now says "this week only"');
+  ok((await page.$$eval('.idiom-week', (e) => e.length)) === 2 && (await page.textContent('#idiom-scope')) === '只看这一周', 'all idioms: both weeks, each under its heading; the button now says "this week only"');
   await page.click('#idiom-scope'); await page.waitForFunction(() => document.querySelectorAll('.idiom-card').length === 3);
   ok(await page.locator('.idiom-card').count() === 3, 'and back to this week only');
 
@@ -117,6 +117,16 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
     ok(cr.every((x) => Math.abs(x) <= 1), w + 'x' + h2 + ': every idiom line is centred (' + cr.map((x) => x.toFixed(1)).join(', ') + ')');
     ok(Math.abs(l) <= 1 && Math.abs(s2[0]) <= 1 && Math.abs(s2[1]) <= 1, w + 'x' + h2 + ': the list, the idiom and the story are centred (equal space left and right: ' + [l, ...s2].map((x) => x.toFixed(1)).join(', ') + ')');
   }
+  // --- only the idioms in the middle scroll: the heading above and the button below stay where they are
+  await page.setViewportSize({ width: 390, height: 640 });
+  await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory'); await page.click('#idioms-btn'); await page.waitForSelector('.idiom-card');
+  await page.click('#idiom-scope'); await page.waitForFunction(() => document.querySelectorAll('.idiom-card').length === 5);
+  const sr = () => page.evaluate(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const m = document.querySelector('.idiom-scroll'); return { btn: Math.round(r('#idiom-scope').top), btnBottom: Math.round(innerHeight - r('#idiom-scope').bottom), head: Math.round(r('.idiom-head').top), top: m.scrollTop, can: m.scrollHeight - m.clientHeight, pageScroll: document.documentElement.scrollHeight > innerHeight }; });
+  const s0 = await sr();
+  await page.evaluate(() => { document.querySelector('.idiom-scroll').scrollTop = 400; });
+  const s1 = await sr();
+  ok(s0.can > 100 && s1.top > 100 && s1.btn === s0.btn && s1.head === s0.head && !s1.pageScroll && s1.btnBottom < 40, 'the idioms scroll in the middle (' + s1.top + ' px) while the heading and the "只看这一周" button stay in place (button ' + s0.btn + ' -> ' + s1.btn + ', ' + s1.btnBottom + ' px from the bottom), and the page itself does not scroll');
+  await page.setViewportSize({ width: 390, height: 844 });
   // --- a week has six idioms: at six the small + is gone
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory'); await page.click('#idioms-btn'); await page.waitForSelector('.idiom-card');

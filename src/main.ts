@@ -395,11 +395,13 @@ async function renderIdioms() {
     count > 0 && (!only || count < IDIOMS_PER_WEEK) ? h("button", { class: "plus", id: "idiom-add", title: addTip, "aria-label": addTip, onclick: () => void addIdiomsDialog() }, "＋") : null);
   const empty = h("div", { class: "add-empty", id: "idiom-empty" }, h("button", { class: "add-big", id: "idiom-add", title: addTip, "aria-label": addTip, onclick: () => void addIdiomsDialog() }, "＋"),
     h("p", {}, only ? "点 ＋ 添加这一周的成语" : "点 ＋ 添加成语"));
-  // the same big button as on the week page, at the bottom of the screen
+  // the same big button as on the week page; it stays at the bottom of the screen: only the idioms in the middle scroll
   const switchBtn = !idiomWeek ? null : h("button", { class: "primary wide", id: "idiom-scope", onclick: () => { idiomAll = !idiomAll; void renderIdioms(); } }, only ? "全部成语" : "只看这一周");
   show(h("div", { class: "page", style: idiomColor ? `--kid:${idiomColor}` : "" },
     topBar("成语故事", backBtn(idiomFrom || "#/")),
-    h("main", { class: "scroll" }, h("div", { class: "narrow week-narrow" }, count ? head : null, count ? list : empty, switchBtn))));
+    count ? h("div", { class: "idiom-head" }, head) : null,
+    h("main", { class: "scroll idiom-scroll" }, h("div", { class: "narrow" }, count ? list : empty)),
+    switchBtn ? h("div", { class: "idiom-foot" }, switchBtn) : null));
   if (settings.pinyin) void fillPinyin(list);
 }
 

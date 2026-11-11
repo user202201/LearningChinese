@@ -395,14 +395,23 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 /* idioms: one shared list, one story page */
 /* the week page is a column as tall as the screen: the idiom button sits at the bottom, not right under the characters (a long list simply pushes it down) */
 .week-narrow { min-height: 100%; display: flex; flex-direction: column; }
-#idioms-btn, #idiom-scope { margin: auto 0 8px; }
-.week-narrow > .cards, .week-narrow > .add-empty, .week-narrow > .idiom-list { margin-bottom: 22px; }   /* the same big button as "Start the game" (see above), without its nudge animation */
+#idioms-btn { margin: auto 0 8px; }
+#idiom-scope { margin: 0; }
+.week-narrow > .cards, .week-narrow > .add-empty { margin-bottom: 22px; }   /* the same big button as "Start the game" (see above), without its nudge animation */
 .idiom-week { margin: 10px 4px 0; }
 .idiom-chars { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 112px)); justify-content: center; gap: 8px; margin: 14px 0 18px; }
 .idiom-chars .tzg .py { visibility: visible; }
 .story { white-space: pre-wrap; font-size: 20px; line-height: 1.8; padding: 16px 18px; margin: 6px 0 16px; border-radius: 22px; background: #fff; box-shadow: var(--shadow); overflow-wrap: anywhere; }
-/* idioms: one idiom per line, in the same 田字格 cells as the recorded characters (at most 102 px wide, the size of those cells on a tablet) */
-.idiom-list { display: grid; gap: 16px; margin-top: 10px; }
-.idiom-card { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 102px)); gap: 8px; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.idiom-card:focus-visible { outline: 3px solid var(--kid); outline-offset: 6px; border-radius: 16px; }
+/* idioms: one idiom per line, like a line of a 田字本: the four cells are joined into ONE framed strip (so the idiom reads as one thing), the cells the size of the recorded characters (at most 102 px) */
+.idiom-head { max-width: 720px; width: 100%; margin: 0 auto; padding: 0 calc(env(safe-area-inset-right) + 16px) 0 calc(env(safe-area-inset-left) + 16px); }
+.idiom-list { display: grid; gap: 22px; margin-top: 10px; padding-bottom: 14px; }
+.idiom-card { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); width: min(100%, calc(var(--n, 4) * 102px + 6px)); margin: 0 auto; border: 3px solid var(--kid); border-radius: 18px; overflow: hidden; background: #fffdf8; box-shadow: 0 5px 0 var(--kid-line); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.idiom-card .tzg .box { border: 0; border-radius: 0; box-shadow: none; }
+.idiom-card .tzg + .tzg { border-left: 2px solid var(--kid); }
+.idiom-card .tzg .py { background: var(--kid-soft); }
+.idiom-list:not(.pinyin-on) .idiom-card .tzg .py { display: none; }   /* (no empty line above the squares while the pinyin is off) */
+.idiom-card:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--kid-line); }
+.idiom-card:focus-visible { outline: 3px solid var(--kid); outline-offset: 5px; }
 .idiom-week { margin: 8px 4px 0; text-align: center; }
+.idiom-foot { max-width: 720px; width: 100%; margin: 0 auto; padding: 8px calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 16px) calc(env(safe-area-inset-left) + 16px); }
+.idiom-scroll { padding-bottom: 6px; }
