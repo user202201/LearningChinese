@@ -399,7 +399,7 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 #idiom-scope { margin: 0; }
 .week-narrow > .cards, .week-narrow > .add-empty { margin-bottom: 22px; }   /* the same big button as "Start the game" (see above), without its nudge animation */
 .idiom-week { margin: 10px 4px 0; }
-.idiom-chars { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 112px)); justify-content: center; gap: 8px; margin: 14px 0 18px; }
+.idiom-chars { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 112px)); justify-content: center; gap: 8px; margin: 14px 0 18px; }   /* always ONE line: on a small screen the cells just get smaller */
 .idiom-chars .tzg .py { visibility: visible; }
 .story { white-space: pre-wrap; font-size: 20px; line-height: 1.8; padding: 16px 18px; margin: 6px 0 16px; border-radius: 22px; background: #fff; box-shadow: var(--shadow); overflow-wrap: anywhere; }
 /* idioms: one idiom per line, like a line of a 田字本: the four cells are joined into ONE framed strip (so the idiom reads as one thing), the cells the size of the recorded characters (at most 102 px) */

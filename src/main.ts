@@ -440,7 +440,7 @@ async function renderIdiom(name: string) {
   if (my !== epoch) return;
   const story = idioms.stories?.[name] ?? "";
   const chars = [...name];
-  const row = h("div", { class: "idiom-chars pinyin-on", id: "idiom-chars" }, ...chars.map((c) => cell(c)));
+  const row = h("div", { class: "idiom-chars pinyin-on", id: "idiom-chars", style: `--n:${chars.length}` }, ...chars.map((c) => cell(c)));
   show(h("div", { class: "page", style: idiomColor ? `--kid:${idiomColor}` : "" },
     topBar("成语故事", backBtn("#/idioms")),
     h("main", { class: "scroll" }, h("div", { class: "narrow" },

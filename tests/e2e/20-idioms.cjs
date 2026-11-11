@@ -103,6 +103,16 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
     ok((await noChinese(page)).length === 0 && !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)), loc + ': the story page is translated and fits ' + JSON.stringify(await noChinese(page)));
     await page.screenshot({ path: OUT + `idiom-story-${loc}.png` });
   }
+  // --- the story page keeps the whole idiom on ONE line, on the smallest screens too
+  for (const [w, h2] of [[320, 568], [360, 640], [390, 844], [844, 390]]) {
+    await page.setViewportSize({ width: w, height: h2 });
+    await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory'); await page.click('#idioms-btn'); await page.waitForSelector('.idiom-card');
+    await page.click('.idiom-card[data-idiom=画蛇添足]'); await page.waitForSelector('#idiom-chars');
+    const one = await page.evaluate(() => { const cs = [...document.querySelectorAll('#idiom-chars .tzg')].map((c) => c.getBoundingClientRect()); const m = document.querySelector('#idiom-chars').getBoundingClientRect(); return { n: cs.length, rows: new Set(cs.map((c) => Math.round(c.top))).size, w: Math.round(cs[0].width), over: document.documentElement.scrollWidth > innerWidth, inside: cs.every((c) => c.left >= -0.5 && c.right <= innerWidth + 0.5), mid: Math.abs((cs[0].left + cs[cs.length - 1].right) / 2 - innerWidth / 2) <= 1 }; });
+    ok(one.n === 4 && one.rows === 1 && !one.over && one.inside && one.mid, w + 'x' + h2 + ': the four characters of the story page stay on one line, centred, cells ' + one.w + ' px');
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+
   // --- both sides equal on a tablet and a desktop (rule 13)
   for (const [w, h2] of [[820, 1180], [1180, 820], [1440, 900]]) {
     await page.setViewportSize({ width: w, height: h2 });
