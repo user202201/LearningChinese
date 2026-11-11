@@ -67,7 +67,7 @@ const fits = (page) => page.evaluate(() => {
       await page.waitForFunction(() => !document.querySelector('#toasts .toast.working'));
       await check('week (filled, with saved message)'); await shot('4-week');
       await page.click('button[data-tab=learned]'); await page.waitForSelector('#grid .tzg');
-      await page.mouse.click(viewport.width / 2, viewport.height / 2);
+      await page.evaluate(() => document.querySelector('.learned-head .muted').click());   // (the hint line: an empty spot; a tap on a character opens the big view)
       await page.waitForFunction(() => document.querySelector('#grid .tzg .py')?.textContent);
       await check('learned (pinyin on)'); await shot('5-learned');
       ok((await page.textContent('#grid .tzg[data-ch=假] .box')) === '假', `${tag} the user's characters are shown as typed`);

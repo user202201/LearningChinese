@@ -14,7 +14,7 @@ const OUT = process.env.D || 'tests/out/work/';
   const big = await page.locator('#enter').boundingBox();
   const area = await page.locator('.narrow').boundingBox();
   ok(await page.locator('#enter.add-big').count() === 1 && Math.abs((big.x + big.width / 2) - (area.x + area.width / 2)) <= 2, 'an empty week: a big + in the middle of the area (' + Math.round(big.x + big.width / 2) + ' vs ' + Math.round(area.x + area.width / 2) + ')');
-  ok(await page.locator('.idiom, .idioms, #enter-idioms').count() === 0 && !(await page.textContent('.narrow')).includes('成语'), 'no idioms on the child page');
+  ok(await page.locator('.idiom, .idioms, #enter-idioms, .idiom-card').count() === 0 && await page.locator('#idioms-btn').count() === 1 && (await page.textContent('.narrow')).replace('成语故事', '').indexOf('成语') === -1, 'the child page has no idiom list of its own, only the "成语故事" button to the shared list');
   await page.screenshot({ path: OUT + 'week-empty.png' });
 
   await page.click('#enter');                                           // the big + opens the entry with the characters box ready

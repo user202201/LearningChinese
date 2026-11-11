@@ -26,7 +26,7 @@ const { ok, done } = checks();
   ok(await page.locator('button[title=更多]').count() === 0 && await page.locator('text=删除').count() === 0, "a child's own page has no menu and no delete (that is in Settings)");
   ok((await page.textContent('h2.sec >> nth=0')).includes('（0）'), 'this week (2026-11-08) is shown first and is empty');
   ok((await page.textContent('.wlabel .muted')).startsWith('2026-11-08'), 'the week starts on the Sunday before today');
-  ok(await page.locator('.idiom, .idioms, #enter-idioms').count() === 0 && !(await page.textContent('.narrow')).includes('成语'), 'no idioms on the child page (they are the same for everybody, so not shown here)');
+  ok(await page.locator('.idiom, .idioms, #enter-idioms, .idiom-card').count() === 0 && await page.locator('#idioms-btn').count() === 1 && (await page.textContent('.narrow')).replace('成语故事', '').indexOf('成语') === -1, 'the child page has no idiom list of its own (they are the same for everybody): only the one "成语故事" button that opens the shared list');
 
   // week 1 entry: live check while typing
   await page.click('#enter');
