@@ -88,6 +88,20 @@ const MANY = Array.from('一二三四五六七八九十上下大小山水火土�
   await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('learn.settings.v1') || '{}'); s.manage = false; localStorage.setItem('learn.settings.v1', JSON.stringify(s)); });
   await page.reload(); await page.waitForSelector('#grid .tzg');
 
+  // the pinyin choice made inside the big view is followed by the list behind it, and the next taps on the list work (the "only once" bug)
+  const gridPy = () => page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility);
+  await page.waitForSelector('#toasts .toast', { state: 'detached' }).catch(() => {});
+  const was = await gridPy();
+  await page.locator('#grid .tzg').nth(1).click(); await page.waitForSelector('#viewer');
+  await page.click('#viewer .tzg');                                                  // switches the pinyin inside the big view
+  await page.click('#viewer-close'); await page.waitForSelector('#viewer', { state: 'detached' });
+  await page.waitForFunction(() => true);
+  const afterViewer = await gridPy();
+  ok(afterViewer !== was, 'the list behind follows the pinyin choice made in the big view (' + was + ' -> ' + afterViewer + ')');
+  const seq = [];
+  for (let n = 0; n < 4; n++) { await tapHint(); await page.waitForTimeout(150); seq.push(await gridPy()); }
+  ok(seq.every((v, n) => v === (n % 2 === 0 ? (afterViewer === 'visible' ? 'hidden' : 'visible') : afterViewer)), 'and then every tap on an empty spot switches it, again and again (' + seq.join(', ') + ')');
+  if (await gridPy() === 'hidden') await tapHint();   // (back to "on" for the checks below)
   // the week view follows the same pinyin setting
   await page.click('button:has-text("本周")'); await gotoWeek(page, '2026-11-29');
   await page.waitForSelector('.cards .tzg .py');

@@ -512,7 +512,7 @@ function openViewer(chars: string[], start: number, color: string) {
     document.removeEventListener("keydown", onKey);
     root.remove();
     // the pinyin choice may have been changed in here: the cards behind follow it
-    document.querySelectorAll<HTMLElement>(".cards").forEach((g) => {
+    document.querySelectorAll<HTMLElement>(".cards, .grid").forEach((g) => {
       g.classList.toggle("pinyin-on", settings.pinyin);
       if (settings.pinyin) void fillPinyin(g);
     });
@@ -558,7 +558,7 @@ function renderLearned(body: HTMLElement, k: M.Kid, kid: M.KidData) {
   scroller.addEventListener("click", (e) => {
     const tzg = (e.target as HTMLElement).closest<HTMLElement>(".tzg");
     if (tzg && !settings.manage) return openViewer(chars, Math.max(0, chars.indexOf(tzg.dataset.ch ?? "")), k.color);
-    settings.pinyin = !settings.pinyin;
+    settings.pinyin = !grid.classList.contains("pinyin-on");   // (from what is on screen, so the tap always does what it looks like)
     saveSettings();
     grid.classList.toggle("pinyin-on", settings.pinyin);
     if (settings.pinyin) void fillPinyin(grid);
