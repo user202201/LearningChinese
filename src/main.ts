@@ -540,8 +540,6 @@ function openViewer(chars: string[], start: number, color: string) {
     else if (!t.closest(".vtop, .vhint")) move(e.clientX < window.innerWidth / 2 ? -1 : 1);
   });
   root.addEventListener("pointercancel", () => (down = null));
-  root.addEventListener("dblclick", (e) => e.preventDefault());       // (a double tap must never zoom the page behind: Safari)
-  root.addEventListener("gesturestart", (e) => e.preventDefault());   // (nor a pinch)
   document.addEventListener("keydown", onKey);
   document.body.append(root);
   show();
@@ -1165,6 +1163,16 @@ async function route() {
   if (hash === "#/settings") return void renderSettings();
   return renderHome();
 }
+
+// No double-tap zoom, anywhere. On an iPad Safari (which shows pages like a desktop) "touch-action" is not enough, so the second tap of a double tap is
+// cancelled here (same place, within 350 ms); pointer events still arrive, so our own taps keep working. Pinching stays possible, to get back from a zoom.
+let lastEnd = -1e9, lastX = 0, lastY = 0;
+document.addEventListener("touchend", (e) => {
+  const t = e.changedTouches[0];
+  const quick = e.timeStamp - lastEnd < 350 && Math.hypot(t.clientX - lastX, t.clientY - lastY) < 40;
+  lastEnd = e.timeStamp; lastX = t.clientX; lastY = t.clientY;
+  if (quick && e.cancelable && !(e.target as Element).closest("button, input, textarea, select, a, dialog")) e.preventDefault();
+}, { passive: false });
 
 setLang(settings.lang);
 window.addEventListener("hashchange", () => void route());

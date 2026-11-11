@@ -67,9 +67,20 @@ const OUT = process.env.D || 'tests/out/work/';
   const shown = () => page.$eval('#viewer .tzg .ch', (e) => e.textContent);
   const count = () => page.textContent('#viewer .vcount');
   ok((await shown()) === chars[2] && (await count()) === '3 / 10', 'tapping the 3rd character shows exactly that one, full screen: ' + chars[2] + ', 3 / 10');
-  const vt = await page.evaluate(() => ['#viewer', '#viewer .vstage', '#viewer .tzg', '#viewer .ch', '#viewer-next'].map((s) => [s, getComputedStyle(document.querySelector(s)).touchAction]));
-  ok(vt.every(([, v]) => v === 'none'), 'in the big view the browser gets no gestures (touch-action: none), so a double tap can not zoom the page on an iPad: ' + vt.map((x) => x.join('=')).join(', '));
-  ok(await page.evaluate(() => { const e = new MouseEvent('dblclick', { bubbles: true, cancelable: true }); document.querySelector('#viewer .tzg').dispatchEvent(e); return e.defaultPrevented; }), 'and a double click / tap there is cancelled');
+  // no double-tap zoom: the second tap of a double tap is cancelled (iPad Safari ignores touch-action here); pinching stays possible
+  const dbl = await page.evaluate(async () => {
+    const send = (sel, x, y) => { const el = document.querySelector(sel); const tc = new Touch({ identifier: 1, target: el, clientX: x, clientY: y }); const e = new TouchEvent('touchend', { bubbles: true, cancelable: true, changedTouches: [tc] }); el.dispatchEvent(e); return e.defaultPrevented; };
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const out = {};
+    out.first = send('#viewer .tzg', 300, 300);
+    out.second = send('#viewer .tzg', 305, 302);
+    await wait(450); out.late = send('#viewer .tzg', 305, 302);
+    await wait(50); out.far = send('#viewer .tzg', 305, 302); out.far2 = send('#viewer .tzg', 120, 600);
+    await wait(450); send('#viewer-next', 100, 100); out.button = send('#viewer-next', 102, 101);
+    await wait(450);
+    return out;
+  });
+  ok(!dbl.first && dbl.second && !dbl.late && !dbl.far2 && !dbl.button, 'the second tap of a double tap (same place, within 350 ms) is cancelled, so Safari can not zoom; a single tap, a later tap, a tap elsewhere and a button are left alone: ' + JSON.stringify(dbl));
   const vr = await page.$eval('#viewer', (e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.width, r.height, innerWidth, innerHeight]; });
   ok(vr[0] === 0 && vr[1] === 0 && vr[2] === vr[4] && vr[3] === vr[5], 'it covers the whole screen');
   const fs = await page.$eval('#viewer .tzg .ch', (e) => parseFloat(getComputedStyle(e).fontSize));
