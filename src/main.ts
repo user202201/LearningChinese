@@ -1300,7 +1300,7 @@ async function renderSettings() {
       saveSettings();
       secs.querySelectorAll<HTMLElement>("button.secbtn").forEach((b) => b.classList.toggle("on", b.dataset.sec === String(n)));
     } }, `${n} 秒`)));
-  const pinyin = h("input", { type: "checkbox", checked: settings.pinyin, onchange: (e: Event) => { settings.pinyin = (e.target as HTMLInputElement).checked; saveSettings(); } });
+  const pinyin = h("input", { type: "checkbox", id: "pin-toggle", checked: settings.pinyin, onchange: (e: Event) => { settings.pinyin = (e.target as HTMLInputElement).checked; saveSettings(); } });
   const manage = h("input", { type: "checkbox", id: "manage-mode", checked: settings.manage, onchange: (e: Event) => { settings.manage = (e.target as HTMLInputElement).checked; saveSettings(); } });
   const a = api.getAuth();
   const account = api.isLocal()
@@ -1319,34 +1319,46 @@ async function renderSettings() {
         h("button", { class: "mini change-avatar", onclick: () => void changeAvatar(k, () => void renderSettings()) }, "头像和颜色"),
         h("button", { class: "mini danger delete", onclick: () => void deleteKid(k) }, "删除"))));
   const kids = h("div", { class: "card" }, h("h3", {}, "孩子"), ...rows,
-    h("button", { class: "wide", id: "add-kid", onclick: () => void addKid(() => void renderSettings()) }, "＋ 添加孩子"),
-    h("button", { class: "wide", id: "import-btn", onclick: importFlow }, "从 Excel 导入"));
+    h("button", { class: "wide", id: "add-kid", onclick: () => void addKid(() => void renderSettings()) }, "＋ 添加孩子"));
   show(
     h("div", { class: "page" },
       topBar("设置", backBtn("#/", "完成")),
-      h("main", { class: "scroll" }, h("div", { class: "narrow" },
+      h("main", { class: "scroll" }, h("div", { class: "narrow settings" },
+        // the settings are grouped by what they are for
+        h("h2", { class: "set-sec" }, "孩子和汉字"),
         kids,
         h("div", { class: "card" }, h("label", { class: "check" }, manage, "管理模式"),
           h("p", { class: "muted small" }, "打开后，“本周”和“已入库”里每个汉字的右上角会出现红色“−”，点一下就能删除这个汉字。用完请关掉。")),
+
+        h("h2", { class: "set-sec" }, "学习和游戏"),
+        h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已入库”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),
         h("div", { class: "card" }, h("h3", {}, "倒计时"), secs),
-        h("div", { class: "card" }, h("h3", {}, "语言"), lang),
+
+        h("h2", { class: "set-sec" }, "成语"),
         h("div", { class: "card", id: "story-lib" }, h("h3", {}, "成语故事库"), h("p", { class: "muted small" }, "App 里自带了一批简单的成语小故事（150 字以内，用小学生认识的字）。点下面的按钮，把还没有故事的成语填上；你自己写的故事不会被改动。"),
           h("button", { class: "wide", id: "fill-stories", onclick: () => void fillBuiltInStories() }, "把自带的故事填进成语")),
-        // the stroke data of the practice sheets is under the Arphic Public License, which asks for this notice and the license text to travel with the app
-        h("div", { class: "card", id: "credits" }, h("h3", {}, "致谢"), h("p", { class: "muted small" }, "笔顺数据来自 Make Me a Hanzi（Arphic Public License）。"),
-          h("a", { class: "link", id: "license-link", href: `${import.meta.env.BASE_URL}strokes/ARPHICPL.TXT`, target: "_blank", rel: "noopener" }, "查看许可证")),
-        h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已入库”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),
+
+        h("h2", { class: "set-sec" }, "数据和备份"),
         account,
+        h("div", { class: "card" }, h("button", { class: "wide", id: "import-btn", onclick: importFlow }, "从 Excel 导入")),
         h("div", { class: "card" }, h("h3", {}, "同步到 Google 表格"),
           h("p", { class: "muted small" }, "在 Google 表格里加一小段脚本，它会每周六、周日晚上各一次，自动把你在这里新加的汉字填进表格里对应孩子、对应那一周的空格，你在这里删掉的字也会从表格里清掉（你在表格里手动录的内容不会被改动，这里的数据也不会被改动）。请在电脑上设置，大约 10 分钟，只做一次。"),
           h("button", { class: "wide", id: "copy-sync", onclick: () => void copySyncScript() }, "复制同步脚本"),
           h("a", { class: "linkbtn", id: "sync-steps", href: SYNC_STEPS_URL, target: "_blank", rel: "noopener" }, "查看详细步骤")),
+
+        h("h2", { class: "set-sec" }, "通用"),
+        h("div", { class: "card" }, h("h3", {}, "语言"), lang),
+
+        h("h2", { class: "set-sec" }, "关于"),
         h("div", { class: "card" }, h("h3", {}, "应用"),
           ...(__MOBILE__ ? [] : [
             h("button", { class: "wide", id: "check-update", onclick: () => void checkUpdate() }, "检查更新"),
             h("button", { class: "wide", id: "hard-refresh", title: "一直显示旧版本时使用，不会退出登录", onclick: () => void hardRefresh() }, "强制刷新（清除缓存）"),
           ]),
           h("p", { class: "muted small center" }, `版本 ${__BUILD__}`)),
+        // the stroke data of the practice sheets is under the Arphic Public License, which asks for this notice and the license text to travel with the app
+        h("div", { class: "card", id: "credits" }, h("h3", {}, "致谢"), h("p", { class: "muted small" }, "笔顺数据来自 Make Me a Hanzi（Arphic Public License）。"),
+          h("a", { class: "link", id: "license-link", href: `${import.meta.env.BASE_URL}strokes/ARPHICPL.TXT`, target: "_blank", rel: "noopener" }, "查看许可证")),
       )),
     ),
   );

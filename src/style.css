@@ -483,3 +483,5 @@ a.link { color: var(--accent-dark); font-weight: 700; }
 button.story-edit-icon { width: 40px; height: 40px; min-height: 40px; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: none; color: var(--muted); opacity: .45; display: grid; place-items: center; }
 button.story-edit-icon svg { width: 20px; height: 20px; }
 button.story-edit-icon:active { transform: none; box-shadow: none; opacity: .8; }
+.settings .set-sec { margin: 26px 6px 10px; font-size: 16px; font-weight: 800; color: var(--kid, var(--accent-dark)); letter-spacing: .02em; }
+.settings .set-sec:first-child { margin-top: 4px; }
