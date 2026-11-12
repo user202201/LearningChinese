@@ -17,7 +17,8 @@ const PINYIN = { 生: 'shēng', 字: 'zì', 帖: 'tiē', 支: 'zhī', 持: 'chí
   await enterWeek(page, '2026-11-08', WEEK);
   ok((await page.textContent('#sheet-btn')) === '字帖', 'a week with characters has a "字帖" button next to the heading');
   await page.waitForSelector('#toasts .toast', { state: 'detached' }).catch(() => {});
-  await page.click('#sheet-btn'); await page.waitForSelector('#sheet .zb');
+  // the first time the window to type the characters to write comes up (see 25-sheet-write-chars): here the usual sheet is wanted, so the option is switched off
+  await page.click('#sheet-btn'); await page.waitForSelector('#sheet-write-on'); await page.click('#sheet-write-on'); await page.click('#sheet-write-go'); await page.waitForSelector('#sheet .zb');
   ok((await page.textContent('h1')).startsWith('字帖') && await page.locator('#sheet .zb').count() === 10, 'it opens the sheet of that week: ten blocks, one per character');
   ok((await page.textContent('.sheet-top')).includes('姓名') && (await page.textContent('.sheet-top')).includes('年') && (await page.textContent('.sheet-top')).includes('日'), 'with the name and date line at the top');
 

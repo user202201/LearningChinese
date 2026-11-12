@@ -23,36 +23,34 @@ const setup = async (page, chars, on = true) => { await page.click('#sheet-opt')
   await enterWeek(page, '2026-11-01', LAST); await enterWeek(page, '2026-11-08', THIS);
   await page.waitForSelector('#toasts .toast', { state: 'detached' }).catch(() => {});
 
-  // --- off by default: the sheet is the usual one, and a button leads to the settings
-  await page.click('#sheet-btn'); await page.waitForSelector('#sheet .zb');
-  const plain = await sheetInfo(page);
-  ok(plain.n === 10 && plain.rec === 0 && plain.write === THIS && plain.cells.split(',').every((c) => c === '12'), 'by default nothing changes: this week\'s characters, 12 cells a row, no characters to read');
-  ok((await page.textContent('#sheet-opt')) === '字帖设置', 'the sheet page has a small "字帖设置" button');
-
-  // --- the settings window
-  await page.click('#sheet-opt'); await page.waitForSelector('#sheet-write-on');
-  ok(!(await page.isChecked('#sheet-write-on')) && await page.locator('#sheet-write-chars').isDisabled(), 'the window: the option is off, the field is locked until it is switched on');
-  await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog.center', { state: 'detached' });
-  ok((await sheetInfo(page)).write === THIS && await page.locator('#toasts .toast').count() === 0, 'cancelling changes nothing and says nothing');
-  await page.click('#sheet-opt'); await page.click('#sheet-write-on');
-  ok(await page.locator('#sheet-write-go').isDisabled() && (await page.textContent('#sheet-write-note')).includes('还没有输入要写的字'), 'switched on with nothing typed: "no characters typed yet", Make the sheet is off');
+  // --- the first time the sheet button is pressed for a child the window to type the characters to write comes up AT ONCE, with the option on
+  await page.click('#sheet-btn'); await page.waitForSelector('#sheet-write-on');
+  ok(await page.locator('#sheet').count() === 0 && (await page.isChecked('#sheet-write-on')) && !(await page.locator('#sheet-write-chars').isDisabled()), 'pressing "字帖" the first time opens the window to type the characters to write straight away (the option is on, the field is ready)');
+  ok(await page.locator('#sheet-write-go').isDisabled() && (await page.textContent('#sheet-write-note')).includes('还没有输入要写的字'), 'nothing typed yet: "no characters typed yet", Make the sheet is off');
   await page.fill('#sheet-write-chars', '一 二，三\n十 木 木');
   ok((await page.textContent('#sheet-write-note')) === '已输入 5 个字' && !(await page.locator('#sheet-write-go').isDisabled()), 'spaces, punctuation, line breaks and doubles are dropped: "5 characters typed"');
   await page.fill('#sheet-write-chars', WRITE + '月星');
   ok((await page.textContent('#sheet-write-note')).includes('已输入 12 个字，只用前 10 个'), 'more than ten: the window says only the first 10 are used');
+  await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog.center', { state: 'detached' });
+  ok(await page.locator('.weekbar').count() === 1 && await page.locator('#sheet').count() === 0 && await page.locator('#toasts .toast').count() === 0, 'cancelling stays on the week page and says nothing');
+  await page.click('#sheet-btn'); await page.waitForSelector('#sheet-write-on');
+  ok((await page.inputValue('#sheet-write-chars')) === '' && (await page.isChecked('#sheet-write-on')), 'nothing was decided by cancelling: the window comes again, on');
   await page.fill('#sheet-write-chars', WRITE); await page.click('#sheet-write-go'); await page.waitForSelector('dialog.center', { state: 'detached' });
   await page.waitForSelector('#sheet .zb-rec');
+  ok((await page.textContent('#sheet-opt')) === '字帖设置', 'the sheet page has a small "字帖设置" button to change it later');
 
   // --- the sheet: rows for the typed characters, this week's on the left, last week's on the right, random order
   const g = await sheetInfo(page);
   ok(g.n === 10 && g.rec === 10 && g.write === WRITE, 'ten rows, for the ten typed characters in the order typed (' + g.write + ')');
   ok([...g.left].sort().join('') === [...THIS].sort().join('') && [...g.right].sort().join('') === [...LAST].sort().join(''), 'at the left end of the rows: this week\'s ten characters, at the right end: last week\'s ten (each exactly once)');
-  ok(g.cells.split(',').every((c) => c === '10') && g.traced.split(',').every((c) => c === '5'), 'in the middle of each row 10 cells to write in: the character, then a traced copy and an empty cell one after the other (5 traced)');
+  ok(g.cells.split(',').every((c) => c === '12') && g.traced.split(',').every((c) => c === '6'), 'the rows themselves are the usual ones: 12 cells, the character, then a traced copy and an empty cell one after the other (6 traced)');
   const orders = new Set([g.left + '|' + g.right]);
   for (let i = 0; i < 5; i++) { await page.click('#sheet-opt'); await page.waitForSelector('#sheet-write-go'); await page.click('#sheet-write-go'); await page.waitForSelector('dialog.center', { state: 'detached' }); await page.waitForTimeout(150); const x = await sheetInfo(page); orders.add(x.left + '|' + x.right); }
   ok(orders.size >= 4 && ![...orders].every((o) => o === THIS + '|' + LAST), 'the order of the characters to read is random: ' + orders.size + ' different orders in 6 sheets');
-  const geo = await page.evaluate(() => { const b = document.querySelector('#sheet .zb-rec'), l = b.querySelector('.zr-l').getBoundingClientRect(), r = b.querySelector('.zr-r').getBoundingClientRect(), m = b.querySelector('.zb-main').getBoundingClientRect(), bb = b.getBoundingClientRect(), ch = b.querySelector('.zr-ch').getBoundingClientRect(), z = b.querySelector('.zc').getBoundingClientRect(); return { lw: Math.round(l.width), rw: Math.round(r.width), zw: Math.round(z.width), mid: Math.abs((l.left + l.right) / 2 - bb.left - (bb.right - (r.left + r.right) / 2)) < 1.5, inl: l.top <= m.top + 1 && l.bottom >= m.bottom - 1, chBig: ch.height > z.height * 0.5 }; });
-  ok(Math.abs(geo.lw - geo.zw) <= 2 && Math.abs(geo.rw - geo.zw) <= 2 && geo.mid && geo.inl && geo.chBig, 'the characters to read stand in a column as wide as a cell at each end, as tall as the whole row, big (' + geo.lw + ' / ' + geo.rw + ' / ' + geo.zw + ' px)');
+  const geo = await page.evaluate(() => { const sh = document.querySelector('#sheet').getBoundingClientRect(); return [...document.querySelectorAll('#sheet .zb-rec')].map((b) => { const bb = b.getBoundingClientRect(), l = b.querySelector('.zr-l').getBoundingClientRect(), r = b.querySelector('.zr-r').getBoundingClientRect(), lc = b.querySelector('.zr-l .zr-ch')?.getBoundingClientRect(), rc = b.querySelector('.zr-r .zr-ch')?.getBoundingClientRect(), cs = getComputedStyle(b.querySelector('.zr-l')), z = b.querySelector('.zc').getBoundingClientRect(); return { outL: l.right <= bb.left + 1, outR: r.left >= bb.right - 1, inside: l.left >= sh.left - 1 && r.right <= sh.right + 1, noBox: cs.borderTopWidth === '0px' && cs.backgroundColor === 'rgba(0, 0, 0, 0)', small: !lc || lc.height < z.height * 0.75, mid: !lc || Math.abs((lc.top + lc.bottom) / 2 - (bb.top + bb.bottom) / 2) < 3, vis: !!lc && !!rc }; }); });
+  ok(geo.length === 10 && geo.every((x) => x.outL && x.outR && x.inside && x.noBox && x.small && x.mid), 'the characters to read stand BESIDE the frame (left of it / right of it, inside the sheet), without a box or background, smaller than a cell, in the middle of the row');
+  const usual = await page.evaluate(() => { const z = document.querySelector('#sheet .zc').getBoundingClientRect(), sh = document.querySelector('#sheet').getBoundingClientRect(), b = document.querySelector('#sheet .zb').getBoundingClientRect(); return { cell: Math.round(z.width), frame: Math.round(b.width), sheet: Math.round(sh.width) }; });
+  ok(usual.frame < usual.sheet && usual.frame > usual.sheet * 0.8, 'the frame of the rows is only a little narrower than the sheet (' + usual.frame + ' of ' + usual.sheet + ' px) to leave room beside it');
   await page.screenshot({ path: OUT + 'sheet-write-screen.png' });
 
   // --- a real PDF: one A4 page, both columns inside the frame
@@ -64,6 +62,13 @@ const setup = async (page, chars, on = true) => { await page.click('#sheet-opt')
   ok(pdf.slice(0, 5).toString() === '%PDF-' && pages === 1, 'the PDF made by the browser is ONE A4 page (' + pages + ')');
   try { execFileSync('pdftoppm', ['-r', '60', '-png', OUT + 'sheet-write.pdf', OUT + 'sheet-write-pic']); } catch (e) { /* no pdftoppm */ }
 
+  // --- remembered: after a reload the window still comes straight away, with the characters; it is only gone when the option was switched off
+  await page.evaluate(() => (location.hash = '#/')); await page.reload(); await page.waitForSelector('.kid'); await openKid(page, 'Leo');
+  await page.click('#sheet-btn'); await page.waitForSelector('#sheet-write-on');
+  ok((await page.isChecked('#sheet-write-on')) && (await page.inputValue('#sheet-write-chars')) === WRITE, 'the choice is remembered (also after closing and opening the app again): the window comes at once, on, with the last characters, nothing has to be clicked to switch it on');
+  await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog.center', { state: 'detached' });
+  await page.click('#sheet-btn'); await page.waitForSelector('#sheet-write-on'); await page.click('#sheet-write-go'); await page.waitForSelector('#sheet .zb-rec');
+
   // --- remembered per child: the next time the window comes first (filled in), another child is not touched
   await page.click('button.back'); await page.waitForSelector('.weekbar');
   await page.click('#sheet-btn'); await page.waitForSelector('#sheet-write-on');
@@ -73,14 +78,17 @@ const setup = async (page, chars, on = true) => { await page.click('#sheet-opt')
   await page.fill('#sheet-write-chars', '').catch(() => {});
   await page.click('#sheet-btn'); await page.waitForSelector('#sheet-write-on'); await page.fill('#sheet-write-chars', '大小多少上下'); await page.click('#sheet-write-go'); await page.waitForSelector('#sheet .zb-rec');
   const g6 = await sheetInfo(page);
-  ok(g6.write.startsWith('大小多少上下') && g6.n === 10 && g6.left.length === 10 && g6.cells.split(',').slice(6).every((c) => c === '10'), 'with only 6 characters to write the sheet still has the ten characters to read: the other 4 rows have empty cells to write in');
+  ok(g6.write.startsWith('大小多少上下') && g6.n === 10 && g6.left.length === 10 && g6.cells.split(',').slice(6).every((c) => c === '12'), 'with only 6 characters to write the sheet still has the ten characters to read: the other 4 rows have empty cells to write in');
   await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory');
-  ok(await page.locator('#sheet-btn').count() === 0, '(Dory has no characters yet: no sheet button)');
   await enterWeek(page, '2026-11-08', '日月水火山石田土');
   await page.waitForSelector('#toasts .toast', { state: 'detached' }).catch(() => {});
-  await page.click('#sheet-btn'); await page.waitForSelector('#sheet .zb');
+  await page.click('#sheet-btn'); await page.waitForSelector('#sheet-write-on');
+  ok(await page.isChecked('#sheet-write-on'), 'every child gets the window the first time (Dory too)');
+  await page.click('#sheet-write-on'); await page.click('#sheet-write-go'); await page.waitForSelector('#sheet .zb');
   const d = await sheetInfo(page);
-  ok(d.rec === 0 && d.cells.split(',').every((c) => c === '12') && d.n === 8, 'Dory (option never switched on): her sheet is the usual one, no window in between');
+  ok(d.rec === 0 && d.cells.split(',').every((c) => c === '12') && d.n === 8, 'Dory switches the option off there: her sheet is the usual one (12 cells a row, her own 8 characters)');
+  await page.click('button.back'); await page.waitForSelector('.weekbar'); await page.click('#sheet-btn'); await page.waitForSelector('#sheet .zb');
+  ok(await page.locator('#sheet-write-on').count() === 0 && (await sheetInfo(page)).rec === 0, 'and from then on her sheet button goes straight to the sheet, no window');
   // switching the option off again
   await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Leo'); await page.click('#sheet-btn'); await page.waitForSelector('#sheet-write-on');
   await page.click('#sheet-write-on'); await page.click('#sheet-write-go'); await page.waitForSelector('#sheet .zb');
@@ -92,8 +100,7 @@ const setup = async (page, chars, on = true) => { await page.click('#sheet-opt')
   // --- no week before: the right end stays empty; English / French and a phone
   const t2 = await start(new Map(), { local: true, today: '2026-11-10', viewport: { width: 390, height: 844 } });
   await addKid(t2.page, 'Leo'); await openKid(t2.page, 'Leo'); await enterWeek(t2.page, '2026-11-08', THIS); await t2.page.waitForSelector('#toasts .toast', { state: 'detached' }).catch(() => {});
-  await t2.page.click('#sheet-btn'); await t2.page.waitForSelector('#sheet .zb');
-  await setup(t2.page, WRITE);
+  await t2.page.click('#sheet-btn'); await t2.page.waitForSelector('#sheet-write-on'); await t2.page.fill('#sheet-write-chars', WRITE); await t2.page.click('#sheet-write-go'); await t2.page.waitForSelector('#sheet .zb-rec'); await t2.page.waitForTimeout(250);
   const first = await sheetInfo(t2.page);
   ok(first.right === '' && first.left.length === 10 && !first.over, 'in the first week there is no last week: the right end is empty, the left end has this week\'s characters, nothing overflows a phone');
   for (const [loc, title, opt, on] of [['en', 'Sheet settings', 'Sheet settings', 'Choose the characters to write'], ['fr', 'Réglages du cahier', 'Réglages du cahier', 'Choisir les caractères à écrire']]) {

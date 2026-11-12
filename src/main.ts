@@ -428,7 +428,8 @@ async function renderSheet(id: string) {
 /** the practice sheet of the week on the child's page: straight to the sheet, or (option on for this child) the window to type this week's characters to write first */
 async function openSheet(k: M.Kid, fromSheet = false) {
   if (!fromSheet) sheetWeek = curWeek;   // (from the week page: the week that is shown)
-  if (fromSheet || settings.sheetWrite[k.id]?.on) {
+  // the window comes first until the grown-up has decided for this child: the first time (nothing remembered yet) with the option ON, then as chosen
+  if (fromSheet || !settings.sheetWrite[k.id] || settings.sheetWrite[k.id].on) {
     const r = await sheetSetupDialog(k);
     if (!r) return; // cancelled: nothing changes, no message
     settings.sheetWrite[k.id] = r;
@@ -440,7 +441,7 @@ async function openSheet(k: M.Kid, fromSheet = false) {
 
 /** "Sheet settings": the characters to write (up to 10) typed by hand, for a child who writes other characters than he reads */
 async function sheetSetupDialog(k: M.Kid): Promise<SheetWrite | null> {
-  const cur = settings.sheetWrite[k.id] ?? { on: false, chars: "" };
+  const cur = settings.sheetWrite[k.id] ?? { on: true, chars: "" };   // (first time: on, so the characters can be typed at once)
   const on = h("input", { type: "checkbox", id: "sheet-write-on", checked: cur.on }) as HTMLInputElement;
   const text = h("textarea", { rows: 2, id: "sheet-write-chars", placeholder: "把要写的字输入或粘贴在这里（最多 10 个，空格和标点会自动去掉）", "aria-label": "要写的字" }) as HTMLTextAreaElement;
   text.value = cur.chars;

@@ -423,12 +423,12 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 .sheet-hint { margin: 0 0 10px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 14px; }
 .sheet { container-type: inline-size; width: min(100%, 210mm); margin: 0 auto 18px; padding: 4cqw; background: #fff; box-shadow: var(--shadow); color: #2d2230; box-sizing: border-box; }
 .sheet-top { display: flex; justify-content: space-between; font-size: 2.6cqw; font-weight: 300; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; color: #3d3340; padding: 0 .5cqw .8cqw; }
-.zb-rec { display: grid; grid-template-columns: 1fr 10fr 1fr; }   /* characters to READ at both ends of the row, 10 cells to write in the middle */
-.zb-rec .zb-head, .zb-rec .zb-row { grid-template-columns: repeat(10, 1fr); }
-.zb-rec .zb-steps { grid-column: 3 / span 8; }
-.zr { display: grid; place-items: center; min-width: 0; background: #fffdf8; }
-.zr-l { border-right: 1px solid var(--kid); } .zr-r { border-left: 1px solid var(--kid); }
-.zr-ch { font-family: var(--kai); font-weight: 700; font-size: 6.4cqw; line-height: 1; color: #1b1420; }
+/* characters to READ beside the rows: no boxes, small, outside the frame (the rows keep their usual look; the sheet is just a little narrower to leave room) */
+.sheet-read .sheet-top, .sheet-read .zb { margin-left: 5.2cqw; margin-right: 5.2cqw; }
+.zb-rec { position: relative; }
+.zr { position: absolute; top: 0; bottom: 0; width: 5.2cqw; display: grid; place-items: center; min-width: 0; }
+.zr-l { right: 100%; } .zr-r { left: 100%; }
+.zr-ch { font-family: var(--kai); font-weight: 700; font-size: 3.6cqw; line-height: 1; color: #1b1420; }
 .zb { border: 1px solid var(--kid); margin-bottom: .7cqw; break-inside: avoid; page-break-inside: avoid; }
 .zb-head { display: grid; grid-template-columns: repeat(12, 1fr); align-items: center; padding: .2cqw 0; border-bottom: 1px solid var(--kid); min-height: 3.4cqw; }   /* the same 12 columns as the cells below: the pinyin is centred over the first cell, the stroke count over the second, the stroke pictures start at the third */
 .zb-py { font-size: 2.1cqw; font-weight: 300; letter-spacing: .02em; color: #3d3340; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; grid-column: 1; text-align: center; white-space: nowrap; }
