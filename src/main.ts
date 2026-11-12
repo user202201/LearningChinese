@@ -562,7 +562,7 @@ async function renderIdioms() {
   show(h("div", { class: "page", style: idiomColor ? `--kid:${idiomColor}` : "" },
     topBar("成语故事", backBtn(idiomFrom || "#/")),
     count || idioms.pool?.length ? h("div", { class: "idiom-head" }, count ? head : null,
-      idioms.pool?.length ? h("p", { class: "muted small idiom-pool", id: "idiom-pool" }, `成语库：共 ${idioms.pool.length} 个，还没学过的 ${M.unusedIdioms(idioms).length} 个`) : null) : null,
+      idioms.pool?.length ? h("p", { class: "muted small idiom-pool", id: "idiom-pool" }, `成语库：共 ${idioms.pool.length} 个，还没学过的 ${M.unusedIdioms(idioms).length} 个，有故事的 ${idioms.pool.filter((x) => idioms.stories?.[x]?.trim()).length} 个`) : null) : null,
     h("main", { class: "scroll idiom-scroll" }, h("div", { class: "narrow" }, count ? list : empty)),
     switchBtn ? h("div", { class: "idiom-foot" }, switchBtn) : null));
   if (settings.pinyin) void fillPinyin(list);
