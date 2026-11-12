@@ -20,6 +20,8 @@ Browser tests (Playwright + Chromium, touch-sized windows) against the app runni
 | 23-story-sheet | the story printout: 3 stories per A4 page in 14 pt, 2 pages per week (one sheet, both sides), shrink / warn for long stories, real PDFs, English / French |
 | 24-story-library | Built-in story library: length, characters, plain text; stories come along with the weekly random pick (no Settings card) |
 | 25-sheet-write-chars | the sheet for a child who reads more than he writes: typed characters to write, this week's / last week's characters to read at both ends in random order, per child, remembered, one A4 PDF page, English / French |
+| 26-settings-sections | Settings headings in order, every control under the right one, the admin block slides open / shut (no redraw) |
+| 27-admin-password | Admin mode password: chosen twice the first time, asked afterwards, wrong / cancel change nothing, only a hash kept, change it, not remembered, EN / FR |
 | 15-app-icon | the app icon: sizes, no transparency (iOS), fills the square, safe area, in sync with assets/icon/icon.svg, links + manifest |
 | 14-picture-and-colour | tap the picture at the top of a child page: picture + colour window, live preview, Done / Cancel, the colour changes the whole look, contrast, fits a small phone |
 | 13-manage-mode | manage mode (Settings): a red - on every character to delete a wrongly entered one; cancel is silent; also in "Learned"; the + comes back below 10; an emptied week disappears; sizes on 5 screens |

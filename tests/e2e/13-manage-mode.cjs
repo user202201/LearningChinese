@@ -19,7 +19,7 @@ const { ok, done } = checks();
   await openSettings(page);
   ok(await page.locator('#manage-mode').count() === 1 && !(await page.locator('#manage-mode').isChecked()), 'Settings has "Manage mode", off by default');
   await page.screenshot({ path: (process.env.D || 'tests/out/work/') + 'manage-settings.png' });
-  await page.check('#manage-mode');
+  await require('./harness.cjs').adminOn(page);
   await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kids'); await openKid(page, 'Dory');
   ok(await page.locator('.cards .tzg .del').count() === 12, 'switched on: every character has a red "-"');
   ok(await page.locator('.managebar').count() === 1, 'and a bar says that manage mode is on');
@@ -70,18 +70,18 @@ const { ok, done } = checks();
   ok(await page.locator('.tzg .del').count() === 0, 'the "Done" button on the bar turns it off');
   await openSettings(page);
   ok(!(await page.locator('#manage-mode').isChecked()), 'and the switch in Settings is off');
-  await page.check('#manage-mode'); await page.reload(); await page.waitForSelector('#manage-mode');
-  ok(await page.locator('#manage-mode').isChecked(), 'the choice is kept after a reload');
+  await require('./harness.cjs').adminOn(page); await page.reload(); await page.waitForSelector('#manage-mode');
+  ok(!(await page.locator('#manage-mode').isChecked()) && !(await page.locator('#add-kid').isVisible()), 'admin mode is not remembered: after the app is opened again it is off');
   await browser.close();
 
   // --- every screen size: the red buttons are inside the screen and big enough to hit
   for (const [name, w, h] of [['iphone-se', 375, 667], ['iphone-14', 390, 844], ['ipad-air-portrait', 820, 1180], ['ipad-landscape', 1180, 820], ['desktop', 1440, 900]]) {
     const t = await start(new Map(), { local: true, today: '2026-11-10', viewport: { width: w, height: h }, touch: /ip/.test(name) });
-    await addKid(t.page, 'Dory'); await t.page.evaluate(() => localStorage.setItem('learn.settings.v1', JSON.stringify({ lang: 'auto', pinyin: false, manage: true })));
+    await addKid(t.page, 'Dory');
     await openKid(t.page, 'Dory'); await openEntry(t.page);
     await t.page.fill('dialog input[type=date]', '2026-11-08'); await t.page.fill('dialog textarea', '一二三四五六七八九十');
     await t.page.click('dialog button.primary'); await t.page.waitForSelector('dialog', { state: 'detached' });
-    await t.page.reload(); await t.page.waitForSelector('.cards .tzg .del');
+    await require('./harness.cjs').manageOnHere(t.page); await t.page.waitForSelector('.cards .tzg .del');
     const r = await t.page.$$eval('.cards .tzg .del', (els) => els.map((e) => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, w: b.width }; }));
     const vw = await t.page.evaluate(() => innerWidth);
     ok(r.length === 10 && r.every((b) => b.l >= 0 && b.r <= vw && b.w >= 26), name + ': all 10 red buttons are inside the screen and big enough (' + Math.round(Math.min(...r.map((b) => b.w))) + 'px)');
@@ -92,11 +92,11 @@ const { ok, done } = checks();
   // --- languages
   for (const [locale, title] of [['en-US', 'Admin mode'], ['fr-FR', 'Mode administrateur']]) {
     const t = await start(new Map(), { local: true, locale, today: '2026-11-10', viewport: { width: 390, height: 844 } });
-    await addKid(t.page, 'Dory'); await t.page.evaluate(() => localStorage.setItem('learn.settings.v1', JSON.stringify({ lang: 'auto', pinyin: false, manage: true })));
+    await addKid(t.page, 'Dory');
     await openKid(t.page, 'Dory'); await openEntry(t.page);
     await t.page.fill('dialog input[type=date]', '2026-11-08'); await t.page.fill('dialog textarea', '一二三');
     await t.page.click('dialog button.primary'); await t.page.waitForSelector('dialog', { state: 'detached' });
-    await t.page.reload(); await t.page.waitForSelector('.cards .tzg .del');
+    await require('./harness.cjs').manageOnHere(t.page); await t.page.waitForSelector('.cards .tzg .del');
     await t.page.click('.cards .tzg .del >> nth=0');
     const cn = () => t.page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());) if (/[一-鿿]/.test(n.nodeValue) && !n.parentElement.closest('.user, .user-title, #toasts')) bad.push(n.nodeValue.trim()); return bad.filter((x) => /[一-鿿]/.test(x.replace(/[«“]\s*[一-鿿]\s*[»”]/g, ''))); });   // (the user's own character inside the quotes is fine)
     const c = await cn();

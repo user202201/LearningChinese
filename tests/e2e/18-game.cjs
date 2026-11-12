@@ -323,7 +323,7 @@ const TODAY = '2026-11-10';
 
   // --- deleting a child removes the game's progress
   t = await open({ kids: [DORY, LEO], review: { kdory: { cards: { 波: { box: 1, due: '2026-11-11', right: 1, wrong: 0 } } } } });
-  await t.page.evaluate(() => (location.hash = '#/settings')); await t.page.waitForSelector('#manage-mode'); await t.page.check('#manage-mode'); await t.page.waitForSelector('.kidrow');
+  await t.page.evaluate(() => (location.hash = '#/settings')); await t.page.waitForSelector('#manage-mode'); await require('./harness.cjs').adminOn(t.page); await t.page.waitForSelector('.kidrow');
   await t.page.click('.kidrow:has-text("Dory") .delete'); await t.page.click('dialog button.danger');
   await t.page.waitForSelector('#toasts .toast:has-text("已删除")');
   ok(await rec(t.page, 'kdory') === null, 'deleting a child also deletes the progress of the game');

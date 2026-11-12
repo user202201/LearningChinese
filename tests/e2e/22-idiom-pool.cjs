@@ -100,7 +100,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   {
     const t4 = await start(new Map(), { local: true, today: '2026-11-10' });
     await addKid(t4.page, 'Dory');
-    await t4.page.evaluate(() => (location.hash = '#/settings')); await t4.page.waitForSelector('#manage-mode'); await t4.page.check('#manage-mode'); await t4.page.waitForSelector('#import-btn');
+    await t4.page.evaluate(() => (location.hash = '#/settings')); await t4.page.waitForSelector('#manage-mode'); await require('./harness.cjs').adminOn(t4.page); await t4.page.waitForSelector('#import-btn');
     await t4.page.click('#import-btn'); await t4.page.setInputFiles('#import-file', OUT + 'idiom-pool-big.xlsx'); await t4.page.waitForSelector('#import-go');
     const bt = (await t4.page.textContent('.entry')).replace(/\u2011/g, '-');
     ok(bt.includes('成语库：297 个成语，其中 24 个已勾选') && bt.includes('表格 A 列有 300 行内容，认出 297 个成语') && bt.includes('有 3 行没有算进去') && bt.includes('第 1、299、300 行'), 'the preview of the big sheet says it plainly: 297 idioms read from 300 filled rows, 3 rows not counted (1, 299, 300): ' + bt.replace(/\s+/g, ' ').slice(0, 200));
@@ -135,7 +135,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
     const t6 = await start(new Map(), { local: true, today: '2026-11-10', viewport: { width: 820, height: 1000 } });
     await addKid(t6.page, 'Dory');
     await t6.page.evaluate((x) => localStorage.setItem('learn.local.idioms.json', JSON.stringify({ weeks: [], pool: [], stories: { [x]: 'App 里自己写的故事' } })), IDIOMS[0]);
-    await t6.page.evaluate(() => (location.hash = '#/settings')); await t6.page.waitForSelector('#manage-mode'); await t6.page.check('#manage-mode'); await t6.page.waitForSelector('#import-btn');
+    await t6.page.evaluate(() => (location.hash = '#/settings')); await t6.page.waitForSelector('#manage-mode'); await require('./harness.cjs').adminOn(t6.page); await t6.page.waitForSelector('#import-btn');
     await t6.page.click('#import-btn'); await t6.page.setInputFiles('#import-file', OUT + 'idiom-pool-stories.xlsx'); await t6.page.waitForSelector('#import-go');
     const st = (await t6.page.textContent('.entry')).replace(/\u2011/g, '-');
     ok(st.includes('表格 E 列有 10 个故事，会填入 9 个（App 里已经有自己故事的 1 个不改）'), 'the preview says that column E has 10 stories, 9 will be filled in and 1 idiom that already has its own story in the app is not changed: ' + (st.match(/表格 E 列[^）]*）/) || [''])[0]);

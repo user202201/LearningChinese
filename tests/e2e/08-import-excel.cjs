@@ -102,7 +102,7 @@ const SAMPLE = path.resolve(__dirname, '../fixtures/sample.xlsx');
   // languages: the import window is translated
   for (const [locale, title, btn] of [['en-US', 'Import from Excel', 'Import from Excel'], ['fr-FR', 'Importer depuis Excel', 'Importer depuis Excel']]) {
     const t2 = await start(new Map(), { local: true, locale });
-    await t2.page.evaluate(() => (location.hash = '#/settings')); await t2.page.waitForSelector('#manage-mode'); await t2.page.check('#manage-mode'); await t2.page.waitForSelector('#import-btn');
+    await t2.page.evaluate(() => (location.hash = '#/settings')); await t2.page.waitForSelector('#manage-mode'); await require('./harness.cjs').adminOn(t2.page); await t2.page.waitForSelector('#import-btn');
     await t2.page.click('#import-btn'); await t2.page.waitForSelector('#import-file', { state: 'attached' });
     ok((await t2.page.textContent('dialog h2')) === title, locale + ': the import window is translated');
     await t2.page.setInputFiles('#import-file', SAMPLE); await t2.page.waitForSelector('#import-go');

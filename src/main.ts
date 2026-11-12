@@ -1,3 +1,4 @@
+import { hasAdminPassword, setAdminPassword, checkAdminPassword, MIN_LEN } from "./admin";
 import { buildSheet, shuffle } from "./sheet";
 import { buildStoryPages, fitStories } from "./storysheet";
 import "./style.css";
@@ -25,7 +26,7 @@ const SETTINGS_KEY = "learn.settings.v1";
 function loadSettings(): Settings {
   try {
     const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
-    return { lang: ["auto", "zh", "en", "fr"].includes(s.lang) ? s.lang : "auto", pinyin: !!s.pinyin, manage: !!s.manage, gameSeconds: Number.isFinite(s.gameSeconds) && s.gameSeconds >= 1 && s.gameSeconds <= 30 ? s.gameSeconds : 5,
+    return { lang: ["auto", "zh", "en", "fr"].includes(s.lang) ? s.lang : "auto", pinyin: !!s.pinyin, manage: false, gameSeconds: Number.isFinite(s.gameSeconds) && s.gameSeconds >= 1 && s.gameSeconds <= 30 ? s.gameSeconds : 5,
       sheetWrite: Object.fromEntries(Object.entries((s.sheetWrite ?? {}) as Record<string, Partial<SheetWrite>>).map(([k, v]) => [k, { on: !!v?.on, chars: typeof v?.chars === "string" ? v.chars : "" }])) };
   } catch {
     return { lang: "auto", pinyin: false, manage: false, gameSeconds: 5, sheetWrite: {} };
@@ -33,7 +34,7 @@ function loadSettings(): Settings {
 }
 const settings = loadSettings();
 function saveSettings() {
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* private mode */ }
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, manage: false })); } catch { /* private mode */ }   // (admin mode is never remembered: it starts off each time the app opens)
 }
 
 // ---------- pinyin (optional; loaded only when needed, computed on this device) ----------
@@ -1264,6 +1265,41 @@ if (!__MOBILE__ && import.meta.env.PROD) {
   setInterval(() => void checkUpdate(true), 5 * 60_000);
 }
 
+// ---------- admin password ----------
+/** a window with one or two password fields; resolves with the typed password once `verify` accepts it (it returns an error text or ""), null when cancelled */
+function passwordDialog(title: string, note: string, again: boolean, verify: (pw: string, pw2: string) => Promise<string>): Promise<string | null> {
+  return modal<string>((close) => {
+    const pw = h("input", { type: "password", id: "admin-pw", autocomplete: "off", "aria-label": "密码" });
+    const pw2 = h("input", { type: "password", id: "admin-pw2", autocomplete: "off", "aria-label": "再输一次" });
+    const err = h("p", { class: "warn", id: "admin-err" });
+    const ok = h("button", { class: "primary", id: "admin-ok", onclick: async () => {
+      if (!pw.value) return;
+      const bad = await verify(pw.value, pw2.value);
+      if (bad) { err.textContent = bad; pw.value = ""; pw2.value = ""; pw.focus(); return; }
+      close(pw.value);
+    } }, "确定");
+    for (const i of [pw, pw2]) i.addEventListener("keydown", (e) => e.key === "Enter" && ok.click());
+    queueMicrotask(() => pw.focus());
+    return h("div", { class: "dlg" }, h("h2", {}, title), ...(note ? [h("p", { class: "muted" }, note)] : []),
+      h("label", {}, "密码", pw), ...(again ? [h("label", {}, "再输一次", pw2)] : []), err,
+      h("div", { class: "row end" }, h("button", { onclick: () => close(null) }, "取消"), ok));
+  });
+}
+/** asks for a new password (typed twice) and keeps it */
+async function askNewPassword(title: string, note = ""): Promise<boolean> {
+  const pw = await passwordDialog(title, note, true, async (a, b) => (a.length < MIN_LEN ? "密码至少 4 位" : a !== b ? "两次输入不一致" : ""));
+  if (pw === null) return false;   // cancelled: no message
+  const first = !hasAdminPassword();
+  await setAdminPassword(pw);
+  toast(first ? "已设置管理密码" : "已修改密码");
+  return true;
+}
+/** the gate of Admin mode: the first time a password is chosen, afterwards it is asked for */
+async function unlockAdmin(): Promise<boolean> {
+  if (!hasAdminPassword()) return askNewPassword("设置管理密码", "第一次使用管理模式，请先设置一个密码（至少 4 位）。");
+  return (await passwordDialog("输入管理密码", "", false, async (a) => ((await checkAdminPassword(a)) ? "" : "密码不对"))) !== null;
+}
+
 // ---------- settings ----------
 async function renderSettings() {
   const my = epoch;
@@ -1285,7 +1321,12 @@ async function renderSettings() {
       secs.querySelectorAll<HTMLElement>("button.secbtn").forEach((b) => b.classList.toggle("on", b.dataset.sec === String(n)));
     } }, `${n} 秒`)));
   const pinyin = h("input", { type: "checkbox", id: "pin-toggle", checked: settings.pinyin, onchange: (e: Event) => { settings.pinyin = (e.target as HTMLInputElement).checked; saveSettings(); } });
-  const manage = h("input", { type: "checkbox", id: "manage-mode", checked: settings.manage, onchange: (e: Event) => { settings.manage = (e.target as HTMLInputElement).checked; saveSettings(); setAdmin(settings.manage); } });
+  const manage = h("input", { type: "checkbox", id: "manage-mode", checked: settings.manage, onchange: async (e: Event) => {
+    const box = e.target as HTMLInputElement;
+    if (box.checked && !(await unlockAdmin())) { box.checked = false; return; }   // cancelled or wrong: nothing changes, no message
+    settings.manage = box.checked;
+    setAdmin(settings.manage);
+  } });
   // the admin block slides open / shut (no reload of the page)
   let adminBox!: HTMLElement;
   const setAdmin = (on: boolean) => { adminBox.classList.toggle("open", on); adminBox.toggleAttribute("inert", !on); };
@@ -1317,7 +1358,8 @@ async function renderSettings() {
         h("div", { class: "card" }, h("label", { class: "check" }, manage, "管理模式")),
         // the rare jobs (children, Excel import, where the data is kept) only show while the manage mode is on
         (adminBox = h("div", { class: "collapse" + (settings.manage ? " open" : ""), id: "admin-box" },
-          h("div", { class: "collapse-in" }, kids, h("div", { class: "card" }, h("button", { class: "wide", id: "import-btn", onclick: importFlow }, "从 Excel 导入")), account))),
+          h("div", { class: "collapse-in" }, kids, h("div", { class: "card" }, h("button", { class: "wide", id: "import-btn", onclick: importFlow }, "从 Excel 导入")), account,
+            h("div", { class: "card" }, h("h3", {}, "管理密码"), h("button", { class: "wide", id: "admin-change", onclick: () => void askNewPassword("修改密码") }, "修改密码"))))),
 
         h("h2", { class: "set-sec" }, "学习和游戏"),
         h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已入库”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),

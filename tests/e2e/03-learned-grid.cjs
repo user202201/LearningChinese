@@ -80,13 +80,11 @@ const MANY = Array.from('一二三四五六七八九十上下大小山水火土�
   await tapHint();
   ok(await page.locator('#viewer').count() === 0 && await page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility) !== pyBefore, 'a tap on an empty spot still shows / hides the pinyin (and opens nothing)');
   await tapHint();
-  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('learn.settings.v1') || '{}'); s.manage = true; localStorage.setItem('learn.settings.v1', JSON.stringify(s)); });
-  await page.reload(); await page.waitForSelector('#grid .tzg .del, #grid .tzg');
+  await require('./harness.cjs').manageOnHere(page); await page.waitForSelector('#grid .tzg .del');
   await page.locator('#grid .tzg').nth(2).click({ position: { x: 20, y: 40 } });
   ok(await page.locator('#viewer').count() === 0, 'in manage mode a tap on a character does not open the big view (the red − deletes)');
   await page.waitForSelector('#toasts .toast', { state: 'detached' }).catch(() => {}); await tapHint();   // (the tap on the character switched the pinyin, as before: switch it back)
-  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('learn.settings.v1') || '{}'); s.manage = false; localStorage.setItem('learn.settings.v1', JSON.stringify(s)); });
-  await page.reload(); await page.waitForSelector('#grid .tzg');
+  await page.reload(); await page.waitForSelector('#grid .tzg');   // (admin mode is not remembered: off again)
 
   // the pinyin choice made inside the big view is followed by the list behind it, and the next taps on the list work (the "only once" bug)
   const gridPy = () => page.locator('#grid .tzg .py').first().evaluate((e) => getComputedStyle(e).visibility);

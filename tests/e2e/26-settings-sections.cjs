@@ -20,7 +20,8 @@ const layout = (page) => page.evaluate(() => {
     const H = () => page.$eval('#admin-box', (e) => Math.round(e.getBoundingClientRect().height));
     ok((await H()) === 0 && !(await page.locator('#add-kid').isVisible()), 'switched off: the admin block takes no room and is not visible');
     await page.evaluate(() => { window.__same = document.querySelector('#manage-mode'); });
-    await page.check('#manage-mode');
+    await require('./harness.cjs').adminOn(page); await page.uncheck('#manage-mode'); await page.waitForTimeout(500);   // (the first time sets the password)
+    await page.click('#manage-mode'); await page.fill('#admin-pw', '1234'); await page.click('#admin-ok'); await page.waitForSelector('dialog.center', { state: 'detached' });
     await page.waitForTimeout(90); const mid = await H();
     await page.waitForSelector('#add-kid', { state: 'visible' }); await page.waitForTimeout(450); const full = await H();
     ok(mid > 0 && mid < full && full > 200, `switching on slides it open (${mid}px after 90 ms, ${full}px at the end)`);
@@ -28,8 +29,8 @@ const layout = (page) => page.evaluate(() => {
     await page.uncheck('#manage-mode'); await page.waitForTimeout(90); const mid2 = await H();
     await page.waitForTimeout(450);
     ok(mid2 > 0 && mid2 < full && (await H()) === 0 && !(await page.locator('#add-kid').isVisible()), 'switching off folds it up until it is gone');
-    await page.check('#manage-mode'); await page.reload(); await page.waitForSelector('#manage-mode'); await page.waitForTimeout(450);
-    ok(await page.locator('#add-kid').isVisible(), 'the choice is kept: after a reload it starts open');
+    await require('./harness.cjs').adminOn(page); await page.reload(); await page.waitForSelector('#manage-mode'); await page.waitForTimeout(450);
+    ok(!(await page.locator('#add-kid').isVisible()), 'admin mode is not remembered: after a reload the block is folded');
     await browser.close();
   }
   for (const locale of ['zh-CN', 'en-US']) {

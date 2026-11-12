@@ -74,7 +74,7 @@ const fits = (page) => page.evaluate(() => {
       ok((await page.textContent('.top h1')) === '小明', `${tag} the user's child name is shown as typed`);
       await page.click('button.back'); await page.waitForSelector('.kids');
       await page.evaluate(() => (location.hash = '#/settings')); await page.waitForSelector('#manage-mode');
-      await check('settings'); await shot('6-settings'); await page.check('#manage-mode'); await page.waitForSelector('.change-avatar'); await check('settings (manage mode on)');
+      await check('settings'); await shot('6-settings'); await require('./harness.cjs').adminOn(page); await page.waitForSelector('.change-avatar'); await check('settings (manage mode on)');
       await page.click('.change-avatar >> nth=0'); await page.waitForSelector('dialog .animals');
       await check('picture dialog'); await shot('7-avatar');
       await page.click('#avatar-cancel'); await page.waitForSelector('dialog', { state: 'detached' });

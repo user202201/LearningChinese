@@ -23,3 +23,4 @@
 24-story-library
 25-sheet-write-chars
 26-settings-sections
+27-admin-password

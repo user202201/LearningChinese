@@ -77,7 +77,18 @@ exports.checks = function () {
 /** Settings (the gear on the home screen): where the children are added, renamed, given a picture, deleted and where Excel is imported */
 exports.openSettings = async (page) => { await page.evaluate(() => (location.hash = '#/settings')); await page.waitForSelector('#manage-mode'); };
 /** Settings with the manage mode switched ON (that is where the children are listed, added, renamed, deleted); `manageOff` puts the switch back */
-exports.openManage = async (page) => { await exports.openSettings(page); if (!(await page.isChecked('#manage-mode'))) await page.check('#manage-mode'); await page.waitForSelector('#add-kid'); };
+exports.PW = '1234';
+/** switches Admin mode on the way a user does: the first time a password is chosen (typed twice), afterwards it is typed; waits until the block has slid open */
+exports.adminOn = async (page, pw = exports.PW) => {
+  if (await page.isChecked('#manage-mode')) return;
+  await page.click('#manage-mode'); await page.waitForSelector('#admin-pw');
+  if (await page.locator('#admin-pw2').count()) await page.fill('#admin-pw2', pw);
+  await page.fill('#admin-pw', pw); await page.click('#admin-ok');
+  await page.waitForSelector('dialog.center', { state: 'detached' }); await page.waitForSelector('#add-kid', { state: 'visible' });
+};
+/** switches Admin mode on and comes back to the page the test was on (admin mode is not remembered, so a test cannot just store it) */
+exports.manageOnHere = async (page) => { const hash = await page.evaluate(() => location.hash); await exports.openManage(page); await page.evaluate((h) => (location.hash = h), hash); await page.waitForTimeout(150); };
+exports.openManage = async (page) => { await exports.openSettings(page); await exports.adminOn(page); };
 exports.manageOff = async (page) => { if (await page.locator('#manage-mode').count() && (await page.isChecked('#manage-mode'))) await page.uncheck('#manage-mode'); };
 exports.goHome = async (page) => { await exports.manageOff(page); await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kids, .empty-home'); };
 /** adds a child the way a user does: the big + when there is nobody yet, otherwise in Settings; ends on the home screen */
