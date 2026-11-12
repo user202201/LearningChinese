@@ -14,7 +14,6 @@
 14-picture-and-colour
 15-app-icon
 16-google-sheet-sync
-17-sync-card
 18-game
 19-light-only
 20-idioms

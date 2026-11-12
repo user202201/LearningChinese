@@ -5,7 +5,7 @@ const WANT = [
   ['孩子和汉字', ['#add-kid', '#manage-mode']],
   ['学习和游戏', ['#pin-toggle', '#game-secs']],
   ['成语', ['#fill-stories']],
-  ['数据和备份', ['#import-btn', '#copy-sync']],
+  ['数据和备份', ['#import-btn']],
   ['通用', ['.seg']],
   ['关于', ['#hard-refresh', '#credits']],
 ];

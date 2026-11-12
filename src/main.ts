@@ -14,7 +14,6 @@ import { openGame } from "./gameui";
 import { scanQr } from "./scan";
 import { readTable, readWorkbook, type SheetData } from "./xlsx";
 import * as I from "./importer";
-import syncScript from "../docs/google-sheet-sync/sync.gs?raw";   // the Google Sheets sync script, shown / copied from Settings
 
 const app = document.getElementById("app")!;
 
@@ -1327,8 +1326,7 @@ async function renderSettings() {
         // the settings are grouped by what they are for
         h("h2", { class: "set-sec" }, "孩子和汉字"),
         kids,
-        h("div", { class: "card" }, h("label", { class: "check" }, manage, "管理模式"),
-          h("p", { class: "muted small" }, "打开后，“本周”和“已入库”里每个汉字的右上角会出现红色“−”，点一下就能删除这个汉字。用完请关掉。")),
+        h("div", { class: "card" }, h("label", { class: "check" }, manage, "管理模式")),
 
         h("h2", { class: "set-sec" }, "学习和游戏"),
         h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已入库”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),
@@ -1341,10 +1339,6 @@ async function renderSettings() {
         h("h2", { class: "set-sec" }, "数据和备份"),
         account,
         h("div", { class: "card" }, h("button", { class: "wide", id: "import-btn", onclick: importFlow }, "从 Excel 导入")),
-        h("div", { class: "card" }, h("h3", {}, "同步到 Google 表格"),
-          h("p", { class: "muted small" }, "在 Google 表格里加一小段脚本，它会每周六、周日晚上各一次，自动把你在这里新加的汉字填进表格里对应孩子、对应那一周的空格，你在这里删掉的字也会从表格里清掉（你在表格里手动录的内容不会被改动，这里的数据也不会被改动）。请在电脑上设置，大约 10 分钟，只做一次。"),
-          h("button", { class: "wide", id: "copy-sync", onclick: () => void copySyncScript() }, "复制同步脚本"),
-          h("a", { class: "linkbtn", id: "sync-steps", href: SYNC_STEPS_URL, target: "_blank", rel: "noopener" }, "查看详细步骤")),
 
         h("h2", { class: "set-sec" }, "通用"),
         h("div", { class: "card" }, h("h3", {}, "语言"), lang),
@@ -1362,25 +1356,6 @@ async function renderSettings() {
       )),
     ),
   );
-}
-
-/** where the step-by-step description of the Google Sheets sync is (the default branch of the public code repository) */
-const SYNC_STEPS_URL = "https://github.com/user202201/LearningChinese/blob/HEAD/docs/google-sheet-sync/README.md";
-
-/** puts the Google Sheets sync script on the clipboard; when the browser does not allow it, shows it in a box to copy by hand */
-async function copySyncScript() {
-  try {
-    await navigator.clipboard.writeText(syncScript);
-    toast("已复制。请到 Google 表格的 Apps Script 里粘贴（步骤见“查看详细步骤”）", 6000);
-  } catch {
-    await modal<boolean>((close) => {
-      const box = h("textarea", { readOnly: true, rows: 10, id: "sync-script", "aria-label": "同步脚本" });
-      box.value = syncScript;
-      box.addEventListener("focus", () => box.select());
-      return h("div", { class: "dlg wide-dlg" }, h("h2", {}, "同步脚本"), h("p", { class: "muted" }, "没能自动复制：请点一下下面的框，全选后复制。"), box,
-        h("div", { class: "row end" }, h("button", { class: "primary", onclick: () => close(true) }, "完成")));
-    });
-  }
 }
 
 async function signOut() {
