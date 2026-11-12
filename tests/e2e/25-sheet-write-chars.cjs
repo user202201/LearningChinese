@@ -15,6 +15,7 @@ const sheetInfo = (page) => page.evaluate(() => {
     over: document.documentElement.scrollWidth > innerWidth,
   };
 });
+const redBounds = (pdf, name) => { execFileSync('pdftoppm', ['-r', '100', '-f', '1', '-l', '1', '-singlefile', pdf, OUT + name]); const ppm = fs.readFileSync(OUT + name + '.ppm'); let o = 0; const tok = () => { while (ppm[o] === 10 || ppm[o] === 32) o++; let s = ''; while (ppm[o] !== 10 && ppm[o] !== 32) s += String.fromCharCode(ppm[o++]); return s; }; tok(); const W = +tok(), H = +tok(); tok(); o++; let minX = W, maxX = 0, minY = H, maxY = 0; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = o + (y * W + x) * 3; if (ppm[i] > 180 && ppm[i + 1] < 170 && ppm[i + 2] < 170) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; } } const mm = (px) => px / 100 * 25.4; return { left: mm(minX), right: mm(maxX), top: mm(minY), bottom: mm(maxY) }; };
 const setup = async (page, chars, on = true) => { await page.click('#sheet-opt'); await page.waitForSelector('#sheet-write-on'); if ((await page.isChecked('#sheet-write-on')) !== on) await page.click('#sheet-write-on'); if (on && chars !== null) await page.fill('#sheet-write-chars', chars); await page.click('#sheet-write-go'); await page.waitForSelector('dialog.center', { state: 'detached' }); await page.waitForTimeout(250); };
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -26,11 +27,13 @@ const setup = async (page, chars, on = true) => { await page.click('#sheet-opt')
   // --- the first time the sheet button is pressed for a child the window to type the characters to write comes up AT ONCE, with the option on
   await page.click('#sheet-btn'); await page.waitForSelector('#sheet-write-on');
   ok(await page.locator('#sheet').count() === 0 && (await page.isChecked('#sheet-write-on')) && !(await page.locator('#sheet-write-chars').isDisabled()), 'pressing "字帖" the first time opens the window to type the characters to write straight away (the option is on, the field is ready)');
-  ok(await page.locator('#sheet-write-go').isDisabled() && (await page.textContent('#sheet-write-note')).includes('还没有输入要写的字'), 'nothing typed yet: "no characters typed yet", Make the sheet is off');
+  ok(await page.locator('#sheet-write-go').isDisabled() && (await page.textContent('#sheet-write-note')) === '0 / 10', 'nothing typed yet: "0 / 10", Make the sheet is off');
+  ok(await page.locator('#sheet-write-on').locator('xpath=ancestor::dialog').locator('p.muted').count() === 0, 'the window has no explaining paragraph (only the switch, the field, the count and the buttons)');
   await page.fill('#sheet-write-chars', '一 二，三\n十 木 木');
-  ok((await page.textContent('#sheet-write-note')) === '已输入 5 个字' && !(await page.locator('#sheet-write-go').isDisabled()), 'spaces, punctuation, line breaks and doubles are dropped: "5 characters typed"');
+  ok((await page.inputValue('#sheet-write-chars')) === '一二三十木' && (await page.textContent('#sheet-write-note')) === '5 / 10' && !(await page.locator('#sheet-write-go').isDisabled()), 'spaces, punctuation, line breaks and doubles are dropped at once, "5 / 10"');
   await page.fill('#sheet-write-chars', WRITE + '月星');
-  ok((await page.textContent('#sheet-write-note')).includes('已输入 12 个字，只用前 10 个'), 'more than ten: the window says only the first 10 are used');
+  ok((await page.inputValue('#sheet-write-chars')) === WRITE && (await page.textContent('#sheet-write-note')) === '10 / 10', 'more than ten: only the first 10 are kept, automatically (no message needed)');
+  await page.fill('#sheet-write-chars', 'abc 123 一二三 ！？ 四'); ok((await page.inputValue('#sheet-write-chars')) === '一二三四', 'only Chinese characters are accepted (letters, digits, punctuation are dropped)');
   await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog.center', { state: 'detached' });
   ok(await page.locator('.weekbar').count() === 1 && await page.locator('#sheet').count() === 0 && await page.locator('#toasts .toast').count() === 0, 'cancelling stays on the week page and says nothing');
   await page.click('#sheet-btn'); await page.waitForSelector('#sheet-write-on');
@@ -47,10 +50,8 @@ const setup = async (page, chars, on = true) => { await page.click('#sheet-opt')
   const orders = new Set([g.left + '|' + g.right]);
   for (let i = 0; i < 5; i++) { await page.click('#sheet-opt'); await page.waitForSelector('#sheet-write-go'); await page.click('#sheet-write-go'); await page.waitForSelector('dialog.center', { state: 'detached' }); await page.waitForTimeout(150); const x = await sheetInfo(page); orders.add(x.left + '|' + x.right); }
   ok(orders.size >= 4 && ![...orders].every((o) => o === THIS + '|' + LAST), 'the order of the characters to read is random: ' + orders.size + ' different orders in 6 sheets');
-  const geo = await page.evaluate(() => { const sh = document.querySelector('#sheet').getBoundingClientRect(); return [...document.querySelectorAll('#sheet .zb-rec')].map((b) => { const bb = b.getBoundingClientRect(), l = b.querySelector('.zr-l').getBoundingClientRect(), r = b.querySelector('.zr-r').getBoundingClientRect(), lc = b.querySelector('.zr-l .zr-ch')?.getBoundingClientRect(), rc = b.querySelector('.zr-r .zr-ch')?.getBoundingClientRect(), cs = getComputedStyle(b.querySelector('.zr-l')), z = b.querySelector('.zc').getBoundingClientRect(); return { outL: l.right <= bb.left + 1, outR: r.left >= bb.right - 1, inside: l.left >= sh.left - 1 && r.right <= sh.right + 1, noBox: cs.borderTopWidth === '0px' && cs.backgroundColor === 'rgba(0, 0, 0, 0)', small: !lc || lc.height < z.height * 0.75, mid: !lc || Math.abs((lc.top + lc.bottom) / 2 - (bb.top + bb.bottom) / 2) < 3, vis: !!lc && !!rc }; }); });
-  ok(geo.length === 10 && geo.every((x) => x.outL && x.outR && x.inside && x.noBox && x.small && x.mid), 'the characters to read stand BESIDE the frame (left of it / right of it, inside the sheet), without a box or background, smaller than a cell, in the middle of the row');
-  const usual = await page.evaluate(() => { const z = document.querySelector('#sheet .zc').getBoundingClientRect(), sh = document.querySelector('#sheet').getBoundingClientRect(), b = document.querySelector('#sheet .zb').getBoundingClientRect(); return { cell: Math.round(z.width), frame: Math.round(b.width), sheet: Math.round(sh.width) }; });
-  ok(usual.frame < usual.sheet && usual.frame > usual.sheet * 0.8, 'the frame of the rows is only a little narrower than the sheet (' + usual.frame + ' of ' + usual.sheet + ' px) to leave room beside it');
+  const geo = await page.evaluate(() => { const sh = document.querySelector('#sheet').getBoundingClientRect(); return [...document.querySelectorAll('#sheet .zb-rec')].map((b) => { const bb = b.querySelector('.zb-row').getBoundingClientRect(), rw = bb, l = b.querySelector('.zr-l').getBoundingClientRect(), r = b.querySelector('.zr-r').getBoundingClientRect(), lc = b.querySelector('.zr-l .zr-ch')?.getBoundingClientRect(), rc = b.querySelector('.zr-r .zr-ch')?.getBoundingClientRect(), cs = getComputedStyle(b.querySelector('.zr-l')), z = b.querySelector('.zc').getBoundingClientRect(); return { outL: l.right <= bb.left + 1, outR: r.left >= bb.right - 1, inside: l.left >= sh.left - 1 && r.right <= sh.right + 1, noBox: cs.borderTopWidth === '0px' && cs.backgroundColor === 'rgba(0, 0, 0, 0)', small: !lc || (lc.height > z.width * 0.55 && lc.height < z.width * 1.0), gap: !lc || (bb.left - lc.right >= sh.width * 0.012 && rc.left - bb.right >= sh.width * 0.012), mid: !lc || Math.abs((lc.top + lc.bottom) / 2 - (rw.top + rw.bottom) / 2) < 3, vis: !!lc && !!rc }; }); });
+  ok(geo.length === 10 && geo.every((x) => x.outL && x.outR && x.inside && x.noBox && x.small && x.mid && x.gap), 'the characters to read stand BESIDE the frame (left of it / right of it, inside the sheet) with a little distance to it, without a box or background, as big as the characters in the cells, at the height of the writing cells');
   await page.screenshot({ path: OUT + 'sheet-write-screen.png' });
 
   // --- a real PDF: one A4 page, both columns inside the frame
@@ -61,6 +62,19 @@ const setup = async (page, chars, on = true) => { await page.click('#sheet-opt')
   const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
   ok(pdf.slice(0, 5).toString() === '%PDF-' && pages === 1, 'the PDF made by the browser is ONE A4 page (' + pages + ')');
   try { execFileSync('pdftoppm', ['-r', '60', '-png', OUT + 'sheet-write.pdf', OUT + 'sheet-write-pic']); } catch (e) { /* no pdftoppm */ }
+  // the page is FULL like the usual sheet (ten rows fill it): measured on the PDF drawn as a picture
+  try {
+    execFileSync('pdftoppm', ['-r', '100', '-f', '1', '-l', '1', '-singlefile', OUT + 'sheet-write.pdf', OUT + 'sheet-write-fill']);
+    const ppm = fs.readFileSync(OUT + 'sheet-write-fill.ppm');
+    let o = 0; const tok = () => { while (ppm[o] === 10 || ppm[o] === 32) o++; let s = ''; while (ppm[o] !== 10 && ppm[o] !== 32) s += String.fromCharCode(ppm[o++]); return s; };
+    tok(); const W = +tok(), H = +tok(); tok(); o++;
+    let minX = W, maxX = 0, minY = H, maxY = 0;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = o + (y * W + x) * 3; if (ppm[i] < 200 || ppm[i + 1] < 200 || ppm[i + 2] < 200) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; } }
+    const mm = (px) => px / 100 * 25.4;
+    const f = { top: mm(minY), bottom: mm(H - 1 - maxY), left: mm(minX), right: mm(W - 1 - maxX) };
+    ok(f.bottom <= 20 && f.top >= 12, 'the page is FULL like the usual sheet: ten rows reach down to ' + f.bottom.toFixed(0) + ' mm from the bottom edge of the paper (15 mm is the page margin), the top starts ' + f.top.toFixed(0) + ' mm from the top edge');
+    ok(f.left >= 4 && f.left <= 12 && f.right >= 4 && f.right <= 12 && Math.abs(f.left - f.right) <= 3, 'the characters at the sides stand in the margin of the paper, 4 to 12 mm from its edge, placed equally (' + f.left.toFixed(0) + ' / ' + f.right.toFixed(0) + ' mm)');
+  } catch (e) { console.log('SKIP fill picture (pdftoppm not available)'); }
 
   // --- remembered: after a reload the window still comes straight away, with the characters; it is only gone when the option was switched off
   await page.evaluate(() => (location.hash = '#/')); await page.reload(); await page.waitForSelector('.kid'); await openKid(page, 'Leo');
@@ -87,6 +101,14 @@ const setup = async (page, chars, on = true) => { await page.click('#sheet-opt')
   await page.click('#sheet-write-on'); await page.click('#sheet-write-go'); await page.waitForSelector('#sheet .zb');
   const d = await sheetInfo(page);
   ok(d.rec === 0 && d.cells.split(',').every((c) => c === '12') && d.n === 8, 'Dory switches the option off there: her sheet is the usual one (12 cells a row, her own 8 characters)');
+  await page.emulateMedia({ media: 'print' });
+  const plainPdf = await page.pdf({ format: 'A4', preferCSSPageSize: true, printBackground: true });
+  await page.emulateMedia({ media: 'screen' });
+  fs.writeFileSync(OUT + 'sheet-plain.pdf', plainPdf);
+  try {
+    const lb = redBounds(OUT + 'sheet-write.pdf', 'sheet-write-px');
+    ok(lb.left >= 18 && lb.left <= 22 && lb.right >= 188 && lb.right <= 192, 'on paper the frame of the rows is centred and 170 mm wide (left edge at ' + lb.left.toFixed(1) + ' mm, right edge at ' + lb.right.toFixed(1) + ' mm of the 210 mm paper): a little narrower than the usual 178.5 mm to leave room beside it');
+  } catch (e) { console.log('SKIP frame position (pdftoppm not available)'); }
   await page.click('button.back'); await page.waitForSelector('.weekbar'); await page.click('#sheet-btn'); await page.waitForSelector('#sheet .zb');
   ok(await page.locator('#sheet-write-on').count() === 0 && (await sheetInfo(page)).rec === 0, 'and from then on her sheet button goes straight to the sheet, no window');
   // switching the option off again

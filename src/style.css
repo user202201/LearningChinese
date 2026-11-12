@@ -421,22 +421,24 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
 .sec-row .sheet-btn { margin: 12px 0 0 auto; min-height: 40px; padding: 4px 16px; border-radius: 999px; font-weight: 800; color: var(--kid); background: #fff; border: 3px solid var(--kid); box-shadow: 0 3px 0 var(--kid-line); }
 .sec-row .sheet-btn + .plus { margin-left: 10px; }
 .sheet-hint { margin: 0 0 10px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 14px; }
-.sheet { container-type: inline-size; width: min(100%, 210mm); margin: 0 auto 18px; padding: 4cqw; background: #fff; box-shadow: var(--shadow); color: #2d2230; box-sizing: border-box; }
+.sheet { container-type: inline-size; width: min(100%, 210mm); aspect-ratio: 210 / 297; margin: 0 auto 18px; padding: 7.1cqw; background: #fff; box-shadow: var(--shadow); color: #2d2230; box-sizing: border-box;
+  display: grid; grid-template-rows: auto repeat(10, minmax(0, 1fr)); row-gap: .7cqw; }   /* a sheet of paper: the ten rows share the whole height, like on the printout */
 .sheet-top { display: flex; justify-content: space-between; font-size: 2.6cqw; font-weight: 300; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; color: #3d3340; padding: 0 .5cqw .8cqw; }
-/* characters to READ beside the rows: no boxes, small, outside the frame (the rows keep their usual look; the sheet is just a little narrower to leave room) */
-.sheet-read .sheet-top, .sheet-read .zb { margin-left: 5.2cqw; margin-right: 5.2cqw; }
-.zb-rec { position: relative; }
-.zr { position: absolute; top: 0; bottom: 0; width: 5.2cqw; display: grid; place-items: center; min-width: 0; }
-.zr-l { right: 100%; } .zr-r { left: 100%; }
-.zr-ch { font-family: var(--kai); font-weight: 700; font-size: 3.6cqw; line-height: 1; color: #1b1420; }
-.zb { border: 1px solid var(--kid); margin-bottom: .7cqw; break-inside: avoid; page-break-inside: avoid; }
+/* characters to READ beside the rows: no boxes, as big as the characters in the cells, at the height of the writing cells and just outside the frame at each side.
+   The frame of such a sheet is a little narrower (170 mm instead of 178.5) to leave room for them. */
+.sheet-read { padding-left: 9.5cqw; padding-right: 9.5cqw; }   /* (the sheet of paper on the screen: (210 - 170) / 2 mm at each side) */
+.zb-row { position: relative; }
+.zr { position: absolute; top: 0; bottom: 0; width: 9.5cqw; display: grid; align-items: center; min-width: 0; }
+.zr-l { right: 100%; justify-items: end; padding-right: 1.6cqw; } .zr-r { left: 100%; justify-items: start; padding-left: 1.6cqw; }
+.zr-ch { font-family: var(--kai); font-weight: 700; font-size: 5cqw; line-height: 1; color: #1b1420; }
+.zb { border: 1px solid var(--kid); display: flex; flex-direction: column; min-height: 0; break-inside: avoid; page-break-inside: avoid; }
 .zb-head { display: grid; grid-template-columns: repeat(12, 1fr); align-items: center; padding: .2cqw 0; border-bottom: 1px solid var(--kid); min-height: 3.4cqw; }   /* the same 12 columns as the cells below: the pinyin is centred over the first cell, the stroke count over the second, the stroke pictures start at the third */
 .zb-py { font-size: 2.1cqw; font-weight: 300; letter-spacing: .02em; color: #3d3340; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; grid-column: 1; text-align: center; white-space: nowrap; }
 .zb-n { grid-column: 2; text-align: center; white-space: nowrap; font-size: 1.9cqw; font-weight: 300; color: #3d3340; font-family: -apple-system, "Helvetica Neue", Arial, "Segoe UI", sans-serif; }   /* thin lettering for the pinyin and the stroke count */
 .zb-steps { grid-column: 3 / span 10; display: flex; flex-wrap: wrap; gap: .2cqw 0; align-items: center; padding-left: .8cqw; }
 .zb-steps svg { width: 3cqw; height: 3cqw; }
-.zb-row { display: grid; grid-template-columns: repeat(12, 1fr); }
-.zc { aspect-ratio: 1; position: relative; border-right: 1px solid var(--kid); display: grid; place-items: center; color: #1b1420;
+.zb-row { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(12, 1fr); }
+.zc { position: relative; min-height: 0; border-right: 1px solid var(--kid); display: grid; place-items: center; color: #1b1420;
   background-image: repeating-linear-gradient(to bottom, var(--kid-line) 0 3px, transparent 3px 6px), repeating-linear-gradient(to right, var(--kid-line) 0 3px, transparent 3px 6px);
   background-size: 1px 100%, 100% 1px; background-position: center, center; background-repeat: no-repeat; }
 .zc:last-child { border-right: 0; }
@@ -462,7 +464,10 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
   .page.sheet-page { height: auto; display: block; }
   .sheet-page .top, .sheet-foot, .sheet-hint, #toasts, .update-bar { display: none !important; }
   .sheet-page .scroll { overflow: visible; padding: 0; }
-  .sheet { width: calc(100% - 1.5mm); margin: 0 auto; padding: 0; box-shadow: none; }
+  .sheet { width: calc(100% - 1.5mm); height: 266mm; aspect-ratio: auto; margin: 0 auto; padding: 0; box-shadow: none; overflow: visible; }
+  .sheet-read { width: 170mm; padding: 0; }   /* (the page has 6 mm at the sides instead of 15: 14 mm beside the frame for the characters to read) */
+  .zr { width: 14mm; } .zr-l { padding-right: 3.4mm; } .zr-r { padding-left: 3.4mm; }
+  .zr-ch { font-size: 10.5mm; }
   .story-sheet { display: block; zoom: 1 !important; }
   .story-scale, .story-wrap { display: block; max-width: none; padding: 0; }
   .sp { box-shadow: none; margin: 0; }

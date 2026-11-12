@@ -416,6 +416,9 @@ async function renderSheet(id: string) {
   const chars = special ? typed : weekChars;
   const paper = chars.length ? await buildSheet(chars, special ? { left: shuffle(weekChars), right: shuffle(lastChars) } : undefined) : null;
   if (my !== epoch) return;
+  // the characters to read stand in the strips beside the frame: the page has 6 mm at the sides (instead of 15) to leave room for them beside a frame that is only a little narrower
+  document.getElementById("sheet-read-page")?.remove();
+  if (special) document.head.append(h("style", { id: "sheet-read-page" }, "@page { size: A4; margin: 15mm 6mm; }"));
   const optBtn = h("button", { class: "link", id: "sheet-opt", onclick: () => void openSheet(k, true) }, "字帖设置");
   show(h("div", { class: "page sheet-page", style: `--kid:${k.color}` },
     h("header", { class: "top plain" }, backBtn(`#/kid/${id}`), h("h1", {}, `字帖 · 第${no}周`), h("span", { class: "slot" })),
@@ -443,27 +446,26 @@ async function openSheet(k: M.Kid, fromSheet = false) {
 async function sheetSetupDialog(k: M.Kid): Promise<SheetWrite | null> {
   const cur = settings.sheetWrite[k.id] ?? { on: true, chars: "" };   // (first time: on, so the characters can be typed at once)
   const on = h("input", { type: "checkbox", id: "sheet-write-on", checked: cur.on }) as HTMLInputElement;
-  const text = h("textarea", { rows: 2, id: "sheet-write-chars", placeholder: "把要写的字输入或粘贴在这里（最多 10 个，空格和标点会自动去掉）", "aria-label": "要写的字" }) as HTMLTextAreaElement;
+  const text = h("input", { type: "text", id: "sheet-write-chars", placeholder: "要写的字（最多 10 个）", "aria-label": "要写的字", autocomplete: "off" }) as HTMLInputElement;
   text.value = cur.chars;
-  const note = h("div", { class: "note", id: "sheet-write-note" });
+  const note = h("div", { class: "note center", id: "sheet-write-note" });
   const go = h("button", { class: "primary", id: "sheet-write-go" }, "生成字帖");
   return modal<SheetWrite>((close) => {
+    // only Chinese characters are accepted and at most 10: whatever else is typed or pasted is dropped on the spot (not while an input method is still composing)
+    const limit = () => { const v = M.parseChars(text.value).slice(0, 10).join(""); if (text.value !== v) text.value = v; };
     const check = () => {
-      const list = M.parseChars(text.value);
-      note.replaceChildren();
+      const n = M.parseChars(text.value).length;
       text.disabled = !on.checked;
-      if (!on.checked) { go.disabled = false; return; }
-      if (!list.length) note.append(h("div", { class: "muted" }, "还没有输入要写的字"));
-      else note.append(h("div", { class: list.length > 10 ? "warn" : "muted" }, list.length > 10 ? `已输入 ${list.length} 个字，只用前 10 个` : `已输入 ${list.length} 个字`));
-      go.disabled = !list.length;
+      note.replaceChildren(on.checked ? h("span", { class: "muted" }, `${n} / 10`) : "");
+      go.disabled = on.checked && n === 0;
     };
     on.addEventListener("change", check);
-    text.addEventListener("input", check);
+    text.addEventListener("input", (e) => { if (!(e as InputEvent).isComposing) limit(); check(); });
+    text.addEventListener("compositionend", () => { limit(); check(); });
     check();
     go.addEventListener("click", () => close({ on: on.checked, chars: M.parseChars(text.value).slice(0, 10).join("") }));
     return h("div", { class: "dlg" }, h("h2", {}, "字帖设置"), h("p", { class: "user-title" }, k.name),
       h("label", { class: "check" }, on, "单独指定要写的字"),
-      h("p", { class: "muted small" }, "打开后，字帖只练你输入的字；这周和上周要认的字，会随机排列，印在每一行的左右两边。"),
       text, note,
       h("div", { class: "row end" }, h("button", { onclick: () => close(null) }, "取消"), go));
   });
@@ -1392,6 +1394,7 @@ async function showQr() {
 // ---------- routing ----------
 async function route() {
   epoch++;
+  document.getElementById("sheet-read-page")?.remove();   // (only the sheet with characters to read changes the page margins)
   const hash = location.hash;
   const link = api.parseLink(hash);
   if (link) {

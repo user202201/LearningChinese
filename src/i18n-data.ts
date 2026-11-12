@@ -297,6 +297,7 @@ export const EN: Record<string, string> = {
   "已输入 {0} 个字，只用前 10 个": "{0} characters typed, only the first 10 are used",
   "已输入 {0} 个字": "{0} characters typed",
   "生成字帖": "Make the sheet",
+  "要写的字（最多 10 个）": "Characters to write (up to 10)",
 };
 export const FR: Record<string, string> = {
   "游戏": "Jeu",
@@ -596,4 +597,5 @@ export const FR: Record<string, string> = {
   "已输入 {0} 个字，只用前 10 个": "{0} caractères saisis, seuls les 10 premiers sont utilisés",
   "已输入 {0} 个字": "{0} caractères saisis",
   "生成字帖": "Créer le cahier",
+  "要写的字（最多 10 个）": "Caractères à écrire (10 au plus)",
 };

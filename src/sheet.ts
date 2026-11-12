@@ -62,8 +62,9 @@ async function block(ch: string | null, rec?: { l: string; r: string }): Promise
     return c;
   });
   const read = (c: string, side: string) => h("div", { class: `zr ${side}`, "data-read": c }, c ? h("span", { class: "zr-ch user" }, c) : null);
+  // the characters to read stand beside the row of cells (at the height of the writing cells), outside the frame
   return h("div", { class: "zb" + (rec ? " zb-rec" : ""), "data-ch": ch ?? "" },
-    ...(rec ? [read(rec.l, "zr-l")] : []), head, h("div", { class: "zb-row" }, ...cells), ...(rec ? [read(rec.r, "zr-r")] : []));
+    head, h("div", { class: "zb-row" }, ...cells, ...(rec ? [read(rec.l, "zr-l"), read(rec.r, "zr-r")] : [])));
 }
 
 /** the whole sheet: a row for each character to write; `rec` (optional): the characters to read, beside the rows at the left / right (the rows themselves are the usual ones) */

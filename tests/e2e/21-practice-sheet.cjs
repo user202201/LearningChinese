@@ -26,7 +26,7 @@ const PINYIN = { 生: 'shēng', 字: 'zì', 帖: 'tiē', 支: 'zhī', 持: 'chí
   const blocks = await page.evaluate(() => [...document.querySelectorAll('#sheet .zb')].map((b) => {
     const cells = [...b.querySelectorAll('.zc')];
     return { ch: b.dataset.ch, py: b.querySelector('.zb-py').textContent, n: b.querySelector('.zb-n').textContent, steps: [...b.querySelectorAll('.zb-steps svg')].map((s) => [...s.querySelectorAll('path')].map((p) => p.getAttribute('fill'))),
-      cells: cells.map((c) => (c.classList.contains('model') ? 'M' : c.classList.contains('trace') ? 'T' : '.') + (c.querySelectorAll('svg path').length)), tops: new Set(cells.map((c) => Math.round(c.getBoundingClientRect().top))).size, sq: cells.every((c) => Math.abs(c.getBoundingClientRect().width - c.getBoundingClientRect().height) < 1.5) };
+      cells: cells.map((c) => (c.classList.contains('model') ? 'M' : c.classList.contains('trace') ? 'T' : '.') + (c.querySelectorAll('svg path').length)), tops: new Set(cells.map((c) => Math.round(c.getBoundingClientRect().top))).size, sq: cells.every((c) => { const r = c.getBoundingClientRect(); return r.height >= r.width * 0.95 && r.height <= r.width * 1.4; }) };
   }));
   const wanted = [...WEEK];
   ok(blocks.map((b) => b.ch).join('') === WEEK, 'in the order of the week');
@@ -34,7 +34,7 @@ const PINYIN = { 生: 'shēng', 字: 'zì', 帖: 'tiē', 支: 'zhī', 持: 'chí
   ok(Object.keys(PINYIN).every((c) => blocks.find((b) => b.ch === c).py === PINYIN[c]), 'with the pinyin: ' + blocks.slice(0, 5).map((b) => b.py).join(' '));
   ok(blocks.every((b) => b.steps.length === COUNTS[b.ch] && b.steps.every((s, i) => s.length === i + 1)), 'the strokes one by one in writing order: picture i has i strokes (the first has 1, the last all of them)');
   ok(blocks.every((b) => b.steps.every((s) => s.slice(0, -1).every((f) => f === '#2d2230') && s.at(-1) === 'var(--kid)')), 'the newest stroke of each picture is in the colour, the earlier ones in black');
-  ok(blocks.every((b) => b.cells.length === 12 && b.cells[0] === 'M' + COUNTS[b.ch] && [1, 3, 5, 7, 9, 11].every((i) => b.cells[i] === 'T' + COUNTS[b.ch]) && [2, 4, 6, 8, 10].every((i) => b.cells[i] === '.0') && b.tops === 1 && b.sq), 'a row of 12 square cells: the character, then a traced copy and an empty cell, one after the other (6 to trace, 5 to write)');
+  ok(blocks.every((b) => b.cells.length === 12 && b.cells[0] === 'M' + COUNTS[b.ch] && [1, 3, 5, 7, 9, 11].every((i) => b.cells[i] === 'T' + COUNTS[b.ch]) && [2, 4, 6, 8, 10].every((i) => b.cells[i] === '.0') && b.tops === 1 && b.sq), 'a row of 12 cells (about as tall as wide, as on the template sheets): the character, then a traced copy and an empty cell, one after the other (6 to trace, 5 to write)');
   const thin = await page.evaluate(() => ['.zb-py', '.zb-n'].map((s) => { const e = document.querySelector('#sheet ' + s), c = getComputedStyle(e); return [s, c.fontWeight, Math.round(parseFloat(c.fontSize) / (document.querySelector('#sheet').getBoundingClientRect().width / 100) * 10) / 10]; }));
   ok(thin.every(([, w, s]) => Number(w) <= 300 && s <= 2.2), 'the pinyin and the stroke count are small and in the lightest weight (300; name, weight, size in % of the sheet width): ' + thin.map((x) => x.join(' ')).join(', '));
   // the header sits on the same columns as the cells: pinyin centred over the first cell, the stroke count over the second, the stroke pictures from the third on
@@ -63,13 +63,14 @@ const PINYIN = { 生: 'shēng', 字: 'zì', 帖: 'tiē', 支: 'zhī', 持: 'chí
     let o = 0; const tok = () => { while (ppm[o] === 10 || ppm[o] === 32) o++; let s = ''; while (ppm[o] !== 10 && ppm[o] !== 32) s += String.fromCharCode(ppm[o++]); return s; };
     tok(); const W = +tok(), H = +tok(); tok(); o++;
     const red = (x, y) => { const i = o + (y * W + x) * 3; return ppm[i] > 180 && ppm[i + 1] < 170 && ppm[i + 2] < 170; };
-    let minX = W, maxX = 0;
-    for (let y = 0; y < H; y += 3) for (let x = 0; x < W; x++) if (red(x, y)) { if (x < minX) minX = x; if (x > maxX) maxX = x; }
+    let minX = W, maxX = 0, maxY = 0;
+    for (let y = 0; y < H; y += 3) for (let x = 0; x < W; x++) if (red(x, y)) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y > maxY) maxY = y; }
     const strong = (x, y) => { const i = o + (y * W + x) * 3; return ppm[i] > 200 && ppm[i + 1] < 130 && ppm[i + 2] < 130; };   // (a full-strength line, not the pale half of a cut-off one)
     const longest = (x0) => { let best = 0; for (let x = x0 - 3; x <= x0 + 3; x++) { let run = 0; for (let y = 0; y < H; y++) { if (strong(x, y)) { run++; if (run > best) best = run; } else run = 0; } } return best; };
-    frame = { W, left: minX / 150 * 25.4, right: (W - 1 - maxX) / 150 * 25.4, leftLine: longest(minX + 1), rightLine: longest(maxX - 1) };
+    frame = { W, bottom: (H - 1 - maxY) / 150 * 25.4, left: minX / 150 * 25.4, right: (W - 1 - maxX) / 150 * 25.4, leftLine: longest(minX + 1), rightLine: longest(maxX - 1) };
   } catch (e) { frame = null; }
   if (frame) ok(frame.leftLine > 120 && frame.rightLine > 120 && Math.abs(frame.left - frame.right) <= 1.2 && frame.left >= 14, 'the PDF drawn as a picture: the frame has its left AND right line (' + frame.leftLine + ' / ' + frame.rightLine + ' px long) and the margins are equal (' + frame.left.toFixed(1) + ' / ' + frame.right.toFixed(1) + ' mm)');
+  if (frame) ok(frame.bottom <= 20, 'the page is FULL: the ten rows reach down to ' + frame.bottom.toFixed(0) + ' mm from the bottom edge of the paper (15 mm is the page margin), not leaving a big empty space below');
   else console.log('SKIP the picture check (pdftoppm not available)');
   ok(pages === 1, 'ten characters fit on ONE A4 page (' + pages + ' page)');
   await page.emulateMedia({ media: 'screen' });
