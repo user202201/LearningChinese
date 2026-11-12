@@ -31,7 +31,7 @@ const fits = (page) => page.evaluate(() => {
   for (const b of document.querySelectorAll('.seg button')) if (b.getBoundingClientRect().height > 60) bad.push('a segment button is broken into lines (a word cut in the middle?): ' + b.textContent.trim());
   for (const n of document.querySelectorAll('.kname')) if (n.getBoundingClientRect().width < 40) bad.push('child name squeezed out: ' + n.textContent);   // (found on CI with wider fonts: a long "N characters learned" took all the room)
   const btns = [...document.querySelectorAll(document.querySelector('dialog[open]') ? 'dialog[open] button' : '.page button, .login button')]   // (behind an open dialog nothing counts)
-    .filter((b) => b.getBoundingClientRect().width);
+    .filter((b) => b.getBoundingClientRect().width && !b.closest('[inert]'));   // (a folded-up block does not count)
   for (let i = 0; i < btns.length; i++) for (let j = i + 1; j < btns.length; j++) {
     const a = btns[i].getBoundingClientRect(), b = btns[j].getBoundingClientRect();
     const sticky = (el) => !!el.closest('.row.sticky');   // (the Done / Cancel bar stays at the bottom of a long window: the content scrolls under it on purpose)
@@ -73,7 +73,7 @@ const fits = (page) => page.evaluate(() => {
       ok((await page.textContent('#grid .tzg[data-ch=假] .box')) === '假', `${tag} the user's characters are shown as typed`);
       ok((await page.textContent('.top h1')) === '小明', `${tag} the user's child name is shown as typed`);
       await page.click('button.back'); await page.waitForSelector('.kids');
-      await page.evaluate(() => (location.hash = '#/settings')); await page.waitForSelector('.card h3');
+      await page.evaluate(() => (location.hash = '#/settings')); await page.waitForSelector('#manage-mode');
       await check('settings'); await shot('6-settings'); await page.check('#manage-mode'); await page.waitForSelector('.change-avatar'); await check('settings (manage mode on)');
       await page.click('.change-avatar >> nth=0'); await page.waitForSelector('dialog .animals');
       await check('picture dialog'); await shot('7-avatar');
@@ -88,7 +88,7 @@ const fits = (page) => page.evaluate(() => {
   }
   // the language menu itself switches the language of what is on screen, and the choice is kept
   const { browser, page } = await start(new Map(), { local: true, locale: 'zh-CN', today: '2026-11-08' });
-  await page.evaluate(() => (location.hash = '#/settings')); await page.waitForSelector('.card h3');
+  await page.evaluate(() => (location.hash = '#/settings')); await page.waitForSelector('#manage-mode');
   await page.click('.seg button:has-text("English")');
   ok((await page.textContent('h1')) === 'Settings', 'choosing English switches the screen at once');
   ok((await page.title()) === 'Hanzippy', 'the app name in English is "Hanzippy" (hanzi + zippy: lively, quick), also in the browser tab');

@@ -1285,7 +1285,10 @@ async function renderSettings() {
       secs.querySelectorAll<HTMLElement>("button.secbtn").forEach((b) => b.classList.toggle("on", b.dataset.sec === String(n)));
     } }, `${n} 秒`)));
   const pinyin = h("input", { type: "checkbox", id: "pin-toggle", checked: settings.pinyin, onchange: (e: Event) => { settings.pinyin = (e.target as HTMLInputElement).checked; saveSettings(); } });
-  const manage = h("input", { type: "checkbox", id: "manage-mode", checked: settings.manage, onchange: (e: Event) => { settings.manage = (e.target as HTMLInputElement).checked; saveSettings(); void renderSettings(); } });
+  const manage = h("input", { type: "checkbox", id: "manage-mode", checked: settings.manage, onchange: (e: Event) => { settings.manage = (e.target as HTMLInputElement).checked; saveSettings(); setAdmin(settings.manage); } });
+  // the admin block slides open / shut (no reload of the page)
+  let adminBox!: HTMLElement;
+  const setAdmin = (on: boolean) => { adminBox.classList.toggle("open", on); adminBox.toggleAttribute("inert", !on); };
   const a = api.getAuth();
   const account = api.isLocal()
     ? h("div", { class: "card" }, h("h3", {}, "数据保存位置"), h("p", {}, "这台设备（浏览器）里，不会上传。换设备或清除浏览器数据会丢失。"),
@@ -1304,6 +1307,7 @@ async function renderSettings() {
         h("button", { class: "mini danger delete", onclick: () => void deleteKid(k) }, "删除"))));
   const kids = h("div", { class: "card" }, h("h3", {}, "孩子"), ...rows,
     h("button", { class: "wide", id: "add-kid", onclick: () => void addKid(() => void renderSettings()) }, "＋ 添加孩子"));
+  queueMicrotask(() => setAdmin(settings.manage));
   show(
     h("div", { class: "page" },
       topBar("设置", backBtn("#/", "完成")),
@@ -1312,7 +1316,8 @@ async function renderSettings() {
         h("h2", { class: "set-sec" }, "管理"),
         h("div", { class: "card" }, h("label", { class: "check" }, manage, "管理模式")),
         // the rare jobs (children, Excel import, where the data is kept) only show while the manage mode is on
-        ...(settings.manage ? [kids, h("div", { class: "card" }, h("button", { class: "wide", id: "import-btn", onclick: importFlow }, "从 Excel 导入")), account] : []),
+        (adminBox = h("div", { class: "collapse" + (settings.manage ? " open" : ""), id: "admin-box" },
+          h("div", { class: "collapse-in" }, kids, h("div", { class: "card" }, h("button", { class: "wide", id: "import-btn", onclick: importFlow }, "从 Excel 导入")), account))),
 
         h("h2", { class: "set-sec" }, "学习和游戏"),
         h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已入库”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),

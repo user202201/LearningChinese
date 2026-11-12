@@ -485,3 +485,9 @@ button.story-edit-icon svg { width: 20px; height: 20px; }
 button.story-edit-icon:active { transform: none; box-shadow: none; opacity: .8; }
 .settings .set-sec { margin: 26px 6px 10px; font-size: 16px; font-weight: 800; color: var(--kid, var(--accent-dark)); letter-spacing: .02em; }
 .settings .set-sec:first-child { margin-top: 4px; }
+
+/* Settings: the admin block slides open / shut */
+.collapse { display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden; transition: grid-template-rows .32s ease, opacity .25s ease, visibility 0s linear .32s; }
+.collapse.open { grid-template-rows: 1fr; opacity: 1; visibility: visible; transition: grid-template-rows .32s ease, opacity .25s ease .05s, visibility 0s; }
+.collapse > .collapse-in { min-height: 0; overflow: hidden; margin: 0 -12px; padding: 0 12px; }
+@media (prefers-reduced-motion: reduce) { .collapse, .collapse.open { transition: none; } }
