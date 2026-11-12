@@ -324,15 +324,25 @@ const auditOk = (log, dropped = []) => log.writes.filter((w) => w.tab && w.tab !
   const dWrites = dd.log.writes.filter((w) => w.tab === '成语' && w.col === 4);
   ok(dWrites.length === 1 && dWrites[0].row === 4 && dWrites[0].before === '第1周-2026-10-25' && dWrites[0].value === '第3周-2026-11-08', 'column D: something the user wrote (我的备注) is not touched, a cell that already has the right week is not written again, an old week label with another week is corrected (row 4)');
   ok(dd.sheets.get('成语').grid[0][3] === '我的备注' && /另有 1 个 D 格里是你自己写的内容，没有动/.test(dd.sheets.get('同步状态').grid.flat().join('|')), 'and the status tab says that one D cell with your own text was left alone');
-  // column E: a story already in the sheet (the user's own or an edited one) is never overwritten, an empty cell is filled
+  // column E follows the APP: an empty cell is filled, a cell with another text is rewritten with the app's story (the app is the master, the sheet is the backup);
+  // an idiom the app has no story for is left alone (never cleared); the same text is not written again
   const eTab = idiomTab().map((r) => r.slice());
-  eTab[0][4] = '我在表格里改过的故事';
-  const ee = makeEnv({ files: { ...FILES, 'idioms.json': { weeks: [], pool: LIB, stories: { 对牛弹琴: 'App里的版本', 指鹿为马: '指鹿为马的故事' } } }, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [], 成语: eTab } });
+  eTab[0][4] = '我在表格里写过的旧版本'; eTab[2][4] = '没有故事的成语的内容'; eTab[3][4] = '刻舟求剑的故事';
+  const ee = makeEnv({ files: { ...FILES, 'idioms.json': { weeks: [], pool: LIB, stories: { 对牛弹琴: 'App里的新版本', 指鹿为马: '指鹿为马的故事', 刻舟求剑: '刻舟求剑的故事' } } }, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [], 成语: eTab } });
   ee.run('syncAuto');
   const eW = ee.log.writes.filter((w) => w.tab === '成语' && w.col === 5);
-  ok(eW.length === 1 && eW[0].row === 2 && eW[0].value === '指鹿为马的故事' && ee.sheets.get('成语').grid[0][4] === '我在表格里改过的故事', 'column E: a story already there (here edited in the sheet) is never overwritten; only the empty cell of 指鹿为马 gets its story');
-  dd.log.writes.length = 0; dd.run('syncAuto');
-  ok(dd.log.writes.filter((w) => w.tab === '成语').length === 0, 'a second sync writes nothing in the 成语 tab');
+  ok(eW.length === 2 && eW.find((w) => w.row === 1).before === '我在表格里写过的旧版本' && eW.find((w) => w.row === 1).value === 'App里的新版本' && eW.find((w) => w.row === 2).before === '' && eW.find((w) => w.row === 2).value === '指鹿为马的故事', 'column E follows the app: a story edited in the app REPLACES the old text in the sheet (row 1), an empty cell is filled (row 2)');
+  ok(ee.sheets.get('成语').grid[2][4] === '没有故事的成语的内容' && ee.sheets.get('成语').grid[3][4] === '刻舟求剑的故事', 'an idiom the app has no story for keeps whatever is in its E cell (never cleared), and a cell that already has the same text is not written again');
+  ok(/E 列写入故事 2 个（其中改写原有内容 1 个，以 App 为准）/.test(ee.sheets.get('同步状态').grid.flat().join('|')), 'the status tab says how many E cells were rewritten');
+  ee.log.writes.length = 0; ee.run('syncAuto');
+  ok(ee.log.writes.filter((w) => w.tab === '成语').length === 0, 'a second sync writes nothing (the sheet already has the app\'s stories)');
+  // safety: too many rewrites at once
+  const many2 = ['对牛弹琴', '指鹿为马', '井底之蛙', '刻舟求剑', '守株待兔', '尊老爱幼', '知错就改', '夜郎自大'];
+  const tabBig = Array.from({ length: 60 }, (_, k) => [`测试成语${String(k).padStart(2, '甲')}`, false, 24, '', '旧内容' + k]);
+  const stBig = Object.fromEntries(tabBig.map((r, k) => [r[0], '新故事' + k]));
+  const eo = makeEnv({ files: { ...FILES, 'idioms.json': { weeks: [], pool: tabBig.map((r) => r[0]), stories: stBig } }, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [], 成语: tabBig } });
+  eo.run('syncAuto');
+  ok(eo.log.writes.filter((w) => w.tab === '成语' && w.col === 5).length === 0 && /超过一次最多改写 50 个的安全上限/.test(eo.sheets.get('同步状态').grid.flat().join('|')), 'safety: 60 cells that differ from the app at once is more than the limit (50): none is rewritten and the status tab says why');
   const noTab = makeEnv({ files: { ...FILES, 'idioms.json': IDIOMS }, props: REPO, tabs: { Dory: userSheet(), Leo: [], Antoine: [] } });
   noTab.run('syncAuto');
   ok(/成语：表格里没有叫“成语”的标签页/.test(noTab.sheets.get('同步状态').grid.flat().join('|')) && noTab.sheets.get('同步状态').grid.flat().includes('成功'), 'no 成语 tab in the sheet: skipped with a note, the rest of the sync still succeeds');

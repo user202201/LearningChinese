@@ -19,7 +19,8 @@
  * 成语标签页（A 列 = 成语，B 列 = 打勾的格子，C 列 = 你表格自己算的数量）：
  *   App 每周从成语库里给下一周随机选 6 个成语；同步时，脚本把“App 里已经分配到某一周的成语”在 B 列对应的格子【打上勾】。
  *   只会【打勾】，不会取消已有的勾；已有的 A 列成语和 C 列（计算）一律不碰。
- *   App 里有故事、而 E 列还是【空的】的成语，会把故事写进 E 列（E 列里已经有内容的不动，也不会覆盖你改过的）。
+ *   App 里有故事的成语，会把故事写进 E 列：E 格是空的就写；E 格里是别的内容，就改成 App 里的故事（以 App 为准，你在 App 里改了故事，表格里的备份就跟着变）。
+ *   App 里【没有】故事的成语，E 格不动（不会清空）。一次最多改写 50 个已有内容的 E 格，再多就不改并在“同步状态”里提醒（防止出错）。
  *   学习的周会写在 D 列（例如 第4周-2026-11-15），和孩子标签页 A 列的写法一样；D 列是空的、或者已经是这种周标签但周不一样时才写，
  *   你自己在 D 列写的别的内容不动。下次在 App 里重新导入这张表时，D 列写了周的成语会回到原来的那一周。
  *   你在 App 里手动添加的、表格里还没有的新成语，会【加到 A 列最后一个成语的下面】（B 列同时放一个勾选框，并按 App 里有没有分配到周打勾）；
@@ -34,6 +35,7 @@ var STATUS_TAB = '同步状态';
 var MAX_IDIOM_ADDS = 30;       // 一次同步最多往成语标签页 A 列加几个新成语
 var IDIOM_WEEK_COL = 4;       // D 列：这个成语学习的周
 var IDIOM_STORY_COL = 5;      // E 列：这个成语的故事
+var MAX_STORY_OVERWRITES = 50;   // 一次同步最多改写多少个“已经有内容、但和 App 里不一样”的 E 格
 var IDIOM_TAB = '成语';         // 成语标签页的名字（A 列成语，B 列打勾）
 var FIRST_CHAR_COL = 2;        // B 列
 var CHAR_COLS = 10;            // B ～ K：每周 10 个字
@@ -85,7 +87,7 @@ function readConfig_() {
   var p = PropertiesService.getScriptProperties();
   var repo = p.getProperty('GITHUB_REPO'), token = p.getProperty('GITHUB_TOKEN');
   if (!repo || !token) throw new Error('还没有设置 GitHub 连接：请先点菜单 识字助手 → 1. 设置 GitHub 连接。');
-  return { repo: repo, token: token, first: p.getProperty('FIRST_WEEK') || '', maxDeletes: Number(p.getProperty('MAX_DELETES')) || MAX_DELETES, maxIdiomAdds: Number(p.getProperty('MAX_IDIOM_ADDS')) || MAX_IDIOM_ADDS };
+  return { repo: repo, token: token, first: p.getProperty('FIRST_WEEK') || '', maxDeletes: Number(p.getProperty('MAX_DELETES')) || MAX_DELETES, maxIdiomAdds: Number(p.getProperty('MAX_IDIOM_ADDS')) || MAX_IDIOM_ADDS, maxStoryOverwrites: Number(p.getProperty('MAX_STORY_OVERWRITES')) || MAX_STORY_OVERWRITES };
 }
 
 // ---------- 读取 GitHub ----------
@@ -290,14 +292,19 @@ function idiomWeekWrites_(aValues, dValues, weekOf, anchor) {
   }
   return out;
 }
-/** E 列要写什么：App 里有故事、而这一行的 E 格是空的成语。返回 [[行号, 故事]]；E 格里已经有内容的不动 */
+/**
+ * E 列要写什么：App 里有故事的成语，E 格是空的、或者里面的内容和 App 里的故事不一样，就写成 App 里的故事（以 App 为准）。
+ * App 里没有故事的成语不管（E 格不清空）。返回 { writes: [[行号, 故事, 是不是改写了原有内容]], same: 一样不用写的个数 }
+ */
 function idiomStoryWrites_(aValues, eValues, stories) {
-  var out = [];
+  var out = { writes: [], same: 0 };
   for (var i = 0; i < aValues.length; i++) {
     var a = String(aValues[i] === undefined || aValues[i] === null ? '' : aValues[i]).replace(/\s+/g, '');
     var story = a && stories[a] ? String(stories[a]).trim() : '';
+    if (!story) continue;
     var cur = String(eValues[i] === undefined || eValues[i] === null ? '' : eValues[i]).trim();
-    if (story && !cur) out.push([i + 1, story]);
+    if (cur === story) out.same++;
+    else out.writes.push([i + 1, story, !!cur]);
   }
   return out;
 }
@@ -313,7 +320,7 @@ function idiomAppends_(aValues, pool, used) {
   return out;
 }
 /** 把 App 里已经分配到周的成语在 B 列打勾、在 D 列写上学习的周；再把表格里还没有的新成语加到 A 列最后一个成语的下面。返回一行说明 */
-function syncIdioms_(ss, idiomsFile, maxAdds, startWeek) {
+function syncIdioms_(ss, idiomsFile, maxAdds, startWeek, cfgMaxOver) {
   var sheet = findTab_(ss, IDIOM_TAB);
   if (!sheet) return '成语：表格里没有叫“' + IDIOM_TAB + '”的标签页，已跳过';
   if (!idiomsFile) return '成语：App 里还没有成语数据，已跳过';
@@ -332,8 +339,14 @@ function syncIdioms_(ss, idiomsFile, maxAdds, startWeek) {
   r.ticks.forEach(function (row) { sheet.getRange(row, 2).setValue(true); });
   var wk = idiomWeekWrites_(a, d, weekOf, anchor);
   wk.writes.forEach(function (w) { sheet.getRange(w[0], IDIOM_WEEK_COL).setValue(w[1]); });
-  // 故事：App 里有故事、E 格是空的，才写；E 格里已经有内容的一律不动
-  var storyWrites = idiomStoryWrites_(a, e, idiomsFile.stories || {});
+  // 故事：以 App 为准。E 格是空的就写；里面是别的内容，就改成 App 里的故事（改写的个数有上限）
+  var sw = idiomStoryWrites_(a, e, idiomsFile.stories || {});
+  var storyWrites = sw.writes, overwrites = storyWrites.filter(function (w) { return w[2]; }).length, storyNote = '';
+  if (overwrites > (cfgMaxOver || MAX_STORY_OVERWRITES)) {
+    storyWrites = storyWrites.filter(function (w) { return !w[2]; });
+    storyNote = '；有 ' + overwrites + ' 个 E 格里的内容和 App 里的故事不一样，超过一次最多改写 ' + (cfgMaxOver || MAX_STORY_OVERWRITES) + ' 个的安全上限，这次只写了空的 E 格（确认没问题的话，在脚本属性里加 MAX_STORY_OVERWRITES）';
+    overwrites = 0;
+  }
   storyWrites.forEach(function (w) { sheet.getRange(w[0], IDIOM_STORY_COL).setValue(w[1]); });
   // 新成语：加到 A 列最后一个成语的下面（不碰已有的格子；C 列留给表格自己的公式）
   var add = idiomAppends_(a, idiomsFile.pool, used), added = 0, storyAdded = 0, note = '';
@@ -356,7 +369,7 @@ function syncIdioms_(ss, idiomsFile, maxAdds, startWeek) {
     });
     note = '；新加到表格 A 列 ' + added + ' 个（' + add.slice(0, 6).map(function (x) { return x.idiom; }).join('、') + (add.length > 6 ? ' 等' : '') + '）';
   }
-  return '成语：App 里分配了 ' + n + ' 个，新打勾 ' + r.ticks.length + ' 个，原来就有勾 ' + r.already + ' 个；D 列写入学习的周 ' + wk.writes.length + ' 个；E 列写入故事 ' + (storyWrites.length + storyAdded) + ' 个' + (wk.kept ? '（另有 ' + wk.kept + ' 个 D 格里是你自己写的内容，没有动）' : '') + note;
+  return '成语：App 里分配了 ' + n + ' 个，新打勾 ' + r.ticks.length + ' 个，原来就有勾 ' + r.already + ' 个；D 列写入学习的周 ' + wk.writes.length + ' 个；E 列写入故事 ' + (storyWrites.length + storyAdded) + ' 个' + (overwrites ? '（其中改写原有内容 ' + overwrites + ' 个，以 App 为准）' : '') + storyNote + (wk.kept ? '（另有 ' + wk.kept + ' 个 D 格里是你自己写的内容，没有动）' : '') + note;
 }
 
 /** 脚本属性里这个孩子“上次同步时 App 有哪些字”的记录 */
@@ -409,7 +422,7 @@ function doSync_() {
     lines.push(k.name + '：新填入 ' + r.added + ' 个字，已有 ' + r.present + ' 个' + (r.deleted ? '，清除 ' + r.deleted + ' 个（App 里已删除）' : '') + (r.notes.length ? '；注意：' + r.notes.join('；') : ''));
   });
   try {
-    lines.push(syncIdioms_(ss, ghGet_(cfg, 'idioms.json'), cfg.maxIdiomAdds, fallback));
+    lines.push(syncIdioms_(ss, ghGet_(cfg, 'idioms.json'), cfg.maxIdiomAdds, fallback, cfg.maxStoryOverwrites));
   } catch (e) {
     lines.push('成语：没有同步成功（' + e.message + '）');
   }
