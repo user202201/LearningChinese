@@ -1321,10 +1321,17 @@ async function renderSettings() {
       secs.querySelectorAll<HTMLElement>("button.secbtn").forEach((b) => b.classList.toggle("on", b.dataset.sec === String(n)));
     } }, `${n} 秒`)));
   const pinyin = h("input", { type: "checkbox", id: "pin-toggle", checked: settings.pinyin, onchange: (e: Event) => { settings.pinyin = (e.target as HTMLInputElement).checked; saveSettings(); } });
+  let asking = false;   // (one password window at a time: a quick second tap must not start another)
   const manage = h("input", { type: "checkbox", id: "manage-mode", checked: settings.manage, onchange: async (e: Event) => {
     const box = e.target as HTMLInputElement;
-    if (box.checked && !(await unlockAdmin())) { box.checked = false; return; }   // cancelled or wrong: nothing changes, no message
-    settings.manage = box.checked;
+    if (asking) { box.checked = settings.manage; return; }
+    if (box.checked === settings.manage) return;   // already in that state: nothing to ask
+    if (box.checked) {
+      asking = true;
+      const ok = await unlockAdmin().finally(() => { asking = false; });
+      if (!ok) { box.checked = false; return; }   // cancelled or wrong: nothing changes, no message
+    }
+    settings.manage = box.checked;   // switching OFF never asks for the password
     setAdmin(settings.manage);
   } });
   // the admin block slides open / shut (no reload of the page)

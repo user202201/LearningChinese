@@ -48,6 +48,17 @@ const { ok, done } = checks();
   await page.fill('#admin-pw', 'wxyz'); await page.click('#admin-ok'); await page.waitForSelector('dialog.center', { state: 'detached' });
   ok(await box(), 'the new one does');
 
+  // switching OFF never shows the password window, however fast it is tapped on and off again
+  await page.uncheck('#manage-mode'); await page.waitForTimeout(100);
+  ok(await page.locator('dialog[open]').count() === 0, 'switching off asks for nothing');
+  await page.click('#manage-mode'); await page.waitForSelector('#admin-pw'); await page.keyboard.press('Escape'); await page.waitForSelector('dialog.center', { state: 'detached' });
+  ok(!(await box()) && await page.locator('dialog[open]').count() === 0, 'cancel with Esc: back off, no second window');
+  await page.click('#manage-mode'); await page.waitForSelector('#admin-pw'); await page.fill('#admin-pw', 'wxyz'); await page.click('#admin-ok'); await page.waitForSelector('dialog.center', { state: 'detached' });
+  await page.click('#manage-mode', { clickCount: 2, delay: 20 }); await page.waitForTimeout(400);
+  ok(await page.locator('dialog[open]').count() <= 1, 'a quick double tap on the switch (off, then on again) opens one password window at most');
+  if (await page.locator('dialog[open]').count()) { await page.keyboard.press('Escape'); await page.waitForSelector('dialog.center', { state: 'detached' }); }
+  ok(!(await box()) && !(await page.locator('#add-kid').isVisible()), 'and cancelling it leaves everything switched off');
+
   // not remembered; the week page's "Done" turns it off without a password
   await page.reload(); await page.waitForSelector('#manage-mode');
   ok(!(await box()), 'after the app is opened again admin mode is off (the password is asked again)');
