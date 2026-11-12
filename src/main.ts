@@ -1,4 +1,4 @@
-import { buildSheet } from "./sheet";
+import { buildSheet, shuffle } from "./sheet";
 import { buildStoryPages, fitStories } from "./storysheet";
 import "./style.css";
 import QRCode from "qrcode";
@@ -19,14 +19,17 @@ import syncScript from "../docs/google-sheet-sync/sync.gs?raw";   // the Google 
 const app = document.getElementById("app")!;
 
 // ---------- settings (only per-device conveniences; the learning data lives behind api.ts) ----------
-interface Settings { lang: LangPref; pinyin: boolean; manage: boolean; gameSeconds: number }
+/** per child: write the characters typed by hand (not the week's) on the practice sheet, the week's and last week's characters to READ at the ends of the rows */
+interface SheetWrite { on: boolean; chars: string }
+interface Settings { lang: LangPref; pinyin: boolean; manage: boolean; gameSeconds: number; sheetWrite: Record<string, SheetWrite> }
 const SETTINGS_KEY = "learn.settings.v1";
 function loadSettings(): Settings {
   try {
     const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
-    return { lang: ["auto", "zh", "en", "fr"].includes(s.lang) ? s.lang : "auto", pinyin: !!s.pinyin, manage: !!s.manage, gameSeconds: Number.isFinite(s.gameSeconds) && s.gameSeconds >= 1 && s.gameSeconds <= 30 ? s.gameSeconds : 5 };
+    return { lang: ["auto", "zh", "en", "fr"].includes(s.lang) ? s.lang : "auto", pinyin: !!s.pinyin, manage: !!s.manage, gameSeconds: Number.isFinite(s.gameSeconds) && s.gameSeconds >= 1 && s.gameSeconds <= 30 ? s.gameSeconds : 5,
+      sheetWrite: Object.fromEntries(Object.entries((s.sheetWrite ?? {}) as Record<string, Partial<SheetWrite>>).map(([k, v]) => [k, { on: !!v?.on, chars: typeof v?.chars === "string" ? v.chars : "" }])) };
   } catch {
-    return { lang: "auto", pinyin: false, manage: false, gameSeconds: 5 };
+    return { lang: "auto", pinyin: false, manage: false, gameSeconds: 5, sheetWrite: {} };
   }
 }
 const settings = loadSettings();
@@ -370,7 +373,7 @@ function renderWeek(body: HTMLElement, k: M.Kid, kid: M.KidData) {
       bar,
       curWeek === todayWeek ? null : h("button", { class: "link", onclick: () => go(todayWeek) }, "回到本周"),
       h("div", { class: "sec-row" }, h("h2", { class: "sec" }, `汉字（${chars.length}）`),
-        chars.length ? h("button", { class: "sheet-btn", id: "sheet-btn", onclick: () => { sheetWeek = curWeek; location.hash = `#/sheet/${k.id}`; } }, "字帖") : null,
+        chars.length ? h("button", { class: "sheet-btn", id: "sheet-btn", onclick: () => void openSheet(k) }, "字帖") : null,
         chars.length && chars.length < WEEKLY ? h("button", { class: "plus", id: "enter", title: "录入这一周的内容", "aria-label": "录入这一周的内容", onclick: () => enterDialog(k) }, "＋") : null),
       chars.length
         ? grid
@@ -402,16 +405,67 @@ async function renderSheet(id: string) {
   }
   if (my !== epoch) return;
   const start = sheetWeek || curWeek || M.sundayOf(M.todayLocal());
-  const chars = M.weekOf(kid, start)?.chars ?? [];
+  const weekChars = M.weekOf(kid, start)?.chars ?? [];
+  const lastChars = M.weekOf(kid, M.addDays(start, -7))?.chars ?? [];
   const no = M.weekNo(start, kidsFile.startWeek);
-  const paper = chars.length ? await buildSheet(chars) : null;
+  // by default the sheet is for this week's characters; with the option on it is for the characters typed by hand, and this week's and last week's
+  // characters (in random order) are printed at the two ends of the rows to be READ
+  const opt = settings.sheetWrite[id];
+  const typed = opt?.on ? M.parseChars(opt.chars).slice(0, 10) : [];
+  const special = !!opt?.on && typed.length > 0;
+  const chars = special ? typed : weekChars;
+  const paper = chars.length ? await buildSheet(chars, special ? { left: shuffle(weekChars), right: shuffle(lastChars) } : undefined) : null;
   if (my !== epoch) return;
+  const optBtn = h("button", { class: "link", id: "sheet-opt", onclick: () => void openSheet(k, true) }, "字帖设置");
   show(h("div", { class: "page sheet-page", style: `--kid:${k.color}` },
     h("header", { class: "top plain" }, backBtn(`#/kid/${id}`), h("h1", {}, `字帖 · 第${no}周`), h("span", { class: "slot" })),
     h("main", { class: "scroll sheet-scroll" },
-      chars.length ? h("p", { class: "muted small center sheet-hint" }, "在打印窗口里选择“另存为 PDF”，就能保存和打印。") : null,
+      h("div", { class: "sheet-hint center" }, chars.length ? h("span", { class: "muted small" }, "在打印窗口里选择“另存为 PDF”，就能保存和打印。") : null, optBtn),
       paper ?? h("p", { class: "empty" }, "这一周还没有汉字。")),
     chars.length ? h("div", { class: "idiom-foot sheet-foot" }, h("button", { class: "primary wide", id: "sheet-print", onclick: () => window.print() }, "打印 / 保存为 PDF")) : null));
+}
+
+/** the practice sheet of the week on the child's page: straight to the sheet, or (option on for this child) the window to type this week's characters to write first */
+async function openSheet(k: M.Kid, fromSheet = false) {
+  if (!fromSheet) sheetWeek = curWeek;   // (from the week page: the week that is shown)
+  if (fromSheet || settings.sheetWrite[k.id]?.on) {
+    const r = await sheetSetupDialog(k);
+    if (!r) return; // cancelled: nothing changes, no message
+    settings.sheetWrite[k.id] = r;
+    saveSettings();
+    if (fromSheet) return void renderSheet(k.id);
+  }
+  location.hash = `#/sheet/${k.id}`;
+}
+
+/** "Sheet settings": the characters to write (up to 10) typed by hand, for a child who writes other characters than he reads */
+async function sheetSetupDialog(k: M.Kid): Promise<SheetWrite | null> {
+  const cur = settings.sheetWrite[k.id] ?? { on: false, chars: "" };
+  const on = h("input", { type: "checkbox", id: "sheet-write-on", checked: cur.on }) as HTMLInputElement;
+  const text = h("textarea", { rows: 2, id: "sheet-write-chars", placeholder: "把要写的字输入或粘贴在这里（最多 10 个，空格和标点会自动去掉）", "aria-label": "要写的字" }) as HTMLTextAreaElement;
+  text.value = cur.chars;
+  const note = h("div", { class: "note", id: "sheet-write-note" });
+  const go = h("button", { class: "primary", id: "sheet-write-go" }, "生成字帖");
+  return modal<SheetWrite>((close) => {
+    const check = () => {
+      const list = M.parseChars(text.value);
+      note.replaceChildren();
+      text.disabled = !on.checked;
+      if (!on.checked) { go.disabled = false; return; }
+      if (!list.length) note.append(h("div", { class: "muted" }, "还没有输入要写的字"));
+      else note.append(h("div", { class: list.length > 10 ? "warn" : "muted" }, list.length > 10 ? `已输入 ${list.length} 个字，只用前 10 个` : `已输入 ${list.length} 个字`));
+      go.disabled = !list.length;
+    };
+    on.addEventListener("change", check);
+    text.addEventListener("input", check);
+    check();
+    go.addEventListener("click", () => close({ on: on.checked, chars: M.parseChars(text.value).slice(0, 10).join("") }));
+    return h("div", { class: "dlg" }, h("h2", {}, "字帖设置"), h("p", { class: "user-title" }, k.name),
+      h("label", { class: "check" }, on, "单独指定要写的字"),
+      h("p", { class: "muted small" }, "打开后，字帖只练你输入的字；这周和上周要认的字，会随机排列，印在每一行的左右两边。"),
+      text, note,
+      h("div", { class: "row end" }, h("button", { onclick: () => close(null) }, "取消"), go));
+  });
 }
 
 /** a small pencil drawn by hand (not a text character, which every device draws differently) */
