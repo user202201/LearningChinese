@@ -37,7 +37,7 @@ const { ok, done } = checks();
   ok(true, 'stays signed in after reload');
 
   // QR link for another device
-  await page.click('button[title=设置]'); await page.click('#qr-btn'); await page.waitForSelector('img.qr');
+  await page.click('button[title=设置]'); await page.check('#manage-mode'); await page.click('#qr-btn'); await page.waitForSelector('img.qr');
   const link = await page.getAttribute('img.qr', 'data-link');
   const px = await page.evaluate(async () => {
     const img = document.querySelector('img.qr'); await img.decode();

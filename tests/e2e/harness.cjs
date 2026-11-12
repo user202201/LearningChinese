@@ -75,15 +75,19 @@ exports.checks = function () {
 
 // ---- helpers shared by the suites ----
 /** Settings (the gear on the home screen): where the children are added, renamed, given a picture, deleted and where Excel is imported */
-exports.openSettings = async (page) => { await page.evaluate(() => (location.hash = '#/settings')); await page.waitForSelector('#add-kid'); };
-exports.goHome = async (page) => { await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kids, .empty-home'); };
+exports.openSettings = async (page) => { await page.evaluate(() => (location.hash = '#/settings')); await page.waitForSelector('#manage-mode'); };
+/** Settings with the manage mode switched ON (that is where the children are listed, added, renamed, deleted); `manageOff` puts the switch back */
+exports.openManage = async (page) => { await exports.openSettings(page); if (!(await page.isChecked('#manage-mode'))) await page.check('#manage-mode'); await page.waitForSelector('#add-kid'); };
+exports.manageOff = async (page) => { if (await page.locator('#manage-mode').count() && (await page.isChecked('#manage-mode'))) await page.uncheck('#manage-mode'); };
+exports.goHome = async (page) => { await exports.manageOff(page); await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kids, .empty-home'); };
 /** adds a child the way a user does: the big + when there is nobody yet, otherwise in Settings; ends on the home screen */
 exports.addKid = async (page, name) => {
   if (await page.locator('#add-kid-big').count()) await page.click('#add-kid-big');
-  else { await exports.openSettings(page); await page.click('#add-kid'); }
+  else { await exports.openManage(page); await page.click('#add-kid'); }
   await page.fill('dialog input', name);
   await page.click('dialog button.primary');
   await page.waitForSelector(`.kname:has-text("${name}")`);
+  await exports.manageOff(page);
   await exports.goHome(page);
 };
 exports.openKid = async (page, name) => { await page.click('.kid:has-text("' + name + '")'); await page.waitForSelector('.weekbar'); };   // (not #enter: a week with its 10 characters has no +)

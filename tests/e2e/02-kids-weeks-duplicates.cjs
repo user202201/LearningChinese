@@ -1,6 +1,6 @@
 // Children (3) and where they are managed (Settings, not the home screen), entering a week, "already learned?" detection, week navigation,
 // rename / delete in Settings (cancel = no message), and that a child's own page has no delete.
-const { start, checks, addKid, openKid, enterWeek, gotoWeek, openEntry, openSettings, goHome, WEEK1, WEEK2, WEEK3 } = require('./harness.cjs');
+const { start, checks, addKid, openKid, enterWeek, gotoWeek, openEntry, openManage, goHome, WEEK1, WEEK2, WEEK3 } = require('./harness.cjs');
 const { ok, done } = checks();
 (async () => {
   const { browser, page } = await start(new Map(), { local: true, today: '2026-11-10' });
@@ -12,7 +12,7 @@ const { ok, done } = checks();
   ok(await page.locator('main button').count() === 3 && await page.locator('#add-kid, #add-kid-big, #import-btn').count() === 0, 'once there are children the home screen holds only the children: no add / import buttons');
 
   // adding is in Settings: a second "Dory" is refused, cancelling adds nobody and says nothing
-  await openSettings(page);
+  await openManage(page);
   ok(await page.locator('.kidrow').count() === 3 && await page.locator('#import-btn').count() === 1, 'Settings lists the children and has "add a child" and "import from Excel"');
   await page.click('#add-kid'); await page.fill('dialog input', 'dory'); await page.click('dialog button.primary');
   await page.waitForSelector('#toasts .toast:has-text("同名")');
@@ -79,7 +79,7 @@ const { ok, done } = checks();
   await page.click('dialog button:has-text("取消")');
 
   // rename and delete are in Settings
-  await openSettings(page);
+  await openManage(page);
   await page.click('.kidrow:has-text("Leo") .rename'); await page.fill('dialog input', 'Léo'); await page.click('dialog button.primary');
   await page.waitForSelector('.kidrow:has-text("Léo")');
   ok(true, 'rename (in Settings) works');

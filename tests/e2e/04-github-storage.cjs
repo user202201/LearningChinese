@@ -1,6 +1,6 @@
 // Data in the private repository: which files are written, UTF-8 round trip, a second device sees it, two devices editing at the same time
 // are merged (not overwritten), a lost connection is reported and nothing is claimed as saved, delete removes the file.
-const { start, checks, addKid, openKid, enterWeek, gotoWeek, openSettings, WEEK1, WEEK2, REPO, URL } = require('./harness.cjs');
+const { start, checks, addKid, openKid, enterWeek, gotoWeek, openManage, WEEK1, WEEK2, REPO, URL } = require('./harness.cjs');
 const { ok, done } = checks();
 (async () => {
   const store = new Map();
@@ -51,7 +51,7 @@ const { ok, done } = checks();
   opts.offline = false;
 
   // delete a child: its file is removed from the repository
-  await openSettings(page);
+  await openManage(page);
   await page.click('.kidrow:has-text("Leo") .delete'); await page.click('dialog button.danger');
   await page.waitForSelector('#toasts .toast:has-text("已删除")');
   ok(JSON.parse(store.get('kids.json')).kids.length === 1, 'child removed from kids.json');

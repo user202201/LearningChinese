@@ -1,6 +1,6 @@
 // The built-in story library (public/stories.json): simple idiom stories, at most 150 characters (punctuation counted), written only with characters of the
 // everyday list (GB2312 level 1, 3755 characters: the closest list available offline to what primary-school children know). Settings can fill them into the idioms
-// that have no story yet; a story the user wrote is never replaced.
+// that have no story yet when the next week is picked; a story the user wrote is never replaced.
 const fs = require('fs');
 const path = require('path');
 const { start, checks, addKid, openSettings } = require('./harness.cjs');
@@ -22,21 +22,7 @@ const store = (page, key) => page.evaluate((k) => JSON.parse(localStorage.getIte
   await addKid(page, 'Dory');
   await page.evaluate(() => localStorage.setItem('learn.local.idioms.json', JSON.stringify({ weeks: [{ start: '2026-11-08', items: ['对牛弹琴', '指鹿为马', '自编成语'] }, { start: '2026-11-15', items: ['井底之蛙', '刻舟求剑', '守株待兔', '没有故事的成语', '乙一乙一', '丙二丙二'] }], pool: ['井底之蛙', '刻舟求剑', '守株待兔', '没有故事的成语', '自编成语', '乙一乙一', '丙二丙二'], stories: { 指鹿为马: '我自己写的故事。' } })));
   await openSettings(page);
-  ok((await page.textContent('#story-lib h3')) === '成语故事库' && (await page.textContent('#fill-stories')) === '把自带的故事填进成语', 'Settings has an "idiom story library" card with a button');
-  await page.click('#fill-stories');
-  await page.waitForSelector('#toasts .toast:has-text("已填入")');
-  const s = await store(page, 'idioms.json');
-  ok((await page.textContent('#toasts')).includes('已填入 4 个成语故事') && s.stories['对牛弹琴'] === lib['对牛弹琴'] && s.stories['井底之蛙'] === lib['井底之蛙'] && s.stories['刻舟求剑'] === lib['刻舟求剑'] && s.stories['守株待兔'] === lib['守株待兔'], 'the idioms of the app (in a week or in the library) that have no story get the built-in one: "4 idiom stories filled in"');
-  ok(s.stories['指鹿为马'] === '我自己写的故事。', 'a story the user wrote is never replaced');
-  ok(!('没有故事的成语' in s.stories) && !('自编成语' in s.stories) && !('夜郎自大' in s.stories) && Object.keys(s.stories).length === 5, 'idioms the app does not have get nothing (no story is added for the 18 others of the library), idioms without a built-in story stay without');
-  ok(s.weeks.length === 2 && s.weeks[0].items.join() === '对牛弹琴,指鹿为马,自编成语' && s.weeks[1].items.length === 6 && s.pool.length === 7, 'weeks and library are untouched');
-  await page.waitForSelector('#toasts .toast', { state: 'detached' }).catch(() => {});
-  await page.click('#fill-stories'); await page.waitForSelector('#toasts .toast:has-text("没有需要填的故事")');
-  ok(JSON.stringify(await store(page, 'idioms.json')) === JSON.stringify(s), 'pressing it again changes nothing and says so');
-  // the printout and the story page use them
-  await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid');
-  await page.evaluate(() => (location.hash = '#/idiom/' + encodeURIComponent('对牛弹琴'))); await page.waitForSelector('#idiom-story');
-  ok((await page.textContent('#idiom-story')) === lib['对牛弹琴'], 'the story page shows the built-in story');
+  ok(await page.locator('#story-lib, #fill-stories').count() === 0, 'Settings has no story-library card or fill button any more (the stories come along with the weekly random pick)');
   // the weekly random pick brings the story along: next week's idioms get their built-in story at once (without pressing anything)
   const t2 = await start(new Map(), { local: true, today: '2026-11-10' });
   await addKid(t2.page, 'Leo');
@@ -48,12 +34,5 @@ const store = (page, key) => page.evaluate((k) => JSON.parse(localStorage.getIte
   const nxt = ps.weeks.find((w) => w.start === '2026-11-15');
   ok(nxt && nxt.items.length === 6 && nxt.items.every((x) => ps.stories[x] === lib[x]) && !ps.stories['对牛弹琴'], 'next week\'s six random idioms come with their built-in story right away (no button needed); an idiom that was not picked this time (对牛弹琴, learned earlier) gets nothing by itself');
   await t2.browser.close();
-  for (const [loc, title, btn, msg] of [['en', 'Idiom story library', 'Fill in the built-in stories', 'No story needs to be filled in'], ['fr', "Bibliothèque d'histoires de chengyu", 'Remplir avec les histoires intégrées', 'Aucune histoire à ajouter']]) {
-    await page.evaluate((l) => { const x = JSON.parse(localStorage.getItem('learn.settings.v1') || '{}'); x.lang = l; localStorage.setItem('learn.settings.v1', JSON.stringify(x)); }, loc);
-    await page.reload(); await openSettings(page);
-    const bad = await page.evaluate(() => /[一-鿿]/.test(document.querySelector('#story-lib').textContent));
-    await page.click('#fill-stories'); await page.waitForSelector(`#toasts .toast:has-text("${msg}")`);
-    ok((await page.textContent('#story-lib h3')) === title && (await page.textContent('#fill-stories')) === btn && !bad, loc + ': the card, the button and the message are translated');
-  }
   await done(browser);
 })();

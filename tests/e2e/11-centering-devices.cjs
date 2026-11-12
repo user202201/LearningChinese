@@ -1,7 +1,7 @@
 // "Both sides must be equal": on every screen size (iPhone small / normal / large / landscape, iPad mini / Air / Pro, both ways, a narrow and a wide
 // desktop window) the content is centred: equal space left and right, the character cards are exactly as wide as the week bar, the empty-area plus and
 // the full-screen character are in the middle, and nothing in the full-screen view lies on anything else. (Emulated screens in Chromium: real devices are not available here.)
-const { start, checks, addKid, openKid, enterWeek, openSettings, goHome, WEEK3 } = require('./harness.cjs');
+const { start, checks, addKid, openKid, enterWeek, openManage, goHome, WEEK3 } = require('./harness.cjs');
 const { ok, done } = checks();
 const OUT = process.env.D || 'tests/out/work/';
 const DEVICES = {
@@ -32,7 +32,7 @@ const centred = async (page, sel, what, tag) => { const g = await gaps(page, sel
       await addKid(page, 'Dory'); await addKid(page, 'Leo');
       await page.waitForTimeout(100);
       await centred(page, '.kids', 'home: the children list', tag);
-      await openSettings(page);
+      await openManage(page);
       await centred(page, '.narrow .card', 'settings: the cards', tag);
       await centred(page, '#add-kid', 'settings: the add button', tag);
       await page.screenshot({ path: `${OUT}centering-${tag.replace('/', '-')}-settings.png` });

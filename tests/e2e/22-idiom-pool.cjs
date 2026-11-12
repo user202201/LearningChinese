@@ -3,7 +3,7 @@
 // week the app picks 6 random unused ones for NEXT week by itself. (The sheet side - ticking B again - is tested in 16-google-sheet-sync.)
 const fs = require('fs');
 const { zipSync, strToU8 } = require('fflate');
-const { start, checks, addKid, openKid, enterWeek, openSettings } = require('./harness.cjs');
+const { start, checks, addKid, openKid, enterWeek, openManage } = require('./harness.cjs');
 const { ok, done } = checks();
 const OUT = process.env.D || 'tests/out/work/';
 
@@ -100,7 +100,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   {
     const t4 = await start(new Map(), { local: true, today: '2026-11-10' });
     await addKid(t4.page, 'Dory');
-    await t4.page.evaluate(() => (location.hash = '#/settings')); await t4.page.waitForSelector('#import-btn');
+    await t4.page.evaluate(() => (location.hash = '#/settings')); await t4.page.waitForSelector('#manage-mode'); await t4.page.check('#manage-mode'); await t4.page.waitForSelector('#import-btn');
     await t4.page.click('#import-btn'); await t4.page.setInputFiles('#import-file', OUT + 'idiom-pool-big.xlsx'); await t4.page.waitForSelector('#import-go');
     const bt = (await t4.page.textContent('.entry')).replace(/\u2011/g, '-');
     ok(bt.includes('成语库：297 个成语，其中 24 个已勾选') && bt.includes('表格 A 列有 300 行内容，认出 297 个成语') && bt.includes('有 3 行没有算进去') && bt.includes('第 1、299、300 行'), 'the preview of the big sheet says it plainly: 297 idioms read from 300 filled rows, 3 rows not counted (1, 299, 300): ' + bt.replace(/\s+/g, ' ').slice(0, 200));
@@ -118,7 +118,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
     await addKid(t5.page, 'Dory'); await openKid(t5.page, 'Dory');
     await enterWeek(t5.page, '2026-10-25', '假辣酸贫纺炒缸锅烛扇'); await enterWeek(t5.page, '2026-11-01', '鼓旧富言忙桶炉锤泉溪'); await enterWeek(t5.page, '2026-11-08', '波坡板炭镜锁帆筐犁耙');
     await t5.page.waitForSelector('#toasts .toast', { state: 'detached' }).catch(() => {});
-    const imp = async (file) => { await openSettings(t5.page); await t5.page.click('#import-btn'); await t5.page.setInputFiles('#import-file', file); await t5.page.waitForSelector('#import-go'); const txt = (await t5.page.textContent('.entry')).replace(/\u2011/g, '-'); await t5.page.click('#import-go'); await t5.page.waitForSelector('#toasts .toast:has-text("已导入")'); await t5.page.waitForSelector('#toasts .toast', { state: 'detached' }).catch(() => {}); return txt; };
+    const imp = async (file) => { await openManage(t5.page); await t5.page.click('#import-btn'); await t5.page.setInputFiles('#import-file', file); await t5.page.waitForSelector('#import-go'); const txt = (await t5.page.textContent('.entry')).replace(/\u2011/g, '-'); await t5.page.click('#import-go'); await t5.page.waitForSelector('#toasts .toast:has-text("已导入")'); await t5.page.waitForSelector('#toasts .toast', { state: 'detached' }).catch(() => {}); return txt; };
     await imp(FILE);
     const first = await t5.page.evaluate(() => JSON.parse(localStorage.getItem('learn.local.idioms.json')).weeks.map((w) => w.start + ':' + w.items[0]));
     const txt = await imp(OUT + 'idiom-pool-d.xlsx');
@@ -135,7 +135,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
     const t6 = await start(new Map(), { local: true, today: '2026-11-10', viewport: { width: 820, height: 1000 } });
     await addKid(t6.page, 'Dory');
     await t6.page.evaluate((x) => localStorage.setItem('learn.local.idioms.json', JSON.stringify({ weeks: [], pool: [], stories: { [x]: 'App 里自己写的故事' } })), IDIOMS[0]);
-    await t6.page.evaluate(() => (location.hash = '#/settings')); await t6.page.waitForSelector('#import-btn');
+    await t6.page.evaluate(() => (location.hash = '#/settings')); await t6.page.waitForSelector('#manage-mode'); await t6.page.check('#manage-mode'); await t6.page.waitForSelector('#import-btn');
     await t6.page.click('#import-btn'); await t6.page.setInputFiles('#import-file', OUT + 'idiom-pool-stories.xlsx'); await t6.page.waitForSelector('#import-go');
     const st = (await t6.page.textContent('.entry')).replace(/\u2011/g, '-');
     ok(st.includes('表格 E 列有 10 个故事，会填入 9 个（App 里已经有自己故事的 1 个不改）'), 'the preview says that column E has 10 stories, 9 will be filled in and 1 idiom that already has its own story in the app is not changed: ' + (st.match(/表格 E 列[^）]*）/) || [''])[0]);
@@ -148,7 +148,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
     await t6.page.evaluate((x) => (location.hash = '#/idiom/' + encodeURIComponent(x)), IDIOMS[5]); await t6.page.waitForSelector('#idiom-story');
     ok((await t6.page.textContent('#idiom-story')) === '表格里的故事5', 'the imported story is shown on the story page');
     await t6.page.dblclick('#story-edit'); await t6.page.fill('dialog textarea', '我改过的故事'); await t6.page.click('#story-save'); await t6.page.waitForSelector('#toasts .toast:has-text("已保存故事")');
-    await t6.page.evaluate(() => (location.hash = '#/settings')); await t6.page.waitForSelector('#import-btn');
+    await openManage(t6.page);
     await t6.page.click('#import-btn'); await t6.page.setInputFiles('#import-file', OUT + 'idiom-pool-stories.xlsx'); await t6.page.waitForSelector('.entry');
     const st2 = (await t6.page.textContent('.entry')).replace(/\u2011/g, '-');
     ok(st2.includes('会填入 0 个（App 里已经有自己故事的 2 个不改）'), 'importing the same sheet again fills nothing and never replaces the stories that differ from the sheet (the one the app had and the one just edited: 2): ' + (st2.match(/表格 E 列[^）]*）/) || [''])[0]);
@@ -162,7 +162,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   // the user had tried the idiom page: six idioms of his own in this week and next week (not ticked in the sheet)
   await page.evaluate(() => localStorage.setItem('learn.local.idioms.json', JSON.stringify({ weeks: [{ start: '2026-11-08', items: ['测试一', '测试二', '测试三', '测试四', '测试五', '测试六'] }, { start: '2026-11-15', items: ['甲乙丙丁', '戊己庚辛'] }] })));
   await page.reload(); await page.waitForSelector('.weekbar');
-  await openSettings(page); await page.click('#import-btn'); await page.setInputFiles('#import-file', FILE); await page.waitForSelector('#import-go');
+  await openManage(page); await page.click('#import-btn'); await page.setInputFiles('#import-file', FILE); await page.waitForSelector('#import-go');
   const pv = (await page.textContent('.entry')).replace(/\u2011/g, '-');
   ok(pv.includes('成语库：60 个成语，其中 24 个已勾选') && pv.includes('分配到 4 周，每周 6 个（10-25、11-01、11-08、11-15）') && pv.includes('还没有分配到周的 36 个留在成语库里') && pv.includes('现有周里的 8 个成语会被冲掉'), 'the preview says: library of 60, 24 ticked, 4 weeks of 6 (the 3 started weeks and next week), 36 stay in the library; and warns that the 8 idioms now in the weeks will be washed away (the sheet wins)');
   await page.screenshot({ path: OUT + 'idiom-pool-preview.png' });
@@ -260,7 +260,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   for (const [loc, a, b, c] of [['en-US', 'Idiom library: 60 idioms, 24 of them ticked', 'go to 2 weeks', '6 idioms picked at random for next week'], ['fr-FR', 'Bibliothèque de chengyu : 60 chengyu, dont 24 cochés', 'vont dans 2 semaines', '6 chengyu tirés au sort pour la semaine suivante']]) {
     const t3 = await start(new Map(), { local: true, locale: loc, today: '2026-11-10' });
     await addKid(t3.page, 'Dory'); await openKid(t3.page, 'Dory');
-    await t3.page.evaluate(() => (location.hash = '#/settings')); await t3.page.waitForSelector('#import-btn');
+    await openManage(t3.page);
     await t3.page.click('#import-btn'); await t3.page.setInputFiles('#import-file', FILE); await t3.page.waitForSelector('#import-go');
     const txt = await t3.page.textContent('.entry');
     ok(txt.includes(a) && txt.includes(b) && (await noChinese(t3.page, 'dialog')).length === 0, loc + ': the import preview of the library is translated: ' + txt.replace(/\s+/g, ' ').slice(0, 150));

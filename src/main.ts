@@ -514,21 +514,6 @@ const loadBuiltInStories = (): Promise<Record<string, string>> =>
     return ((await r.json()) as { stories: Record<string, string> }).stories;
   }).catch((e) => { builtInStories = null; throw e; }));
 
-/** Settings: gives the idioms that have no story yet the story of the built-in library; never replaces one the user wrote */
-async function fillBuiltInStories() {
-  const done = toast("正在填入故事…", 0, true);
-  try {
-    const builtin = await loadBuiltInStories();
-    let added = 0;
-    idioms = await api.update<M.IdiomsFile>("idioms.json", M.EMPTY_IDIOMS, (cur) => { const x = M.fillBuiltInStories(cur, builtin); added = x.added; return x.data; }, "fill built-in stories");
-    done();
-    toast(added ? `已填入 ${added} 个成语故事` : "没有需要填的故事");
-  } catch (e) {
-    done();
-    toast(errText(e), 6000);
-  }
-}
-
 async function renderIdioms() {
   const my = epoch;
   showLoading();
@@ -1300,7 +1285,7 @@ async function renderSettings() {
       secs.querySelectorAll<HTMLElement>("button.secbtn").forEach((b) => b.classList.toggle("on", b.dataset.sec === String(n)));
     } }, `${n} 秒`)));
   const pinyin = h("input", { type: "checkbox", id: "pin-toggle", checked: settings.pinyin, onchange: (e: Event) => { settings.pinyin = (e.target as HTMLInputElement).checked; saveSettings(); } });
-  const manage = h("input", { type: "checkbox", id: "manage-mode", checked: settings.manage, onchange: (e: Event) => { settings.manage = (e.target as HTMLInputElement).checked; saveSettings(); } });
+  const manage = h("input", { type: "checkbox", id: "manage-mode", checked: settings.manage, onchange: (e: Event) => { settings.manage = (e.target as HTMLInputElement).checked; saveSettings(); void renderSettings(); } });
   const a = api.getAuth();
   const account = api.isLocal()
     ? h("div", { class: "card" }, h("h3", {}, "数据保存位置"), h("p", {}, "这台设备（浏览器）里，不会上传。换设备或清除浏览器数据会丢失。"),
@@ -1324,21 +1309,14 @@ async function renderSettings() {
       topBar("设置", backBtn("#/", "完成")),
       h("main", { class: "scroll" }, h("div", { class: "narrow settings" },
         // the settings are grouped by what they are for
-        h("h2", { class: "set-sec" }, "孩子和汉字"),
-        kids,
+        h("h2", { class: "set-sec" }, "管理"),
         h("div", { class: "card" }, h("label", { class: "check" }, manage, "管理模式")),
+        // the rare jobs (children, Excel import, where the data is kept) only show while the manage mode is on
+        ...(settings.manage ? [kids, h("div", { class: "card" }, h("button", { class: "wide", id: "import-btn", onclick: importFlow }, "从 Excel 导入")), account] : []),
 
         h("h2", { class: "set-sec" }, "学习和游戏"),
         h("div", { class: "card" }, h("label", { class: "check" }, pinyin, "显示拼音（在“本周”和“已入库”里）"), h("p", { class: "muted small" }, "拼音在本机生成，不联网。多音字只显示最常见的读音。")),
         h("div", { class: "card" }, h("h3", {}, "倒计时"), secs),
-
-        h("h2", { class: "set-sec" }, "成语"),
-        h("div", { class: "card", id: "story-lib" }, h("h3", {}, "成语故事库"), h("p", { class: "muted small" }, "App 里自带了一批简单的成语小故事（150 字以内，用小学生认识的字）。点下面的按钮，把还没有故事的成语填上；你自己写的故事不会被改动。"),
-          h("button", { class: "wide", id: "fill-stories", onclick: () => void fillBuiltInStories() }, "把自带的故事填进成语")),
-
-        h("h2", { class: "set-sec" }, "数据和备份"),
-        account,
-        h("div", { class: "card" }, h("button", { class: "wide", id: "import-btn", onclick: importFlow }, "从 Excel 导入")),
 
         h("h2", { class: "set-sec" }, "通用"),
         h("div", { class: "card" }, h("h3", {}, "语言"), lang),

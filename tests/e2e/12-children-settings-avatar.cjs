@@ -2,7 +2,7 @@
 // or a new photo with the camera. Also: a file that is not a picture, a refused camera, cancelling, the camera is switched off again,
 // the picture follows the child everywhere (Settings, home, the child's page) and to a second device (it lives in kids.json).
 const zlib = require('zlib');
-const { start, checks, addKid, openKid, openSettings, goHome } = require('./harness.cjs');
+const { start, checks, addKid, openKid, openManage, goHome } = require('./harness.cjs');
 const { ok, done } = checks();
 
 // a PNG made on the spot (no picture files needed): left half red, right half blue, 400 x 300 (not square on purpose)
@@ -40,7 +40,7 @@ const art = (page, where) => page.$eval(where + ' .avatar svg', (s) => s.dataset
   let mode = 'ok';
   const { browser, page } = await start(store, { init: camera, initArg: { mode }, today: '2026-11-10' });
   await addKid(page, 'Dory'); await addKid(page, 'Leo');
-  await openSettings(page);
+  await openManage(page);
   const row = (n) => `.kidrow:has-text("${n}")`;
   ok(await page.locator('.kidrow .avatar svg').count() === 2, 'every child has a picture from the start (a drawn animal)');
   await sizesOk(page, 'Settings, animals');
@@ -68,7 +68,7 @@ const art = (page, where) => page.$eval(where + ' .avatar svg', (s) => s.dataset
   ok((await art(page, '.kid-hero')) === 'owl', "the child's own page shows it");
 
   // --- a photo from the photo library, cut to a centred square
-  await openSettings(page);
+  await openManage(page);
   await page.click(`${row('Dory')} .change-avatar`); await page.waitForSelector('dialog .animals');
   ok(await page.locator('dialog [data-animal=owl].on').count() === 1, 'the dialog marks the animal that is in use');
   await page.setInputFiles('#avatar-file', { name: 'me.png', mimeType: 'image/png', buffer: PHOTO });
@@ -89,7 +89,7 @@ const art = (page, where) => page.$eval(where + ' .avatar svg', (s) => s.dataset
   await sizesOk(page, "the child's page, with a photo");
 
   // --- not a picture
-  await openSettings(page);
+  await openManage(page);
   await page.click(`${row('Dory')} .change-avatar`); await page.waitForSelector('dialog .animals');
   await page.setInputFiles('#avatar-file', { name: 'x.png', mimeType: 'image/png', buffer: Buffer.from('this is not a picture') });
   await page.waitForFunction(() => document.querySelector('#avatar-err')?.textContent.includes('打不开'));
@@ -115,7 +115,7 @@ const art = (page, where) => page.$eval(where + ' .avatar svg', (s) => s.dataset
 
   // --- a refused camera
   const denied = await start(new Map(), { init: camera, initArg: { mode: 'denied' }, local: true });
-  await addKid(denied.page, 'Mia'); await openSettings(denied.page);
+  await addKid(denied.page, 'Mia'); await openManage(denied.page);
   await denied.page.click('.change-avatar'); await denied.page.waitForSelector('dialog .animals');
   await denied.page.click('#take-photo');
   await denied.page.waitForFunction(() => document.querySelector('#avatar-err')?.textContent.includes('相机权限'));
@@ -140,7 +140,7 @@ const art = (page, where) => page.$eval(where + ' .avatar svg', (s) => s.dataset
   // --- languages
   for (const [locale, lib, cam] of [['en-US', 'Choose from the photo library', 'Take a photo'], ['fr-FR', 'Choisir dans la photothèque', 'Prendre une photo']]) {
     const t = await start(new Map(), { local: true, locale, init: camera, initArg: { mode: 'ok' } });
-    await addKid(t.page, 'Mia'); await openSettings(t.page);
+    await addKid(t.page, 'Mia'); await openManage(t.page);
     await t.page.click('.change-avatar'); await t.page.waitForSelector('dialog .animals');
     ok((await t.page.textContent('dialog .filebtn')).includes(lib) && (await t.page.textContent('#take-photo')) === cam, locale + ': the picture window is translated');
     await t.page.click('#take-photo'); await t.page.waitForSelector('dialog .scan-video');

@@ -1,11 +1,9 @@
 // Settings are grouped by function: section headings in a fixed order, every control under the right heading, nothing lost.
-const { start, checks, addKid, openSettings } = require('./harness.cjs');
+const { start, checks, addKid, openManage } = require('./harness.cjs');
 const { ok, done } = checks();
 const WANT = [
-  ['孩子和汉字', ['#add-kid', '#manage-mode']],
+  ['管理', ['#manage-mode', '#add-kid', '#import-btn']],
   ['学习和游戏', ['#pin-toggle', '#game-secs']],
-  ['成语', ['#fill-stories']],
-  ['数据和备份', ['#import-btn']],
   ['通用', ['.seg']],
   ['关于', ['#hard-refresh', '#credits']],
 ];
@@ -17,7 +15,7 @@ const layout = (page) => page.evaluate(() => {
 (async () => {
   for (const locale of ['zh-CN', 'en-US']) {
     const { browser, page } = await start(new Map(), { local: true, locale, viewport: { width: 820, height: 1180 } });
-    await addKid(page, 'Dory'); await openSettings(page);
+    await addKid(page, 'Dory'); await openManage(page);
     const secs = await layout(page);
     ok(secs.length === WANT.length, `${locale}: ${WANT.length} section headings (got ${secs.length})`);
     if (locale === 'zh-CN') ok(secs.map((s) => s.title).join('|') === WANT.map((w) => w[0]).join('|'), 'headings are in the planned order');

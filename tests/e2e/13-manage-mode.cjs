@@ -20,7 +20,7 @@ const { ok, done } = checks();
   ok(await page.locator('#manage-mode').count() === 1 && !(await page.locator('#manage-mode').isChecked()), 'Settings has "Manage mode", off by default');
   await page.screenshot({ path: (process.env.D || 'tests/out/work/') + 'manage-settings.png' });
   await page.check('#manage-mode');
-  await goHome(page); await openKid(page, 'Dory');
+  await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kids'); await openKid(page, 'Dory');
   ok(await page.locator('.cards .tzg .del').count() === 12, 'switched on: every character has a red "-"');
   ok(await page.locator('.managebar').count() === 1, 'and a bar says that manage mode is on');
   const m = await page.$eval('.cards .tzg .del', (e) => { const r = e.getBoundingClientRect(); const b = e.closest('.box').getBoundingClientRect(); return { w: r.width, cx: r.left + r.width / 2, cy: r.top + r.height / 2, bx: b.right, by: b.top, col: getComputedStyle(e).backgroundColor }; });

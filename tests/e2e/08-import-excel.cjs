@@ -3,14 +3,14 @@
 const fs = require('fs');
 const path = require('path');
 const { zipSync, strToU8 } = require('fflate');
-const { start, checks, gotoWeek, openSettings } = require('./harness.cjs');
+const { start, checks, gotoWeek, openManage } = require('./harness.cjs');
 const { ok, done } = checks();
 const OUT = process.env.D || 'tests/out/work/';
 const SAMPLE = path.resolve(__dirname, '../fixtures/sample.xlsx');
 (async () => {
   const store = new Map();
   const { browser, page, log } = await start(store, { today: '2026-11-10' });
-  const preview = async (file) => { await openSettings(page); await page.click('#import-btn'); await page.setInputFiles('#import-file', file); await page.waitForSelector('#import-go'); };
+  const preview = async (file) => { await openManage(page); await page.click('#import-btn'); await page.setInputFiles('#import-file', file); await page.waitForSelector('#import-go'); };
   const entry = (name) => page.locator('.entry', { has: page.locator(`strong.user:text-is("${name}")`) });
 
   await preview(SAMPLE);
@@ -64,13 +64,13 @@ const SAMPLE = path.resolve(__dirname, '../fixtures/sample.xlsx');
   await page.click('dialog button:not(.primary):has-text("取消")'); await page.waitForSelector('dialog', { state: 'detached' });
 
   // paste instead of a file: a tab copied from the sheet (tab-separated)
-  await openSettings(page); await page.click('#import-btn');
+  await openManage(page); await page.click('#import-btn');
   await page.selectOption('#paste-target', 'Dory');
   await page.fill('#paste-text', '第1周-2026-10-25\t假\t辣\n');
   await page.click('#paste-go'); await page.waitForSelector('#import-go');
   ok((await entry('Dory').textContent()).includes('其中新的 0 个') && await page.locator('#import-go').isDisabled(), 'paste: characters already learned -> nothing to import, the button is off');
   await page.click('dialog button:not(.primary):has-text("取消")'); await page.waitForSelector('dialog', { state: 'detached' });
-  await openSettings(page); await page.click('#import-btn');
+  await openManage(page); await page.click('#import-btn');
   await page.selectOption('#paste-target', 'Dory');
   await page.fill('#paste-text', '第4周-2026-11-15\t枣\t梨\t桃\t杏\t\t40\n');
   await page.click('#paste-go'); await page.waitForSelector('#import-go');
@@ -80,7 +80,7 @@ const SAMPLE = path.resolve(__dirname, '../fixtures/sample.xlsx');
 
   // not a spreadsheet
   fs.writeFileSync(OUT + 'bad.xlsx', 'this is not a zip file');
-  await openSettings(page); await page.click('#import-btn'); await page.setInputFiles('#import-file', OUT + 'bad.xlsx');
+  await openManage(page); await page.click('#import-btn'); await page.setInputFiles('#import-file', OUT + 'bad.xlsx');
   await page.waitForFunction(() => document.querySelector('#import-err')?.textContent.includes('不是 .xlsx'));
   ok(await page.locator('dialog').count() === 1, 'a file that is not an .xlsx: says so and the window stays open');
   // an .xlsx written by other programs: text inside the cell ("inlineStr"), the date as an Excel number
@@ -95,14 +95,14 @@ const SAMPLE = path.resolve(__dirname, '../fixtures/sample.xlsx');
   await page.setInputFiles('#import-file', OUT + 'inline.xlsx'); await page.waitForSelector('#import-go');
   ok((await entry('Mia').textContent()).includes('1 周，3 个汉字，其中新的 3 个'), 'other writers: inline text, formula text and a date typed as an Excel number are understood');
   await page.click('dialog button:not(.primary):has-text("取消")'); await page.waitForSelector('dialog', { state: 'detached' });
-  await page.reload(); await page.waitForSelector('#add-kid');
+  await page.reload(); await page.waitForSelector('#manage-mode');
   ok(!log.puts.includes('kids/') && store.size === 4, 'only kids.json, idioms.json and the two children were written (4 files)');
   await browser.close();
 
   // languages: the import window is translated
   for (const [locale, title, btn] of [['en-US', 'Import from Excel', 'Import from Excel'], ['fr-FR', 'Importer depuis Excel', 'Importer depuis Excel']]) {
     const t2 = await start(new Map(), { local: true, locale });
-    await t2.page.evaluate(() => (location.hash = '#/settings')); await t2.page.waitForSelector('#import-btn');
+    await t2.page.evaluate(() => (location.hash = '#/settings')); await t2.page.waitForSelector('#manage-mode'); await t2.page.check('#manage-mode'); await t2.page.waitForSelector('#import-btn');
     await t2.page.click('#import-btn'); await t2.page.waitForSelector('#import-file', { state: 'attached' });
     ok((await t2.page.textContent('dialog h2')) === title, locale + ': the import window is translated');
     await t2.page.setInputFiles('#import-file', SAMPLE); await t2.page.waitForSelector('#import-go');

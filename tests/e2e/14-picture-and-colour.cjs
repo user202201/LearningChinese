@@ -1,7 +1,7 @@
 // "Picture and colour": tap the picture at the top of a child's page (or use Settings) to choose a picture and a theme colour. Every choice shows
 // in a preview at once and is saved only with "Done"; "Cancel" changes nothing. The colour changes the whole look of that child (page, tabs, cards,
 // home card, Settings). All colours are readable with white text; the window fits on a small phone; translated.
-const { start, checks, addKid, openKid, openSettings, goHome } = require('./harness.cjs');
+const { start, checks, addKid, openKid, openManage, goHome } = require('./harness.cjs');
 const { ok, done } = checks();
 const OUT = process.env.D || 'tests/out/work/';
 const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
@@ -82,7 +82,7 @@ const css = (h) => `rgb(${rgb(h).join(', ')})`;
   ok(await page.$eval('.kid:has-text("Dory")', (e) => e.style.getPropertyValue('--kid')) === '#1c7ed6', 'the home card has the new colour');
   const leoColor = kids().find((k) => k.name === 'Leo').color;
   ok(await page.$eval('.kid:has-text("Leo")', (e) => e.style.getPropertyValue('--kid')) === leoColor, 'the other child keeps their own colour');
-  await openSettings(page);
+  await openManage(page);
   ok(await page.$eval('.kidrow:has-text("Dory")', (e) => e.style.getPropertyValue('--kid')) === '#1c7ed6', 'and Settings');
   await page.click('.kidrow:has-text("Dory") .change-avatar'); await page.waitForSelector('dialog .swatches');
   ok(await page.locator('dialog .swatch.on[data-color="#1c7ed6"]').count() === 1 && await page.locator('dialog [data-animal=panda].on').count() === 1, 'Settings opens the same window, with the current choices marked');
