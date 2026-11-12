@@ -87,6 +87,8 @@ exports.adminOn = async (page, pw = exports.PW) => {
   await page.waitForSelector('dialog.center', { state: 'detached' }); await page.waitForSelector('#add-kid', { state: 'visible' });
 };
 /** switches Admin mode on and comes back to the page the test was on (admin mode is not remembered, so a test cannot just store it) */
+/** puts a date into the (locked) date field of the entry window the way the page would see it: a user cannot, a test can */
+exports.setDate = (page, d) => page.evaluate((v) => { const i = document.querySelector('dialog input[type=date]'); i.disabled = false; i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); i.disabled = true; }, d);
 exports.manageOnHere = async (page) => { const hash = await page.evaluate(() => location.hash); await exports.openManage(page); await page.evaluate((h) => (location.hash = h), hash); await page.waitForTimeout(150); };
 exports.openManage = async (page) => { await exports.openSettings(page); await exports.adminOn(page); };
 exports.manageOff = async (page) => { if (await page.locator('#manage-mode').count() && (await page.isChecked('#manage-mode'))) await page.uncheck('#manage-mode'); };
@@ -114,7 +116,7 @@ exports.openEntry = async (page) => {
 };
 exports.enterWeek = async (page, date, chars) => {
   await exports.openEntry(page);
-  await page.fill('dialog input[type=date]', date);
+  await exports.setDate(page, date);
   await page.fill('dialog textarea >> nth=0', chars);
   await page.click('dialog button.primary');
   await page.waitForSelector('dialog', { state: 'detached' });

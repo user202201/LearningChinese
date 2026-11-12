@@ -61,7 +61,7 @@ const fits = (page) => page.evaluate(() => {
       await check('home'); await shot('2-home');
       await page.click('.kid >> nth=1'); await page.waitForSelector('.weekbar');
       await check('week (empty)');
-      await page.click('#enter'); await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea >> nth=0', WEEK1 + '假');
+      await page.click('#enter'); await require('./harness.cjs').setDate(page, '2026-11-08'); await page.fill('dialog textarea >> nth=0', WEEK1 + '假');
       await check('enter dialog'); await shot('3-enter');
       await page.click('dialog button.primary'); await page.waitForSelector('dialog', { state: 'detached' });
       await page.waitForFunction(() => !document.querySelector('#toasts .toast.working'));

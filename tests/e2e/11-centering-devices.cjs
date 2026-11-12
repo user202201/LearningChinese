@@ -41,7 +41,7 @@ const centred = async (page, sel, what, tag) => { const g = await gaps(page, sel
       // empty week: the big plus is in the middle
       const plus = await page.$eval('#enter', (e) => { const r = e.getBoundingClientRect(); const sc = e.closest('.scroll'); const a = sc.getBoundingClientRect(); return (r.left + r.width / 2) - (a.left + sc.clientWidth / 2); });
       ok(Math.abs(plus) <= TOL, `${tag} empty week: the big + is in the middle (off by ${plus.toFixed(1)}px)`);
-      await page.click('#enter'); await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea', WEEK3);
+      await page.click('#enter'); await require('./harness.cjs').setDate(page, '2026-11-08'); await page.fill('dialog textarea', WEEK3);
       await page.click('dialog button.primary'); await page.waitForSelector('dialog', { state: 'detached' });
       await page.waitForFunction(() => document.querySelectorAll('.cards .tzg').length === 10 && !document.querySelector('#toasts .toast.working'));
       await centred(page, '.weekbar', 'week: the week bar', tag);

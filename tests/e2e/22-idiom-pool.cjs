@@ -216,7 +216,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   const before = await store(page, 'idioms.json');
   const unusedBefore = before.pool.filter((x) => !before.weeks.some((w) => w.items.includes(x)));
   const learnedOne = before.weeks[0].items[0], libA = unusedBefore[0], libB = unusedBefore[1];
-  await page.click('#idiom-add'); await page.fill('dialog input[type=date]', '2026-12-06');
+  await page.click('#idiom-add'); await require('./harness.cjs').setDate(page, '2026-12-06');
   await page.fill('dialog textarea', `${libA} ${learnedOne} 全新成语`);
   const warn = await page.textContent('#idiom-check');
   ok(warn.includes('已经学过了，不能保存') && warn.includes(learnedOne + '（第1周）') && !warn.includes(libA) && await page.locator('#idiom-save').isDisabled(), 'an idiom that was already learned is refused: the window says which one (and its week) and the Save button is off: ' + warn);
@@ -225,7 +225,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   ok(ok2.includes('成语库里有 2 个，新成语 1 个') && !(await page.locator('#idiom-save').isDisabled()), 'without a learned one: "2 in the library, 1 new" and Save is on: ' + ok2);
   await page.click('dialog button:has-text("取消")'); await page.waitForSelector('dialog', { state: 'detached' });
   ok(JSON.stringify(await store(page, 'idioms.json')) === JSON.stringify(before) && await page.locator('#toasts .toast:has-text("已添加")').count() === 0, 'cancelling saves nothing and says nothing');
-  await page.click('#idiom-add'); await page.fill('dialog input[type=date]', '2026-12-06'); await page.fill('dialog textarea', `${libA} ${libB} 全新成语`); await page.click('#idiom-save');
+  await page.click('#idiom-add'); await require('./harness.cjs').setDate(page, '2026-12-06'); await page.fill('dialog textarea', `${libA} ${libB} 全新成语`); await page.click('#idiom-save');
   await page.waitForSelector('#toasts .toast:has-text("已添加 3 个成语")');
   const after = await store(page, 'idioms.json');
   const wk = after.weeks.find((w) => w.start === '2026-12-06');

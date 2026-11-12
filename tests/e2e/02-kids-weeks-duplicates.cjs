@@ -31,7 +31,7 @@ const { ok, done } = checks();
   // week 1 entry: live check while typing
   await page.click('#enter');
   ok(await page.locator('dialog textarea').count() === 1, 'the entry has only the characters box');
-  await page.fill('dialog input[type=date]', '2026-10-27');         // a Tuesday: snaps to Sunday 10-25
+  await require('./harness.cjs').setDate(page, '2026-10-27');         // a Tuesday: snaps to Sunday 10-25
   ok((await page.textContent('dialog .muted.small')).includes('2026-10-25'), 'a date inside the week snaps to its Sunday');
   await page.fill('dialog textarea', '假 辣，酸、贫\n纺 abc 123 炒缸锅烛扇');
   ok((await page.textContent('#note-chars')).includes('共 10 个汉字，新的 10 个'), 'spaces, punctuation, digits and letters are dropped: 10 characters');
@@ -46,7 +46,8 @@ const { ok, done } = checks();
   await enterWeek(page, '2026-11-01', WEEK2);
   ok((await page.textContent('.wlabel strong')) === '第2周', 'week 2 numbered from week 1');
   await openEntry(page);   // (the week just saved has its 10 characters and no +)
-  await page.fill('dialog input[type=date]', '2026-11-08');
+  ok(await page.locator('dialog input[type=date]').isDisabled(), 'in the entry window the week date is locked (it is the week being shown)');
+  await require('./harness.cjs').setDate(page, '2026-11-08');
   await page.fill('dialog textarea', WEEK3 + '假鼓');
   const note = await page.textContent('#note-chars');
   ok(note.includes('新的 10 个'), 'week 3: 10 new characters');
@@ -75,7 +76,7 @@ const { ok, done } = checks();
   await goHome(page);
   ok((await page.textContent('.kid:has-text("Dory")')).includes('已入库 30 字') && (await page.textContent('.kid:has-text("Leo")')).includes('已入库 0 字'), 'Dory 30, Leo 0: each child has their own library');
   await openKid(page, 'Leo');
-  await page.click('#enter'); await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea', '假鼓');
+  await page.click('#enter'); await require('./harness.cjs').setDate(page, '2026-11-08'); await page.fill('dialog textarea', '假鼓');
   ok((await page.textContent('#note-chars')).includes('新的 2 个'), 'Leo can learn what Dory has already learned');
   await page.click('dialog button:has-text("取消")');
 

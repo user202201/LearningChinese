@@ -1012,7 +1012,7 @@ async function renderGameLobby(body: HTMLElement, k: M.Kid, kid: M.KidData) {
 // ---------- entering a week ----------
 async function enterDialog(k: M.Kid) {
   const kid = kidCache.get(k.id) ?? M.EMPTY_KID;
-  const date = h("input", { type: "date", value: curWeek, "aria-label": "这一周的第一天（周日）" });
+  const date = h("input", { type: "date", value: curWeek, disabled: true, "aria-label": "这一周的第一天（周日）" });   // (locked for now: the week is the one being shown)
   const label = h("div", { class: "muted small" });
   const chars = h("textarea", { rows: 3, placeholder: "把这一周的汉字粘贴或输入在这里，空格、标点会自动去掉", "aria-label": "汉字" });
   const note1 = h("div", { class: "note", id: "note-chars" });

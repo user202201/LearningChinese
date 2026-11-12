@@ -43,7 +43,7 @@ const noChinese = (page) => page.evaluate(() => { const bad = []; const w = docu
   ok(await page.locator('.idiom-card').count() === 3, 'so nothing is added');
 
   // --- the list shows only the week it was opened from; "all idioms" shows every week
-  await page.click('#idiom-add'); await page.fill('dialog input[type=date]', '2026-11-01'); await page.fill('dialog textarea', '亡羊补牢 掩耳盗铃'); await page.click('dialog button.primary');
+  await page.click('#idiom-add'); await require('./harness.cjs').setDate(page, '2026-11-01'); await page.fill('dialog textarea', '亡羊补牢 掩耳盗铃'); await page.click('dialog button.primary');
   await page.waitForSelector('#toasts .toast:has-text("已添加 2 个成语")');
   ok(await page.locator('.idiom-card').count() === 3 && (await page.$$eval('.idiom-card', (e) => e.map((x) => x.dataset.idiom))).join('|') === '一心一意|画蛇添足|守株待兔', "idioms added for another week are not in this week's list: it still shows only this week's three");
   ok((await page.textContent('#idiom-scope')) === '全部成语', 'and a button offers "all idioms"');

@@ -19,7 +19,7 @@ const OUT = process.env.D || 'tests/out/work/';
 
   await page.click('#enter');                                           // the big + opens the entry with the characters box ready
   ok(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')) === '汉字', 'the big + opens the entry with the cursor in the characters box');
-  await page.fill('dialog input[type=date]', '2026-11-08'); await page.fill('dialog textarea', WEEK3);
+  await require('./harness.cjs').setDate(page, '2026-11-08'); await page.fill('dialog textarea', WEEK3);
   await page.click('dialog button.primary'); await page.waitForSelector('dialog', { state: 'detached' });
   await page.waitForFunction(() => !document.querySelector('#toasts .toast.working') && document.querySelectorAll('.cards .tzg').length === 10);
   ok(await page.locator('#enter').count() === 0, 'with the 10 characters of the week in, there is no + any more');
@@ -27,7 +27,7 @@ const OUT = process.env.D || 'tests/out/work/';
   // fewer than 10: a small + to complete the week
   await page.click('button[title=下一周]');
   ok((await page.textContent('.wlabel strong')) === '第2周' && await page.locator('#enter.add-big').count() === 1, 'a week in the future is empty and can be filled (a big +)');
-  await page.click('#enter'); await page.fill('dialog input[type=date]', '2026-11-15'); await page.fill('dialog textarea', '一二三四五六');
+  await page.click('#enter'); await require('./harness.cjs').setDate(page, '2026-11-15'); await page.fill('dialog textarea', '一二三四五六');
   await page.click('dialog button.primary'); await page.waitForSelector('dialog', { state: 'detached' });
   await page.waitForFunction(() => document.querySelectorAll('.cards .tzg').length === 6 && !document.querySelector('#toasts .toast.working'));
   const small = await page.locator('#enter').boundingBox();
@@ -162,7 +162,7 @@ const OUT = process.env.D || 'tests/out/work/';
   // an iPad held sideways: the same, with the character box in the middle and wide areas on both sides
   const ip = await start(new Map(), { local: true, today: '2026-11-10', touch: true, viewport: { width: 1180, height: 820 } });
   await addKid(ip.page, 'Dory'); await openKid(ip.page, 'Dory'); await openEntry(ip.page);
-  await ip.page.fill('dialog input[type=date]', '2026-11-08'); await ip.page.fill('dialog textarea', WEEK3);
+  await require('./harness.cjs').setDate(ip.page, '2026-11-08'); await ip.page.fill('dialog textarea', WEEK3);
   await ip.page.click('dialog button.primary'); await ip.page.waitForSelector('dialog', { state: 'detached' });
   await ip.page.waitForFunction(() => document.querySelectorAll('.cards .tzg').length === 10 && !document.querySelector('#toasts .toast.working'));
   const ic = await ip.page.$$eval('.cards .tzg', (e) => e.map((x) => x.dataset.ch));
@@ -187,7 +187,7 @@ const OUT = process.env.D || 'tests/out/work/';
     await addKid(t.page, 'Dory'); await openKid(t.page, 'Dory');
     const cn = () => t.page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); for (let n; (n = w.nextNode());) if (/[一-鿿]/.test(n.nodeValue) && !n.parentElement.closest('.user, .user-title, #toasts')) bad.push(n.nodeValue.trim()); for (const el of document.querySelectorAll('[title],[aria-label]')) for (const a of ['title', 'aria-label']) { const v = el.getAttribute(a); if (v && /[一-鿿]/.test(v) && !el.closest('.user,.user-title')) bad.push(a + ':' + v); } return bad; });
     ok((await cn()).length === 0, locale + ': the empty week page has no Chinese UI text ' + JSON.stringify(await cn()));
-    await t.page.click('#enter'); await t.page.fill('dialog input[type=date]', '2026-11-08'); await t.page.fill('dialog textarea', WEEK3);
+    await t.page.click('#enter'); await require('./harness.cjs').setDate(t.page, '2026-11-08'); await t.page.fill('dialog textarea', WEEK3);
     await t.page.click('dialog button.primary'); await t.page.waitForFunction(() => document.querySelectorAll('.cards .tzg').length === 10);
     await t.page.click('.cards .tzg >> nth=1'); await t.page.waitForSelector('#viewer');
     ok((await cn()).length === 0, locale + ': the full-screen character has no Chinese UI text ' + JSON.stringify(await cn()));
