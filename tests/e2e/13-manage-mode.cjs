@@ -90,7 +90,7 @@ const { ok, done } = checks();
   }
 
   // --- languages
-  for (const [locale, title] of [['en-US', 'Manage mode'], ['fr-FR', 'Mode gestion']]) {
+  for (const [locale, title] of [['en-US', 'Admin mode'], ['fr-FR', 'Mode administrateur']]) {
     const t = await start(new Map(), { local: true, locale, today: '2026-11-10', viewport: { width: 390, height: 844 } });
     await addKid(t.page, 'Dory'); await t.page.evaluate(() => localStorage.setItem('learn.settings.v1', JSON.stringify({ lang: 'auto', pinyin: false, manage: true })));
     await openKid(t.page, 'Dory'); await openEntry(t.page);
