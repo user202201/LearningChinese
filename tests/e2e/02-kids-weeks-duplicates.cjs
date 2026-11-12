@@ -50,7 +50,8 @@ const { ok, done } = checks();
   await page.fill('dialog textarea', WEEK3 + '假鼓');
   const note = await page.textContent('#note-chars');
   ok(note.includes('新的 10 个'), 'week 3: 10 new characters');
-  ok(note.includes('已入库') && note.includes('假（第1周）') && note.includes('鼓（第2周）'), 'duplicates are named with the week they were learned in');
+  ok(note.includes('已入库') && note.includes('假') && note.includes('鼓') && !/第\d+周/.test(note), 'duplicates are named (no week in brackets) in');
+  { const vp = page.viewportSize(); await page.setViewportSize({ width: 320, height: 420 }); await page.waitForTimeout(150); const r = await page.$eval('dialog button.primary', (b) => { const x = b.getBoundingClientRect(); return { b: x.bottom, t: x.top }; }); ok(r.b <= 420 && r.t >= 0, 'on a small screen (320 x 420) the Cancel / Save buttons stay in view'); await page.setViewportSize(vp); }
   await page.click('dialog button.primary');
   await page.waitForSelector('#toasts .toast:has-text("已入库，已跳过")');   // (the toast of the previous save may still be on screen)
   const msg = await page.textContent('#toasts');

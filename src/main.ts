@@ -546,8 +546,7 @@ async function renderIdioms() {
   const switchBtn = !idiomWeek ? null : h("button", { class: "primary wide", id: "idiom-scope", onclick: () => { idiomAll = !idiomAll; void renderIdioms(); } }, only ? "全部成语" : "只看这一周");
   show(h("div", { class: "page", style: idiomColor ? `--kid:${idiomColor}` : "" },
     topBar("成语故事", backBtn(idiomFrom || "#/")),
-    count || idioms.pool?.length ? h("div", { class: "idiom-head" }, count ? head : null,
-      idioms.pool?.length ? h("p", { class: "muted small idiom-pool", id: "idiom-pool" }, `成语库：共 ${idioms.pool.length} 个，还没学过的 ${M.unusedIdioms(idioms).length} 个，有故事的 ${idioms.pool.filter((x) => idioms.stories?.[x]?.trim()).length} 个`) : null) : null,
+    count ? h("div", { class: "idiom-head" }, head) : null,
     h("main", { class: "scroll idiom-scroll" }, h("div", { class: "narrow" }, count ? list : empty)),
     switchBtn ? h("div", { class: "idiom-foot" }, switchBtn) : null));
   if (settings.pinyin) void fillPinyin(list);
@@ -1019,8 +1018,7 @@ async function enterDialog(k: M.Kid) {
   const note1 = h("div", { class: "note", id: "note-chars" });
   const save = h("button", { class: "primary" }, "保存");
   const weekStart = () => M.sundayOf(date.value || M.todayLocal());
-  const learnedText = (list: { item: string; start: string }[]) =>
-    list.map((x) => `${x.item}（第${M.weekNo(x.start, kidsFile.startWeek ?? weekStart())}周）`).join("、");
+  const learnedText = (list: { item: string; start: string }[]) => list.map((x) => x.item).join("");
   const refresh = () => {
     const start = weekStart();
     label.textContent = `这一周：第${M.weekNo(start, M.pickStartWeek(kidsFile.startWeek, start))}周，${start} 起`;
@@ -1040,7 +1038,7 @@ async function enterDialog(k: M.Kid) {
     return h("div", { class: "dlg wide-dlg" }, h("h2", {}, "录入这一周的内容"),
       h("label", {}, "这一周的第一天（周日）", date), label,
       h("label", {}, "汉字", chars), note1,
-      h("div", { class: "row end" }, h("button", { onclick: () => close(null) }, "取消"), save));
+      h("div", { class: "row end sticky" }, h("button", { onclick: () => close(null) }, "取消"), save));   // (sticky: on a small screen the buttons never scroll out of sight)
   });
   if (!ok) return; // cancelled: no message
   const start = weekStart();

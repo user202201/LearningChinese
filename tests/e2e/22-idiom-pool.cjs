@@ -142,8 +142,8 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
     await t6.page.click('#import-go'); await t6.page.waitForSelector('#toasts .toast:has-text("已导入")');
     const sv = await t6.page.evaluate(() => JSON.parse(localStorage.getItem('learn.local.idioms.json')));
     ok(Object.keys(sv.stories).length === 10 && sv.stories[IDIOMS[0]] === 'App 里自己写的故事' && sv.stories[IDIOMS[5]] === '表格里的故事5' && !sv.stories[IDIOMS[10]], 'saved: the sheet\'s stories are in the app (9 new), the one the app already had stays as it was, idioms without a story in the sheet get none');
-    await t6.page.evaluate(() => (location.hash = '#/idioms')); await t6.page.waitForSelector('#idiom-pool');
-    ok((await t6.page.textContent('#idiom-pool')).endsWith('有故事的 10 个'), 'the idiom page shows how many idioms of the library have a story: ' + (await t6.page.textContent('#idiom-pool')));
+    await t6.page.evaluate(() => (location.hash = '#/idioms')); await t6.page.waitForSelector('.idiom-scroll');
+    ok(await t6.page.locator('#idiom-pool').count() === 0, 'the idiom page has no library-count line under the title');
     // and the story can be edited in the app afterwards (the user's version wins from then on)
     await t6.page.evaluate((x) => (location.hash = '#/idiom/' + encodeURIComponent(x)), IDIOMS[5]); await t6.page.waitForSelector('#idiom-story');
     ok((await t6.page.textContent('#idiom-story')) === '表格里的故事5', 'the imported story is shown on the story page');
@@ -177,7 +177,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
 
   // the idiom page of the current week shows that week's six
   await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory'); await page.click('#idioms-btn'); await page.waitForSelector('.idiom-card');
-  ok((await page.textContent('#idiom-pool')) === '成语库：共 60 个，还没学过的 36 个，有故事的 0 个', 'the idiom page says what is in the library: 60 idioms, 36 not learned yet (so the saved library can be seen)');
+  ok(await page.locator('#idiom-pool').count() === 0, 'the idiom page has no library-count line (the library is still saved: ' + (await page.evaluate(() => JSON.parse(localStorage.getItem('learn.local.idioms.json')).pool.length)) + ' idioms)');
   ok((await page.$$eval('.idiom-card', (e) => e.map((x) => x.dataset.idiom))).join(',') === ticked.slice(12, 18).join(',') && (await page.textContent('.sec-row .sec')) === '成语（6）', 'the idiom page of this week (11-08) shows its six idioms: the third group of the sheet');
 
   // and NEXT week's page opens NEXT week's idioms (the fourth week), not only the "all idioms" list
@@ -193,8 +193,8 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   await page.evaluate(() => (location.hash = '#/'));            // (opening the home screen: the picking is done when the data is loaded)
   await page.waitForSelector('#toasts .toast:has-text("随机选好")');
   ok((await page.textContent('#toasts')).includes('已为下一周随机选好 6 个成语'), 'a week later, opening the app: "6 idioms picked at random for next week"');
-  await page.evaluate(() => (location.hash = '#/idioms')); await page.waitForSelector('#idiom-pool');
-  ok((await page.textContent('#idiom-pool')) === '成语库：共 60 个，还没学过的 30 个，有故事的 0 个', 'after the weekly pick the library line says 30 not learned yet');
+  await page.evaluate(() => (location.hash = '#/idioms')); await page.waitForSelector('.idiom-scroll');
+  ok(await page.locator('#idiom-pool').count() === 0, 'after the weekly pick the idiom page still shows no library-count line');
   await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid');
   const s2 = await store(page, 'idioms.json');
   const next = s2.weeks.find((w) => w.start === '2026-11-22');
@@ -211,7 +211,7 @@ const noChinese = (page, sel) => page.evaluate((s) => { const bad = []; const w 
   ok(w29.items.length === 6 && w29.items[0] === IDIOMS[40] && w29.items[1] === IDIOMS[41] && (await page.textContent('#toasts')).includes('随机选好 4 个'), 'next week with two idioms the user chose is topped up to six (4 picked), the two stay first');
 
   // ---------- idioms typed by hand: learned ones are refused, library ones are picked, new ones also join the library
-  await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory'); await page.click('#idioms-btn'); await page.waitForSelector('#idiom-pool');
+  await page.evaluate(() => (location.hash = '#/')); await page.waitForSelector('.kid'); await openKid(page, 'Dory'); await page.click('#idioms-btn'); await page.waitForSelector('.idiom-scroll');
   await page.click('#idiom-scope'); await page.waitForFunction(() => document.querySelectorAll('.idiom-card').length > 6);
   const before = await store(page, 'idioms.json');
   const unusedBefore = before.pool.filter((x) => !before.weeks.some((w) => w.items.includes(x)));

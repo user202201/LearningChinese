@@ -473,6 +473,9 @@ button.gear-btn svg.gear { width: 26px; height: 26px; display: block; margin: au
   .sp { box-shadow: none; margin: 0; }
   .story-note { display: none; }   /* (a little inside the page area: the right-hand border line must not be cut off) */
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* a phone that darkens web pages by itself must not darken the paper either: the printout is always black on white */
+  :root { color-scheme: only light; }
+  html, body { background-image: none !important; filter: none !important; forced-color-adjust: none; }
 }
 .story-count { text-align: right; margin: 6px 4px 0; font-weight: 700; }
 a.link { color: var(--accent-dark); font-weight: 700; }

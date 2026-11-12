@@ -18,6 +18,8 @@ const shot = async (scheme) => {
   }));
   await addKid(page, 'Dory'); await openKid(page, 'Dory');
   const kid = await page.screenshot();
+  await page.emulateMedia({ media: 'print' });
+  info.print = await page.evaluate(() => ({ scheme: getComputedStyle(document.documentElement).colorScheme, bg: getComputedStyle(document.body).backgroundColor, img: getComputedStyle(document.body).backgroundImage, filter: getComputedStyle(document.body).filter }));
   await browser.close();
   return { home, kid, info };
 };
@@ -25,6 +27,7 @@ const shot = async (scheme) => {
   const light = await shot('light'), dark = await shot('dark');
   ok(dark.info.dark === true && light.info.dark === false, 'the test phone really is in dark mode (prefers-color-scheme: dark) in the second run');
   ok(/only light/.test(dark.info.meta || '') && /(only light|light only)/.test(dark.info.scheme), 'the page declares "only light" to the browser (meta tag and CSS color-scheme: ' + dark.info.meta + ' / ' + dark.info.scheme + ')');
+  ok(/only light|light only/.test(dark.info.print.scheme) && dark.info.print.bg === 'rgb(255, 255, 255)' && dark.info.print.img === 'none' && dark.info.print.filter === 'none', 'printing from a phone in dark mode: the paper is white, no background picture, no filter, light only (' + JSON.stringify(dark.info.print) + ')');
   const css = fs.readFileSync(path.resolve(__dirname, '../../src/style.css'), 'utf8');
   ok(!/prefers-color-scheme\s*:\s*dark/.test(css) && !/color-scheme\s*:[^;]*dark/.test(css), 'no dark-mode rule in the style sheet (and none is planned: one look for everybody)');
   ok(dark.info.bg === light.info.bg && dark.info.text === light.info.text && dark.info.bgImg === light.info.bgImg, 'background and text colours are the same in dark mode (' + dark.info.bg + ' / ' + dark.info.text + ')');
